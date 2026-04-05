@@ -1,0 +1,1293 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:music/l10n/app_localizations.dart';
+
+import '../../../core/models/library_song.dart';
+import '../../../core/models/remote_entry.dart';
+import '../../../core/models/source_profile.dart';
+import '../../player/application/player_controller.dart';
+import '../application/library_catalog_controller.dart';
+import '../application/library_controller.dart';
+
+enum LibraryCollectionSection { favorites, liked, allSongs }
+
+extension LibraryCollectionSectionX on LibraryCollectionSection {
+  static LibraryCollectionSection fromRouteValue(String value) {
+    return switch (value) {
+      'favorites' => LibraryCollectionSection.favorites,
+      'liked' => LibraryCollectionSection.liked,
+      _ => LibraryCollectionSection.allSongs,
+    };
+  }
+
+  String get routeValue => switch (this) {
+    LibraryCollectionSection.favorites => 'favorites',
+    LibraryCollectionSection.liked => 'liked',
+    LibraryCollectionSection.allSongs => 'all',
+  };
+
+  String title(AppLocalizations l10n) => switch (this) {
+    LibraryCollectionSection.favorites => l10n.favoritesCollectionTitle,
+    LibraryCollectionSection.liked => l10n.likedCollectionTitle,
+    LibraryCollectionSection.allSongs => l10n.allSongsCollectionTitle,
+  };
+
+  String emptyTitle(AppLocalizations l10n) => switch (this) {
+    LibraryCollectionSection.favorites => l10n.favoritesEmptyTitle,
+    LibraryCollectionSection.liked => l10n.likedEmptyTitle,
+    LibraryCollectionSection.allSongs => l10n.allSongsEmptyTitle,
+  };
+
+  IconData get icon => switch (this) {
+    LibraryCollectionSection.favorites => Icons.bookmark_rounded,
+    LibraryCollectionSection.liked => Icons.favorite_rounded,
+    LibraryCollectionSection.allSongs => Icons.queue_music_rounded,
+  };
+}
+
+class LibraryPage extends ConsumerWidget {
+  const LibraryPage({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final libraryState = ref.watch(libraryControllerProvider);
+    final catalogState = ref.watch(libraryCatalogControllerProvider);
+
+    return Scaffold(
+      body: SafeArea(
+        child: libraryState.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => Center(child: Text(error.toString())),
+          data: (browser) {
+            return catalogState.when(
+              loading: () => _CollectionHomeBody(browser: browser),
+              error: (_, _) => _CollectionHomeBody(browser: browser),
+              data: (catalog) =>
+                  _CollectionHomeBody(browser: browser, catalog: catalog),
+            );
+          },
+        ),
+      ),
+      floatingActionButton: libraryState.valueOrNull?.hasSources == true
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => context.push('/settings/add-source'),
+              icon: const Icon(Icons.add_link_rounded),
+              label: Text(l10n.addSourceAction),
+            ),
+    );
+  }
+}
+
+class LibrarySongsPage extends ConsumerWidget {
+  const LibrarySongsPage({super.key, required this.section});
+
+  final LibraryCollectionSection section;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final catalogAsync = ref.watch(libraryCatalogControllerProvider);
+    final libraryAsync = ref.watch(libraryControllerProvider);
+
+    return Scaffold(
+      body: SafeArea(
+        child: catalogAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => Center(child: Text(error.toString())),
+          data: (catalog) {
+            final tracks = _tracksForSection(catalog);
+            final playerState = ref.watch(playerControllerProvider);
+            final hasSources = libraryAsync.valueOrNull?.hasSources ?? false;
+
+            return RefreshIndicator(
+              onRefresh: () {
+                return ref
+                    .read(libraryCatalogControllerProvider.notifier)
+                    .scanAllSources();
+              },
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+                      child: Container(
+                        padding: const EdgeInsets.all(28),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              colorScheme.primaryContainer,
+                              colorScheme.surfaceContainerHighest,
+                              colorScheme.secondaryContainer,
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(36),
+                          border: Border.all(
+                            color: colorScheme.outlineVariant.withValues(
+                              alpha: 0.45,
+                            ),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            IconButton.filledTonal(
+                              onPressed: () => context.pop(),
+                              icon: const Icon(Icons.arrow_back_rounded),
+                            ),
+                            const SizedBox(height: 20),
+                            Text(
+                              section.title(l10n),
+                              style: theme.textTheme.headlineMedium,
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              '${tracks.length} ${l10n.tracksLabel}',
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            if (catalog.isScanning) ...[
+                              const SizedBox(height: 18),
+                              LinearProgressIndicator(
+                                minHeight: 6,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                l10n.scanningProgress(
+                                  catalog.scannedDirectoryCount,
+                                  catalog.discoveredTrackCount,
+                                ),
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (!hasSources)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                        child: _LibraryEmptyState(
+                          onAddSource: () =>
+                              context.push('/settings/add-source'),
+                        ),
+                      ),
+                    )
+                  else if (tracks.isEmpty)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                        child: _TrackEmptyState(
+                          title: section.emptyTitle(l10n),
+                          description: catalog.hasScanResult
+                              ? l10n.collectionEmptyDescription
+                              : l10n.scanLibraryHint,
+                          actionLabel: l10n.scanLibraryAction,
+                          onPressed: () {
+                            ref
+                                .read(libraryCatalogControllerProvider.notifier)
+                                .scanAllSources();
+                          },
+                        ),
+                      ),
+                    )
+                  else
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                        child: Column(
+                          children: [
+                            for (
+                              var index = 0;
+                              index < tracks.length;
+                              index++
+                            ) ...[
+                              _SongTile(
+                                song: tracks[index],
+                                isFavorite: catalog.favoriteTrackIds.contains(
+                                  tracks[index].id,
+                                ),
+                                isLiked: catalog.likedTrackIds.contains(
+                                  tracks[index].id,
+                                ),
+                                isCurrentTrack:
+                                    playerState.currentTrack?.id ==
+                                    tracks[index].id,
+                                onFavorite: () {
+                                  ref
+                                      .read(
+                                        libraryCatalogControllerProvider
+                                            .notifier,
+                                      )
+                                      .toggleFavorite(tracks[index].id);
+                                },
+                                onLiked: () {
+                                  ref
+                                      .read(
+                                        libraryCatalogControllerProvider
+                                            .notifier,
+                                      )
+                                      .toggleLiked(tracks[index].id);
+                                },
+                                onTap: () {
+                                  ref
+                                      .read(playerControllerProvider.notifier)
+                                      .playLibrarySong(tracks[index]);
+                                },
+                              ),
+                              if (index != tracks.length - 1)
+                                const SizedBox(height: 10),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  List<LibrarySong> _tracksForSection(LibraryCatalogState catalog) {
+    return switch (section) {
+      LibraryCollectionSection.favorites => catalog.favoriteTracks,
+      LibraryCollectionSection.liked => catalog.likedTracks,
+      LibraryCollectionSection.allSongs => catalog.tracks,
+    };
+  }
+}
+
+class LibraryBrowserPage extends ConsumerWidget {
+  const LibraryBrowserPage({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final libraryState = ref.watch(libraryControllerProvider);
+
+    return Scaffold(
+      body: SafeArea(
+        child: libraryState.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => Center(child: Text(error.toString())),
+          data: (browser) {
+            if (!browser.hasSources) {
+              return Padding(
+                padding: const EdgeInsets.all(20),
+                child: _LibraryEmptyState(
+                  onAddSource: () => context.push('/settings/add-source'),
+                ),
+              );
+            }
+
+            return RefreshIndicator(
+              onRefresh: () {
+                return ref.read(libraryControllerProvider.notifier).refresh();
+              },
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+                      child: _BrowserHero(browser: browser),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                      child: _BrowserPanel(state: browser),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push('/settings/add-source'),
+        icon: const Icon(Icons.add_link_rounded),
+        label: Text(l10n.addSourceAction),
+      ),
+    );
+  }
+}
+
+class _CollectionHomeBody extends ConsumerWidget {
+  const _CollectionHomeBody({required this.browser, this.catalog});
+
+  final LibraryViewState browser;
+  final LibraryCatalogState? catalog;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    if (!browser.hasSources) {
+      return _LibraryEmptyState(
+        onAddSource: () => context.push('/settings/add-source'),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () {
+        return ref
+            .read(libraryCatalogControllerProvider.notifier)
+            .scanAllSources();
+      },
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(28),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          colorScheme.surfaceContainerHighest,
+                          colorScheme.surface,
+                          colorScheme.secondaryContainer,
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(36),
+                      border: Border.all(
+                        color: colorScheme.outlineVariant.withValues(
+                          alpha: 0.45,
+                        ),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    l10n.collectionHeadline,
+                                    style: theme.textTheme.headlineMedium,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    browser.sources.length > 1
+                                        ? l10n.collectionDescriptionAllSources(
+                                            browser.selectedSource?.name ?? '',
+                                            browser.sources.length,
+                                          )
+                                        : l10n.collectionDescription(
+                                            browser.selectedSource?.name ?? '',
+                                          ),
+                                    style: theme.textTheme.bodyLarge?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            FilledButton.icon(
+                              onPressed: () {
+                                ref
+                                    .read(
+                                      libraryCatalogControllerProvider.notifier,
+                                    )
+                                    .scanAllSources();
+                              },
+                              icon: Icon(
+                                catalog?.isScanning == true
+                                    ? Icons.sync_rounded
+                                    : Icons.radar_rounded,
+                              ),
+                              label: Text(
+                                catalog?.isScanning == true
+                                    ? l10n.scanningAction
+                                    : l10n.scanLibraryAction,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 22),
+                        SizedBox(
+                          height: 116,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: browser.sources.length + 1,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(width: 12),
+                            itemBuilder: (context, index) {
+                              if (index == browser.sources.length) {
+                                return _AddSourceCard(
+                                  onTap: () =>
+                                      context.push('/settings/add-source'),
+                                );
+                              }
+
+                              final source = browser.sources[index];
+                              return _SourceCard(
+                                source: source,
+                                isSelected:
+                                    source.id == browser.selectedSource?.id,
+                                onTap: () {
+                                  ref
+                                      .read(libraryControllerProvider.notifier)
+                                      .selectSource(source.id);
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                        if (catalog?.isScanning == true) ...[
+                          const SizedBox(height: 18),
+                          LinearProgressIndicator(
+                            minHeight: 6,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            l10n.scanningProgress(
+                              catalog!.scannedDirectoryCount,
+                              catalog!.discoveredTrackCount,
+                            ),
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          if ((catalog!.lastScanSourceName ?? '')
+                              .isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              l10n.currentScanSourceLabel(
+                                catalog!.lastScanSourceName!,
+                              ),
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      _CollectionStatCard(
+                        label: l10n.favoritesCollectionTitle,
+                        value: '${catalog?.favoriteTracks.length ?? 0}',
+                        icon: Icons.bookmark_rounded,
+                      ),
+                      _CollectionStatCard(
+                        label: l10n.likedCollectionTitle,
+                        value: '${catalog?.likedTracks.length ?? 0}',
+                        icon: Icons.favorite_rounded,
+                      ),
+                      _CollectionStatCard(
+                        label: l10n.allSongsCollectionTitle,
+                        value: '${catalog?.tracks.length ?? 0}',
+                        icon: Icons.queue_music_rounded,
+                      ),
+                      _CollectionStatCard(
+                        label: l10n.albumsTabLabel,
+                        value: '${catalog?.albums.length ?? 0}',
+                        icon: Icons.album_rounded,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+              child: Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(32),
+                  border: Border.all(color: colorScheme.outlineVariant),
+                ),
+                child: Column(
+                  children: [
+                    _CollectionEntryTile(
+                      icon: LibraryCollectionSection.allSongs.icon,
+                      title: l10n.allSongsCollectionTitle,
+                      subtitle:
+                          '${catalog?.tracks.length ?? 0} ${l10n.tracksLabel}',
+                      onTap: () => context.push('/collection/list/all'),
+                    ),
+                    const SizedBox(height: 12),
+                    _CollectionEntryTile(
+                      icon: LibraryCollectionSection.liked.icon,
+                      title: l10n.likedCollectionTitle,
+                      subtitle:
+                          '${catalog?.likedTracks.length ?? 0} ${l10n.tracksLabel}',
+                      onTap: () => context.push('/collection/list/liked'),
+                    ),
+                    const SizedBox(height: 12),
+                    _CollectionEntryTile(
+                      icon: LibraryCollectionSection.favorites.icon,
+                      title: l10n.favoritesCollectionTitle,
+                      subtitle:
+                          '${catalog?.favoriteTracks.length ?? 0} ${l10n.tracksLabel}',
+                      onTap: () => context.push('/collection/list/favorites'),
+                    ),
+                    const SizedBox(height: 12),
+                    _CollectionEntryTile(
+                      icon: Icons.folder_open_rounded,
+                      title: l10n.browserTitle,
+                      subtitle:
+                          browser.selectedSource?.name ??
+                          l10n.sourceManagementEmptySummary,
+                      onTap: () => context.push('/collection/browser'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BrowserHero extends ConsumerWidget {
+  const _BrowserHero({required this.browser});
+
+  final LibraryViewState browser;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colorScheme.primaryContainer,
+            colorScheme.surfaceContainerHighest,
+            colorScheme.secondaryContainer,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(36),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.45),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          IconButton.filledTonal(
+            onPressed: () => context.pop(),
+            icon: const Icon(Icons.arrow_back_rounded),
+          ),
+          const SizedBox(height: 20),
+          Text(l10n.browserTitle, style: theme.textTheme.headlineMedium),
+          const SizedBox(height: 10),
+          Text(
+            browser.selectedSource == null
+                ? l10n.sourceManagementEmptySummary
+                : l10n.collectionDescription(browser.selectedSource!.name),
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 22),
+          SizedBox(
+            height: 116,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: browser.sources.length + 1,
+              separatorBuilder: (_, _) => const SizedBox(width: 12),
+              itemBuilder: (context, index) {
+                if (index == browser.sources.length) {
+                  return _AddSourceCard(
+                    onTap: () => context.push('/settings/add-source'),
+                  );
+                }
+
+                final source = browser.sources[index];
+                return _SourceCard(
+                  source: source,
+                  isSelected: source.id == browser.selectedSource?.id,
+                  onTap: () {
+                    ref
+                        .read(libraryControllerProvider.notifier)
+                        .selectSource(source.id);
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CollectionEntryTile extends StatelessWidget {
+  const _CollectionEntryTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Material(
+      color: colorScheme.surface,
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Icon(icon, color: colorScheme.primary),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      subtitle,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CollectionStatCard extends StatelessWidget {
+  const _CollectionStatCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      width: 168,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: colorScheme.primary),
+          const SizedBox(height: 18),
+          Text(
+            value,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SongTile extends StatelessWidget {
+  const _SongTile({
+    required this.song,
+    required this.isFavorite,
+    required this.isLiked,
+    required this.isCurrentTrack,
+    required this.onFavorite,
+    required this.onLiked,
+    required this.onTap,
+  });
+
+  final LibrarySong song;
+  final bool isFavorite;
+  final bool isLiked;
+  final bool isCurrentTrack;
+  final VoidCallback onFavorite;
+  final VoidCallback onLiked;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Material(
+      color: isCurrentTrack
+          ? colorScheme.secondaryContainer
+          : colorScheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(28),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(28),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: colorScheme.surface,
+                foregroundColor: colorScheme.primary,
+                child: Icon(
+                  isCurrentTrack
+                      ? Icons.graphic_eq_rounded
+                      : Icons.music_note_rounded,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      song.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${song.artistName} · ${song.albumTitle} · ${song.sourceName}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: onFavorite,
+                icon: Icon(
+                  isFavorite
+                      ? Icons.bookmark_rounded
+                      : Icons.bookmark_border_rounded,
+                ),
+              ),
+              IconButton(
+                onPressed: onLiked,
+                icon: Icon(
+                  isLiked
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                ),
+              ),
+              IconButton.filledTonal(
+                onPressed: onTap,
+                icon: const Icon(Icons.play_arrow_rounded),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BrowserPanel extends ConsumerWidget {
+  const _BrowserPanel({required this.state});
+
+  final LibraryViewState state;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final controller = ref.read(libraryControllerProvider.notifier);
+    final playerState = ref.watch(playerControllerProvider);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l10n.browserTitle,
+                            style: theme.textTheme.headlineSmall,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${l10n.currentPathLabel}: ${state.displayPath}',
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: l10n.upAction,
+                      onPressed: state.canGoUp ? controller.goUp : null,
+                      icon: const Icon(Icons.arrow_upward_rounded),
+                    ),
+                    IconButton(
+                      tooltip: l10n.refreshAction,
+                      onPressed: controller.refresh,
+                      icon: const Icon(Icons.refresh_rounded),
+                    ),
+                  ],
+                ),
+                if (state.hasError || state.diagnostics != null) ...[
+                  const SizedBox(height: 16),
+                  _DiagnosticsCard(state: state),
+                ],
+                const SizedBox(height: 18),
+                if (state.entries.isEmpty)
+                  _TrackEmptyState(
+                    title: l10n.noFilesTitle,
+                    description: state.hasError
+                        ? state.errorMessage!
+                        : l10n.noFilesDescription,
+                    actionLabel: l10n.refreshAction,
+                    onPressed: controller.refresh,
+                  )
+                else
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: state.entries.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final entry = state.entries[index];
+                      final isCurrentTrack =
+                          playerState.currentTrack?.remotePath == entry.path &&
+                          playerState.currentTrack?.sourceId ==
+                              state.selectedSource?.id;
+                      return _EntryTile(
+                        entry: entry,
+                        isCurrentTrack: isCurrentTrack,
+                        onTap: () async {
+                          try {
+                            await controller.openEntry(entry);
+                          } catch (error) {
+                            if (!context.mounted) {
+                              return;
+                            }
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(error.toString())),
+                            );
+                          }
+
+                          if (!entry.isDirectory && !entry.isPlayable) {
+                            if (!context.mounted) {
+                              return;
+                            }
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(l10n.unsupportedFileMessage),
+                              ),
+                            );
+                          }
+                        },
+                      );
+                    },
+                  ),
+              ],
+            ),
+          ),
+          if (state.isLoading)
+            Positioned.fill(
+              child: ColoredBox(
+                color: colorScheme.surface.withValues(alpha: 0.75),
+                child: const Center(child: CircularProgressIndicator()),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DiagnosticsCard extends StatelessWidget {
+  const _DiagnosticsCard({required this.state});
+
+  final LibraryViewState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final diagnostics = state.diagnostics;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.browserDiagnosticsTitle,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (state.errorMessage != null)
+            Text(
+              state.errorMessage!,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.error,
+              ),
+            ),
+          if (diagnostics != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              '${diagnostics.protocolLabel} · ${diagnostics.requestedPath}',
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 10),
+            ...diagnostics.details.map(
+              (detail) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  detail,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _EntryTile extends StatelessWidget {
+  const _EntryTile({
+    required this.entry,
+    required this.isCurrentTrack,
+    required this.onTap,
+  });
+
+  final RemoteEntry entry;
+  final bool isCurrentTrack;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    final icon = switch (entry.kind) {
+      RemoteEntryKind.directory => Icons.folder_rounded,
+      RemoteEntryKind.audio =>
+        isCurrentTrack ? Icons.graphic_eq_rounded : Icons.music_note_rounded,
+      RemoteEntryKind.file => Icons.description_rounded,
+    };
+
+    return Material(
+      color: isCurrentTrack
+          ? colorScheme.secondaryContainer
+          : colorScheme.surface,
+      borderRadius: BorderRadius.circular(24),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+        leading: CircleAvatar(
+          backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
+          foregroundColor: colorScheme.primary,
+          child: Icon(icon),
+        ),
+        title: Text(entry.name),
+        subtitle: Text(entry.path),
+        trailing: Icon(
+          entry.isDirectory
+              ? Icons.chevron_right_rounded
+              : Icons.play_arrow_rounded,
+        ),
+        onTap: onTap,
+      ),
+    );
+  }
+}
+
+class _TrackEmptyState extends StatelessWidget {
+  const _TrackEmptyState({
+    required this.title,
+    required this.description,
+    required this.actionLabel,
+    required this.onPressed,
+  });
+
+  final String title;
+  final String description;
+  final String actionLabel;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: theme.textTheme.headlineSmall),
+          const SizedBox(height: 12),
+          Text(
+            description,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 20),
+          FilledButton(onPressed: onPressed, child: Text(actionLabel)),
+        ],
+      ),
+    );
+  }
+}
+
+class _LibraryEmptyState extends StatelessWidget {
+  const _LibraryEmptyState({required this.onAddSource});
+
+  final VoidCallback onAddSource;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return _TrackEmptyState(
+      title: l10n.libraryEmptyTitle,
+      description: l10n.libraryEmptyDescription,
+      actionLabel: l10n.addSourceAction,
+      onPressed: onAddSource,
+    );
+  }
+}
+
+class _SourceCard extends StatelessWidget {
+  const _SourceCard({
+    required this.source,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final SourceProfile source;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Material(
+      color: isSelected
+          ? colorScheme.secondaryContainer
+          : colorScheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(28),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(28),
+        onTap: onTap,
+        child: SizedBox(
+          width: 220,
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: colorScheme.surface,
+                      foregroundColor: colorScheme.primary,
+                      child: const Icon(Icons.cloud_circle_rounded),
+                    ),
+                    const Spacer(),
+                    if (isSelected)
+                      Icon(
+                        Icons.check_circle_rounded,
+                        color: colorScheme.primary,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  source.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  source.hostLabel,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AddSourceCard extends StatelessWidget {
+  const _AddSourceCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Material(
+      color: colorScheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(28),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(28),
+        onTap: onTap,
+        child: SizedBox(
+          width: 168,
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircleAvatar(
+                  backgroundColor: colorScheme.primaryContainer,
+                  foregroundColor: colorScheme.primary,
+                  radius: 24,
+                  child: const Icon(Icons.add_link_rounded),
+                ),
+                const SizedBox(height: 16),
+                Text(l10n.addSourceAction, textAlign: TextAlign.center),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

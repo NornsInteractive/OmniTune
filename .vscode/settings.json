@@ -1,0 +1,15 @@
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "Dart-Code.dart-code",
+  "dart.lineLength": 120,
+  "github.copilot.chat.codeGeneration.instructions": [
+    {
+      "text": "This is a Flutter cross-platform music player supporting Windows/Android/iOS/macOS/Linux/Web/AndroidTV. Use Riverpod for state management, go_router for navigation, Isar for database, just_audio for playback. All UI strings must use AppLocalizations (l10n). All colors must use colorScheme. Never hardcode strings or colors. Use flutter_secure_storage for credentials. See SKILL.md and .github/copilot-instructions.md for full rules."
+    }
+  ],
+  "github.copilot.chat.testGeneration.instructions": [
+    {
+      "text": "Use flutter_test and mocktail for testing. Test files go in test/ mirroring the lib/ structure. Mock all network calls. For MusicSource implementations, always test connect/disconnect/listFiles/getStreamUri. For scrapers, mock HTTP responses."
+    }
+  ]
+}

@@ -1,0 +1,289 @@
+{
+  "@@locale": "en",
+  "appTitle": "Flux Music",
+  "albumsTabLabel": "Albums",
+  "collectionTabLabel": "Collection",
+  "settingsTabLabel": "Settings",
+  "settingsPageTitle": "Settings",
+  "openSettingsAction": "Open settings",
+  "settingsCenterHeadline": "Tune the app your way",
+  "settingsCenterDescription": "Adjust appearance, language, sources, cache behavior, and playback preferences from one control center.",
+  "appearanceSettingsTitle": "Appearance",
+  "librarySettingsTitle": "Library and sources",
+  "languageSettingTitle": "Language",
+  "themeSettingTitle": "Theme",
+  "interfaceSizeSettingTitle": "Interface size",
+  "fontSizeSettingTitle": "Font size",
+  "interfaceScaleSummary": "{percent}% component size",
+  "@interfaceScaleSummary": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "fontScaleSummary": "{percent}% text size",
+  "@fontScaleSummary": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "interfaceSizeDialogDescription": "Drag to enlarge or shrink cards, buttons, spacing, and overall interface density.",
+  "fontSizeDialogDescription": "Drag to adjust text size across the whole app.",
+  "scalePercentLabel": "{percent}%",
+  "@scalePercentLabel": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "scaleRangeLabel": "Range: {min}% - {max}%",
+  "@scaleRangeLabel": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "sourceManagementSettingTitle": "Music sources",
+  "sourceManagementDialogDescription": "Choose the source used by remote browsing, keep adding more sources, and scan every saved source into one shared library.",
+  "sourceManagementEmptyTitle": "No music sources yet",
+  "sourceManagementEmptySummary": "Add a music source to start browsing and scanning your library.",
+  "sourceManagementSummary": "Browser: {sourceName} · {count} saved",
+  "@sourceManagementSummary": {
+    "placeholders": {
+      "sourceName": {},
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "savedSourcesCountLabel": "{count} sources",
+  "@savedSourcesCountLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "languageOptionSystem": "Follow system",
+  "languageOptionEnglish": "English",
+  "languageOptionChinese": "Chinese",
+  "themeOptionSystem": "Follow system",
+  "themeOptionLight": "Light",
+  "themeOptionDark": "Dark",
+  "interfaceSizeOptionCompact": "Compact",
+  "interfaceSizeOptionStandard": "Standard",
+  "interfaceSizeOptionComfortable": "Comfortable",
+  "fontSizeOptionSmall": "Small",
+  "fontSizeOptionStandard": "Standard",
+  "fontSizeOptionLarge": "Large",
+  "fontSizeOptionExtraLarge": "Extra large",
+  "libraryTitle": "Library",
+  "addSourceAction": "Add source",
+  "playerTitle": "Now playing",
+  "savedSourcesTitle": "Saved sources",
+  "settingsHeadline": "Sources and scan settings",
+  "settingsDescription": "Add remote music sources, switch the active library, and start a fresh scan for albums and songs.",
+  "playbackCacheTitle": "Playback cache",
+  "playbackCacheDescription": "Start playback immediately from the remote stream, then keep caching in the background for future replays.",
+  "persistentPlaybackCacheLabel": "Prefer local file cache",
+  "persistentPlaybackCacheDescription": "When enabled, fully cached tracks are also saved to local disk and replayed from the local cache first.",
+  "memoryCacheTrackLimitLabel": "Memory cache track limit",
+  "memoryCacheTrackLimitDescription": "The app keeps the most recently played tracks and byte ranges in memory so repeated playback can reuse cached data before falling back to the network.",
+  "cacheSettingsEntryTitle": "Cache settings",
+  "cacheStorageModeLocal": "Local file cache",
+  "cacheStorageModeMemory": "Memory cache only",
+  "cacheSettingsSummary": "{storageMode} · {count} in memory",
+  "@cacheSettingsSummary": {
+    "placeholders": {
+      "storageMode": {},
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "clearCachedFilesTitle": "Manage cached files",
+  "clearCachedFilesDescription": "Open the cache list and remove selected tracks or clear everything.",
+  "clearCachedFilesConfirmDescription": "This removes every cached track and byte range stored by the app.",
+  "clearCacheAction": "Clear cache",
+  "cacheClearedMessage": "Cached files were cleared.",
+  "cachedTracksDialogDescription": "Select cached tracks and remove only the ones you no longer want to keep.",
+  "cachedTracksEmptyTitle": "No cached tracks yet",
+  "cachedTracksEmptyDescription": "Play music first and cached tracks will appear here.",
+  "selectedCacheCountLabel": "{count} selected",
+  "@selectedCacheCountLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cacheUnknownSourceLabel": "Unknown source",
+  "cacheCoverageLabel": "{percent}% cached",
+  "@cacheCoverageLabel": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "cacheCoverageUnknownLabel": "Cached data available",
+  "cacheModeHybridLabel": "Memory + local file",
+  "cacheModeLocalLabel": "Local file",
+  "cacheModeMemoryLabel": "Memory only",
+  "deleteSelectedCacheAction": "Delete selected",
+  "selectedCacheDeletedMessage": "Deleted {count} cached tracks.",
+  "@selectedCacheDeletedMessage": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "selectAllAction": "Select all",
+  "clearSelectionAction": "Clear selection",
+  "memoryCacheTrackLimitValue": "{count} tracks",
+  "@memoryCacheTrackLimitValue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "architectureReadyTitle": "Production-ready source framework",
+  "architectureReadyDescription": "The app is already structured for WebDAV today, while keeping the source registry, playback pipeline, and scraper chain ready for SFTP, cloud drives, and metadata enrichment.",
+  "webdavProtocol": "WebDAV",
+  "sftpProtocol": "SFTP",
+  "cloudDriveProtocol": "Cloud drive",
+  "scraperPipelineLabel": "Scraper pipeline",
+  "scanLibraryAction": "Scan library",
+  "scanningAction": "Scanning",
+  "scanNotStartedLabel": "Not scanned yet",
+  "scanReadyLabel": "Scan available",
+  "scanningProgress": "Scanned {directories} folders and found {tracks} tracks",
+  "@scanningProgress": {
+    "placeholders": {
+      "directories": {
+        "type": "int"
+      },
+      "tracks": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryEmptyTitle": "Connect your first music source",
+  "libraryEmptyDescription": "Add a WebDAV source to browse remote folders, list music files, and start playback from the same library interface.",
+  "albumsHeadline": "Albums",
+  "albumsDescription": "Scan your active source to build an album wall from the remote music library.",
+  "albumsDescriptionAllSources": "Albums collected from all {count} saved sources.",
+  "@albumsDescriptionAllSources": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "albumsDescriptionWithSource": "Albums collected from {sourceName}",
+  "@albumsDescriptionWithSource": {
+    "placeholders": {
+      "sourceName": {}
+    }
+  },
+  "albumsEmptyTitle": "No albums yet",
+  "albumsEmptyDescription": "Run a scan to collect albums from your remote music source.",
+  "tracksLabel": "tracks",
+  "collectionHeadline": "Your music library",
+  "collectionDescription": "Browse {sourceName}, scan all songs, and jump between favorites, liked songs, and the raw remote folders.",
+  "@collectionDescription": {
+    "placeholders": {
+      "sourceName": {}
+    }
+  },
+  "collectionDescriptionAllSources": "Browse {browserSourceName} and show scanned songs from all {sourceCount} saved sources in one library.",
+  "@collectionDescriptionAllSources": {
+    "placeholders": {
+      "browserSourceName": {},
+      "sourceCount": {
+        "type": "int"
+      }
+    }
+  },
+  "currentScanSourceLabel": "Scanning source: {sourceName}",
+  "@currentScanSourceLabel": {
+    "placeholders": {
+      "sourceName": {}
+    }
+  },
+  "favoritesCollectionTitle": "Favorites",
+  "likedCollectionTitle": "Liked",
+  "allSongsCollectionTitle": "All songs",
+  "favoritesEmptyTitle": "No favorites yet",
+  "likedEmptyTitle": "No liked songs yet",
+  "allSongsEmptyTitle": "No scanned songs yet",
+  "collectionEmptyDescription": "This section is empty right now. Pick songs you love or run another scan.",
+  "scanLibraryHint": "Run a scan to index every music file from all saved sources into albums and song collections.",
+  "browserTitle": "Remote browser",
+  "currentPathLabel": "Current path",
+  "upAction": "Up",
+  "refreshAction": "Refresh",
+  "noFilesTitle": "This folder is empty",
+  "noFilesDescription": "Try a different path or refresh the current directory.",
+  "browserDiagnosticsTitle": "Browser diagnostics",
+  "unsupportedFileMessage": "This file can be listed, but it is not playable yet.",
+  "loadFailedMessage": "Unable to load the current source.",
+  "retryAction": "Retry",
+  "playerEmptyTitle": "No track selected",
+  "playerEmptyDescription": "Choose a music file from your source browser to start playback.",
+  "lyricsEmptyLabel": "No synced lyrics were found for this track yet.",
+  "playAction": "Play",
+  "pauseAction": "Pause",
+  "stopAction": "Stop",
+  "openPlayerAction": "Open player",
+  "settingsAddSourceTitle": "Add source",
+  "settingsEditSourceTitle": "Edit source",
+  "sourceNameLabel": "Source name",
+  "sourceNameHint": "My NAS library",
+  "serverUrlLabel": "Server URL",
+  "serverUrlHint": "https://dav.example.com/remote.php/dav/files/user/",
+  "usernameLabel": "Username",
+  "passwordLabel": "Password or app token",
+  "rootPathLabel": "Root path",
+  "rootPathHint": "/Music/",
+  "rootPathHelpText": "If the server URL already points to the target folder, keep this as '/'.",
+  "scanDirectoriesTitle": "Scan directories",
+  "scanDirectoriesDescription": "Add multiple directories to scan. If left empty, scanning starts from the source root by default.",
+  "scanDirectoriesDefaultRootDescription": "No scan directories are configured yet, so this source will scan from its root directory.",
+  "addScanDirectoryAction": "Add scan directory",
+  "addScanDirectoryDialogTitle": "Add scan directory",
+  "scanDirectoriesDialogDescription": "Enter a directory path relative to the current source root, such as /Jazz/ or /Live/Concerts/.",
+  "excludedScanDirectoriesTitle": "Excluded directories",
+  "excludedScanDirectoriesDescription": "Directories listed here are skipped during scanning. You can add more than one.",
+  "excludedScanDirectoriesEmptyDescription": "No excluded directories yet, so every subdirectory under the source root will be scanned.",
+  "addExcludedScanDirectoryAction": "Add excluded directory",
+  "addExcludedScanDirectoryDialogTitle": "Add excluded directory",
+  "excludedScanDirectoriesDialogDescription": "Enter a directory path to skip, such as /Temp/ or /Podcasts/.",
+  "directoryPathLabel": "Directory path",
+  "directoryPathHint": "/Albums/",
+  "directoryPathHelpText": "Directory paths are applied relative to the current source root. Start them with '/'.",
+  "testConnectionAction": "Test connection",
+  "saveSourceAction": "Save source",
+  "saveSourceChangesAction": "Save changes",
+  "editSourceAction": "Edit source",
+  "requiredFieldError": "This field is required.",
+  "invalidUrlError": "Enter a valid server URL.",
+  "connectionTestSuccess": "Connection succeeded.",
+  "sourceSavedSuccess": "Source saved successfully.",
+  "sourceUpdatedSuccess": "Source settings updated.",
+  "sourceNotFoundMessage": "The source you tried to edit could not be found.",
+  "connectionFailedMessage": "Connection failed. Check your WebDAV address and credentials.",
+  "playbackFailedMessage": "Playback could not be started for this file.",
+  "folderAlbumsModeLabel": "By folder",
+  "scrapedAlbumsModeLabel": "By scraped data"
+}
