@@ -546,4 +546,43 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scrapedAlbumsModeLabel => '按刮削分类';
+
+  @override
+  String get songDetailsTitle => '歌曲详情';
+
+  @override
+  String get filePathLabel => '文件路径';
+
+  @override
+  String get sourceLabel => '音源';
+
+  @override
+  String get artistLabel => '艺术家';
+
+  @override
+  String get albumLabel => '专辑';
+
+  @override
+  String get addToFavoritesAction => '添加到收藏';
+
+  @override
+  String get removeFromFavoritesAction => '从收藏移除';
+
+  @override
+  String get addToLikedAction => '标记为喜欢';
+
+  @override
+  String get removeFromLikedAction => '取消喜欢';
+
+  @override
+  String get moreOptionsAction => '更多选项';
+
+  @override
+  String get debugSettingsTitle => '开发者';
+
+  @override
+  String get debugModeLabel => '调试模式';
+
+  @override
+  String get debugModeDescription => '异常发生时显示错误对话框';
 }

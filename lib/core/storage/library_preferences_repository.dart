@@ -19,6 +19,7 @@ class LibraryPreferences {
     this.localePreference = AppLocalePreference.system,
     this.interfaceScaleFactor = AppDisplayPreferences.defaultInterfaceScale,
     this.fontScaleFactor = AppDisplayPreferences.defaultFontScale,
+    this.enableDebugMode = false,
   });
 
   final Set<String> favoriteTrackIds;
@@ -29,6 +30,7 @@ class LibraryPreferences {
   final AppLocalePreference localePreference;
   final double interfaceScaleFactor;
   final double fontScaleFactor;
+  final bool enableDebugMode;
 
   PlaybackCacheSettings get playbackCacheSettings {
     return PlaybackCacheSettings(
@@ -46,22 +48,20 @@ class LibraryPreferences {
     AppLocalePreference? localePreference,
     double? interfaceScaleFactor,
     double? fontScaleFactor,
+    bool? enableDebugMode,
   }) {
     return LibraryPreferences(
       favoriteTrackIds: favoriteTrackIds ?? this.favoriteTrackIds,
       likedTrackIds: likedTrackIds ?? this.likedTrackIds,
-      enablePersistentPlaybackCache:
-          enablePersistentPlaybackCache ?? this.enablePersistentPlaybackCache,
-      memoryPlaybackCacheTrackLimit:
-          memoryPlaybackCacheTrackLimit ?? this.memoryPlaybackCacheTrackLimit,
+      enablePersistentPlaybackCache: enablePersistentPlaybackCache ?? this.enablePersistentPlaybackCache,
+      memoryPlaybackCacheTrackLimit: memoryPlaybackCacheTrackLimit ?? this.memoryPlaybackCacheTrackLimit,
       themePreference: themePreference ?? this.themePreference,
       localePreference: localePreference ?? this.localePreference,
       interfaceScaleFactor: AppDisplayPreferences.normalizeInterfaceScale(
         interfaceScaleFactor ?? this.interfaceScaleFactor,
       ),
-      fontScaleFactor: AppDisplayPreferences.normalizeFontScale(
-        fontScaleFactor ?? this.fontScaleFactor,
-      ),
+      fontScaleFactor: AppDisplayPreferences.normalizeFontScale(fontScaleFactor ?? this.fontScaleFactor),
+      enableDebugMode: enableDebugMode ?? this.enableDebugMode,
     );
   }
 }
@@ -72,8 +72,7 @@ abstract class LibraryPreferencesRepository {
   Future<void> save(LibraryPreferences preferences);
 }
 
-class SecureLibraryPreferencesRepository
-    implements LibraryPreferencesRepository {
+class SecureLibraryPreferencesRepository implements LibraryPreferencesRepository {
   SecureLibraryPreferencesRepository(this._storage);
 
   static const _key = 'library_preferences_v1';
@@ -89,28 +88,17 @@ class SecureLibraryPreferencesRepository
 
     final json = jsonDecode(raw) as Map<String, dynamic>;
     return LibraryPreferences(
-      favoriteTrackIds: (json['favoriteTrackIds'] as List<dynamic>? ?? const [])
-          .cast<String>()
-          .toSet(),
-      likedTrackIds: (json['likedTrackIds'] as List<dynamic>? ?? const [])
-          .cast<String>()
-          .toSet(),
-      enablePersistentPlaybackCache:
-          json['enablePersistentPlaybackCache'] as bool? ?? false,
-      memoryPlaybackCacheTrackLimit:
-          json['memoryPlaybackCacheTrackLimit'] as int? ?? 3,
-      themePreference: AppDisplayPreferences.themePreferenceFromStorage(
-        json['themePreference'] as String?,
-      ),
-      localePreference: AppDisplayPreferences.localePreferenceFromStorage(
-        json['localePreference'] as String?,
-      ),
+      favoriteTrackIds: (json['favoriteTrackIds'] as List<dynamic>? ?? const []).cast<String>().toSet(),
+      likedTrackIds: (json['likedTrackIds'] as List<dynamic>? ?? const []).cast<String>().toSet(),
+      enablePersistentPlaybackCache: json['enablePersistentPlaybackCache'] as bool? ?? false,
+      memoryPlaybackCacheTrackLimit: json['memoryPlaybackCacheTrackLimit'] as int? ?? 3,
+      themePreference: AppDisplayPreferences.themePreferenceFromStorage(json['themePreference'] as String?),
+      localePreference: AppDisplayPreferences.localePreferenceFromStorage(json['localePreference'] as String?),
       interfaceScaleFactor: AppDisplayPreferences.interfaceScaleFromStorage(
         json['interfaceScaleFactor'] ?? json['interfaceDensity'],
       ),
-      fontScaleFactor: AppDisplayPreferences.fontScaleFromStorage(
-        json['fontScaleFactor'] ?? json['fontScale'],
-      ),
+      fontScaleFactor: AppDisplayPreferences.fontScaleFromStorage(json['fontScaleFactor'] ?? json['fontScale']),
+      enableDebugMode: json['enableDebugMode'] as bool? ?? false,
     );
   }
 
@@ -120,18 +108,13 @@ class SecureLibraryPreferencesRepository
     final raw = jsonEncode({
       'favoriteTrackIds': preferences.favoriteTrackIds.toList()..sort(),
       'likedTrackIds': preferences.likedTrackIds.toList()..sort(),
-      'enablePersistentPlaybackCache':
-          normalizedCacheSettings.enablePersistentCache,
-      'memoryPlaybackCacheTrackLimit':
-          normalizedCacheSettings.memoryCacheTrackLimit,
+      'enablePersistentPlaybackCache': normalizedCacheSettings.enablePersistentCache,
+      'memoryPlaybackCacheTrackLimit': normalizedCacheSettings.memoryCacheTrackLimit,
       'themePreference': preferences.themePreference.name,
       'localePreference': preferences.localePreference.name,
-      'interfaceScaleFactor': AppDisplayPreferences.normalizeInterfaceScale(
-        preferences.interfaceScaleFactor,
-      ),
-      'fontScaleFactor': AppDisplayPreferences.normalizeFontScale(
-        preferences.fontScaleFactor,
-      ),
+      'interfaceScaleFactor': AppDisplayPreferences.normalizeInterfaceScale(preferences.interfaceScaleFactor),
+      'fontScaleFactor': AppDisplayPreferences.normalizeFontScale(preferences.fontScaleFactor),
+      'enableDebugMode': preferences.enableDebugMode,
     });
     return _storage.write(key: _key, value: raw);
   }

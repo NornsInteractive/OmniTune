@@ -40,14 +40,10 @@ class LibrarySong {
   final DateTime? modifiedAt;
 
   String get metadataAlbumTitle =>
-      (scrapedAlbumTitle?.trim().isNotEmpty ?? false)
-      ? scrapedAlbumTitle!.trim()
-      : albumTitle;
+      (scrapedAlbumTitle?.trim().isNotEmpty ?? false) ? scrapedAlbumTitle!.trim() : albumTitle;
 
   String get metadataArtistName =>
-      (scrapedArtistName?.trim().isNotEmpty ?? false)
-      ? scrapedArtistName!.trim()
-      : artistName;
+      (scrapedArtistName?.trim().isNotEmpty ?? false) ? scrapedArtistName!.trim() : artistName;
 
   String get lyricsPath {
     final withoutExtension = p.posix.withoutExtension(remotePath);
@@ -63,6 +59,50 @@ class LibrarySong {
       mimeType: mimeType,
       size: size,
       modifiedAt: modifiedAt,
+    );
+  }
+
+  /// 转换为 JSON 用于存储
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'sourceId': sourceId,
+      'sourceName': sourceName,
+      'title': title,
+      'fileName': fileName,
+      'remotePath': remotePath,
+      'albumTitle': albumTitle,
+      'artistName': artistName,
+      'directoryPath': directoryPath,
+      'folderAlbumTitle': folderAlbumTitle,
+      'folderArtistName': folderArtistName,
+      'scrapedAlbumTitle': scrapedAlbumTitle,
+      'scrapedArtistName': scrapedArtistName,
+      'mimeType': mimeType,
+      'size': size,
+      'modifiedAt': modifiedAt?.toIso8601String(),
+    };
+  }
+
+  /// 从 JSON 恢复
+  factory LibrarySong.fromJson(Map<String, dynamic> json) {
+    return LibrarySong(
+      id: json['id'] as String,
+      sourceId: json['sourceId'] as String,
+      sourceName: json['sourceName'] as String,
+      title: json['title'] as String,
+      fileName: json['fileName'] as String,
+      remotePath: json['remotePath'] as String,
+      albumTitle: json['albumTitle'] as String,
+      artistName: json['artistName'] as String,
+      directoryPath: json['directoryPath'] as String,
+      folderAlbumTitle: json['folderAlbumTitle'] as String,
+      folderArtistName: json['folderArtistName'] as String,
+      scrapedAlbumTitle: json['scrapedAlbumTitle'] as String?,
+      scrapedArtistName: json['scrapedArtistName'] as String?,
+      mimeType: json['mimeType'] as String?,
+      size: json['size'] as int?,
+      modifiedAt: json['modifiedAt'] != null ? DateTime.parse(json['modifiedAt'] as String) : null,
     );
   }
 }

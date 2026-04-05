@@ -25,10 +25,7 @@ class LyricLine {
 }
 
 class CacheProgressSegment {
-  const CacheProgressSegment({
-    required this.startFraction,
-    required this.endFraction,
-  });
+  const CacheProgressSegment({required this.startFraction, required this.endFraction});
 
   final double startFraction;
   final double endFraction;
@@ -59,9 +56,7 @@ class PlayerViewState {
 
   bool get hasTrack => currentTrack != null;
 
-  bool get isBusy =>
-      processingState == ProcessingState.loading ||
-      processingState == ProcessingState.buffering;
+  bool get isBusy => processingState == ProcessingState.loading || processingState == ProcessingState.buffering;
 
   int get activeLyricIndex {
     if (lyrics.isEmpty) {
@@ -133,10 +128,7 @@ class PlayerController extends _$PlayerController {
     return PlayerViewState.fromService(_service);
   }
 
-  Future<void> playEntry({
-    required SourceProfile profile,
-    required RemoteEntry entry,
-  }) async {
+  Future<void> playEntry({required SourceProfile profile, required RemoteEntry entry}) async {
     try {
       await _playRemoteEntry(profile: profile, entry: entry);
     } catch (error) {
@@ -173,9 +165,7 @@ class PlayerController extends _$PlayerController {
     _positionSubscription ??= _service.positionStream.listen((_) {
       _syncState();
     });
-    _bufferedPositionSubscription ??= _service.bufferedPositionStream.listen((
-      _,
-    ) {
+    _bufferedPositionSubscription ??= _service.bufferedPositionStream.listen((_) {
       _syncState();
     });
     _durationSubscription ??= _service.durationStream.listen((_) {
@@ -210,23 +200,26 @@ class PlayerController extends _$PlayerController {
     _cacheSubscription?.cancel();
   }
 
-  Future<void> _playRemoteEntry({
-    required SourceProfile profile,
-    required RemoteEntry entry,
-  }) async {
-    final source = await ref
-        .read(musicSourceSessionManagerProvider)
-        .get(profile);
-    final track = await source.buildPlayableTrack(entry);
-    _lyrics = await _loadLyrics(source, entry.path);
+  Future<void> _playRemoteEntry({required SourceProfile profile, required RemoteEntry entry}) async {
+    final source = await ref.read(musicSourceSessionManagerProvider).get(profile);
+
+    // 快速启动播放：并行加载歌词和构建音轨
+    final lyricsFuture = _loadLyrics(source, entry.path);
+    final trackFuture = source.buildPlayableTrack(entry);
+
+    // 等待音轨准备就绪
+    final track = await trackFuture;
+
+    // 立即播放，不等待歌词加载
     await _service.playTrack(track);
+    _syncState();
+
+    // 在后台加载歌词
+    _lyrics = await lyricsFuture;
     _syncState();
   }
 
-  Future<List<LyricLine>> _loadLyrics(
-    MusicSource source,
-    String remotePath,
-  ) async {
+  Future<List<LyricLine>> _loadLyrics(MusicSource source, String remotePath) async {
     try {
       final lyricPath = '${p.posix.withoutExtension(remotePath)}.lrc';
       final raw = await source.readTextFile(lyricPath);
@@ -253,11 +246,7 @@ class PlayerController extends _$PlayerController {
           };
           result.add(
             LyricLine(
-              time: Duration(
-                minutes: minutes,
-                seconds: seconds,
-                milliseconds: milliseconds,
-              ),
+              time: Duration(minutes: minutes, seconds: seconds, milliseconds: milliseconds),
               text: text.isEmpty ? '...' : text,
             ),
           );

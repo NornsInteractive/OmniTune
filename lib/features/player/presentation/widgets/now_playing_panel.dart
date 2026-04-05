@@ -38,23 +38,13 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.queue_music_rounded,
-                size: widget.compact ? 56 : 84,
-                color: colorScheme.primary,
-              ),
+              Icon(Icons.queue_music_rounded, size: widget.compact ? 56 : 84, color: colorScheme.primary),
               const SizedBox(height: 18),
-              Text(
-                l10n.playerEmptyTitle,
-                style: theme.textTheme.headlineSmall,
-                textAlign: TextAlign.center,
-              ),
+              Text(l10n.playerEmptyTitle, style: theme.textTheme.headlineSmall, textAlign: TextAlign.center),
               const SizedBox(height: 10),
               Text(
                 l10n.playerEmptyDescription,
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                style: theme.textTheme.bodyLarge?.copyWith(color: colorScheme.onSurfaceVariant),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -64,13 +54,22 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
     }
 
     final currentTrack = playerState.currentTrack!;
-    final duration = playerState.duration ?? Duration.zero;
-    final maxPosition = duration.inMilliseconds <= 0
-        ? 1.0
-        : duration.inMilliseconds.toDouble();
+
+    // 获取持续时间：首先尝试从播放器，否则使用空值
+    final duration = playerState.duration;
+
+    // 计算最大位置：用于进度条计算
+    // 如果没有持续时间，假设是缓冲中，允许显示任何进度值
+    final maxPosition = duration != null && duration.inMilliseconds > 0
+        ? duration.inMilliseconds.toDouble()
+        : double.infinity; // 允许任何位置值
+
     final positionValue =
         _dragValue ??
-        playerState.position.inMilliseconds.toDouble().clamp(0.0, maxPosition);
+        playerState.position.inMilliseconds.toDouble().clamp(
+          0.0,
+          duration != null && duration.inMilliseconds > 0 ? duration.inMilliseconds.toDouble() : double.infinity,
+        );
     final subtitle = [
       currentTrack.artistName,
       currentTrack.albumTitle,
@@ -93,18 +92,14 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
           children: [
             Text(
               currentTrack.title,
-              style: theme.textTheme.displaySmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: theme.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w700),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 10),
             Text(
               subtitle,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
+              style: theme.textTheme.bodyLarge?.copyWith(color: colorScheme.onSurfaceVariant),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -113,7 +108,7 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
               value: positionValue,
               max: maxPosition,
               cacheSegments: playerState.cacheSegments,
-              enabled: duration != Duration.zero,
+              enabled: duration != null && duration.inMilliseconds > 0,
               onChanged: (value) {
                 setState(() {
                   _dragValue = value;
@@ -128,10 +123,7 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(_formatDuration(playerState.position)),
-                Text(_formatDuration(duration)),
-              ],
+              children: [Text(_formatDuration(playerState.position)), Text(_formatDuration(duration ?? Duration.zero))],
             ),
             const SizedBox(height: 22),
             Row(
@@ -144,15 +136,9 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
                 ),
                 const SizedBox(width: 16),
                 IconButton.filled(
-                  tooltip: playerState.isPlaying
-                      ? l10n.pauseAction
-                      : l10n.playAction,
+                  tooltip: playerState.isPlaying ? l10n.pauseAction : l10n.playAction,
                   onPressed: controller.togglePlayPause,
-                  icon: Icon(
-                    playerState.isPlaying
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded,
-                  ),
+                  icon: Icon(playerState.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded),
                 ),
               ],
             ),
@@ -172,10 +158,7 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [
-                colorScheme.surfaceContainerHighest,
-                colorScheme.surface,
-              ],
+              colors: [colorScheme.surfaceContainerHighest, colorScheme.surface],
             ),
           ),
           child: SafeArea(
@@ -210,10 +193,7 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
     final hours = totalSeconds ~/ 3600;
 
     if (hours > 0) {
-      final remainingMinutes = ((totalSeconds % 3600) ~/ 60).toString().padLeft(
-        2,
-        '0',
-      );
+      final remainingMinutes = ((totalSeconds % 3600) ~/ 60).toString().padLeft(2, '0');
       return '${hours.toString().padLeft(2, '0')}:$remainingMinutes:$seconds';
     }
 
@@ -222,11 +202,7 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
 }
 
 class _LyricsPanel extends StatelessWidget {
-  const _LyricsPanel({
-    required this.lyrics,
-    required this.activeIndex,
-    required this.emptyLabel,
-  });
+  const _LyricsPanel({required this.lyrics, required this.activeIndex, required this.emptyLabel});
 
   final List<LyricLine> lyrics;
   final int activeIndex;
@@ -249,9 +225,7 @@ class _LyricsPanel extends StatelessWidget {
           ? Center(
               child: Text(
                 emptyLabel,
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                style: theme.textTheme.bodyLarge?.copyWith(color: colorScheme.onSurfaceVariant),
                 textAlign: TextAlign.center,
               ),
             )
@@ -264,17 +238,10 @@ class _LyricsPanel extends StatelessWidget {
                 return AnimatedDefaultTextStyle(
                   duration: const Duration(milliseconds: 220),
                   style:
-                      (isActive
-                              ? theme.textTheme.titleMedium
-                              : theme.textTheme.bodyLarge)
-                          ?.copyWith(
-                            color: isActive
-                                ? colorScheme.primary
-                                : colorScheme.onSurfaceVariant,
-                            fontWeight: isActive
-                                ? FontWeight.w700
-                                : FontWeight.w500,
-                          ) ??
+                      (isActive ? theme.textTheme.titleMedium : theme.textTheme.bodyLarge)?.copyWith(
+                        color: isActive ? colorScheme.primary : colorScheme.onSurfaceVariant,
+                        fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                      ) ??
                       const TextStyle(),
                   child: Text(line.text),
                 );

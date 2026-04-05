@@ -4,6 +4,7 @@ import 'dart:collection';
 import 'package:path/path.dart' as p;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../core/database/library_scan_cache_repository.dart';
 import '../../../core/models/library_album.dart';
 import '../../../core/models/library_song.dart';
 import '../../../core/models/remote_entry.dart';
@@ -56,24 +57,17 @@ class LibraryCatalogState {
 
   bool get hasScanResult => tracks.isNotEmpty;
 
-  List<LibrarySong> get favoriteTracks =>
-      tracks.where((track) => favoriteTrackIds.contains(track.id)).toList();
+  List<LibrarySong> get favoriteTracks => tracks.where((track) => favoriteTrackIds.contains(track.id)).toList();
 
-  List<LibrarySong> get likedTracks =>
-      tracks.where((track) => likedTrackIds.contains(track.id)).toList();
+  List<LibrarySong> get likedTracks => tracks.where((track) => likedTrackIds.contains(track.id)).toList();
 
-  List<LibraryAlbum> albumsForSource(
-    String sourceId,
-    LibraryAlbumGroupingMode mode,
-  ) {
+  List<LibraryAlbum> albumsForSource(String sourceId, LibraryAlbumGroupingMode mode) {
     final sourceAlbums = switch (mode) {
       LibraryAlbumGroupingMode.folder => folderAlbums,
       LibraryAlbumGroupingMode.scraped => metadataAlbums,
     };
 
-    return sourceAlbums
-        .where((album) => album.sourceId == sourceId)
-        .toList(growable: false);
+    return sourceAlbums.where((album) => album.sourceId == sourceId).toList(growable: false);
   }
 
   int albumCountForSource(String sourceId, LibraryAlbumGroupingMode mode) {
@@ -106,24 +100,18 @@ class LibraryCatalogState {
       favoriteTrackIds: favoriteTrackIds ?? this.favoriteTrackIds,
       likedTrackIds: likedTrackIds ?? this.likedTrackIds,
       isScanning: isScanning ?? this.isScanning,
-      scannedDirectoryCount:
-          scannedDirectoryCount ?? this.scannedDirectoryCount,
+      scannedDirectoryCount: scannedDirectoryCount ?? this.scannedDirectoryCount,
       discoveredTrackCount: discoveredTrackCount ?? this.discoveredTrackCount,
       lastScanPath: lastScanPath ?? this.lastScanPath,
       lastScanSourceName: lastScanSourceName ?? this.lastScanSourceName,
-      lastScanError: clearLastScanError
-          ? null
-          : lastScanError ?? this.lastScanError,
+      lastScanError: clearLastScanError ? null : lastScanError ?? this.lastScanError,
       lastScannedAt: lastScannedAt ?? this.lastScannedAt,
     );
   }
 }
 
 class _SourceScanResult {
-  const _SourceScanResult({
-    required this.tracks,
-    required this.scannedDirectoryCount,
-  });
+  const _SourceScanResult({required this.tracks, required this.scannedDirectoryCount});
 
   final List<LibrarySong> tracks;
   final int scannedDirectoryCount;
@@ -133,14 +121,44 @@ class _SourceScanResult {
 class LibraryCatalogController extends _$LibraryCatalogController {
   @override
   Future<LibraryCatalogState> build() async {
-    final preferences = await ref
-        .watch(libraryPreferencesRepositoryProvider)
-        .load();
+    final preferences = await ref.watch(libraryPreferencesRepositoryProvider).load();
 
-    return LibraryCatalogState(
-      favoriteTrackIds: preferences.favoriteTrackIds,
-      likedTrackIds: preferences.likedTrackIds,
-    );
+    // 加载缓存的扫描结果
+    LibraryCatalogState cachedState;
+    try {
+      final cacheRepo = await createScanCacheRepository();
+      final allResults = await cacheRepo.loadAllResults();
+
+      if (allResults.isNotEmpty) {
+        final allTracks = <LibrarySong>[];
+        for (final tracks in allResults.values) {
+          allTracks.addAll(tracks);
+        }
+        allTracks.sort((left, right) => left.title.toLowerCase().compareTo(right.title.toLowerCase()));
+
+        cachedState = LibraryCatalogState(
+          tracks: allTracks,
+          folderAlbums: _buildFolderAlbums(allTracks),
+          metadataAlbums: _buildMetadataAlbums(allTracks),
+          favoriteTrackIds: preferences.favoriteTrackIds,
+          likedTrackIds: preferences.likedTrackIds,
+          lastScannedAt: DateTime.now(),
+        );
+      } else {
+        cachedState = LibraryCatalogState(
+          favoriteTrackIds: preferences.favoriteTrackIds,
+          likedTrackIds: preferences.likedTrackIds,
+        );
+      }
+    } catch (e) {
+      // 忽略加载失败，使用空状态
+      cachedState = LibraryCatalogState(
+        favoriteTrackIds: preferences.favoriteTrackIds,
+        likedTrackIds: preferences.likedTrackIds,
+      );
+    }
+
+    return cachedState;
   }
 
   Future<void> scanActiveSource() async {
@@ -188,9 +206,7 @@ class LibraryCatalogController extends _$LibraryCatalogController {
                   discoveredTrackCount: tracks,
                   lastScanPath: path,
                   lastScanSourceName: source.name,
-                  lastScanError: scanErrors.isEmpty
-                      ? null
-                      : scanErrors.join('\n'),
+                  lastScanError: scanErrors.isEmpty ? null : scanErrors.join('\n'),
                 ),
               );
             },
@@ -205,10 +221,20 @@ class LibraryCatalogController extends _$LibraryCatalogController {
         }
       }
 
-      discovered.sort(
-        (left, right) =>
-            left.title.toLowerCase().compareTo(right.title.toLowerCase()),
-      );
+      discovered.sort((left, right) => left.title.toLowerCase().compareTo(right.title.toLowerCase()));
+
+      // 保存扫描结果到缓存
+      try {
+        final cacheRepo = await createScanCacheRepository();
+        for (final source in sources) {
+          final sourceSongs = discovered.where((song) => song.sourceId == source.id).toList();
+          if (sourceSongs.isNotEmpty) {
+            await cacheRepo.saveScanResults(source.id, sourceSongs);
+          }
+        }
+      } catch (e) {
+        // 忽略保存失败
+      }
 
       state = AsyncData(
         (state.valueOrNull ?? current).copyWith(
@@ -243,9 +269,7 @@ class LibraryCatalogController extends _$LibraryCatalogController {
     final allSources = await ref.read(sourcesControllerProvider.future);
     final source = allSources.firstWhere((item) => item.id == sourceId);
     final current = state.valueOrNull ?? const LibraryCatalogState();
-    final retained = current.tracks
-        .where((track) => track.sourceId != sourceId)
-        .toList(growable: true);
+    final retained = current.tracks.where((track) => track.sourceId != sourceId).toList(growable: true);
 
     state = AsyncData(
       current.copyWith(
@@ -281,10 +305,15 @@ class LibraryCatalogController extends _$LibraryCatalogController {
       );
 
       retained.addAll(result.tracks);
-      retained.sort(
-        (left, right) =>
-            left.title.toLowerCase().compareTo(right.title.toLowerCase()),
-      );
+      retained.sort((left, right) => left.title.toLowerCase().compareTo(right.title.toLowerCase()));
+
+      // 保存扫描结果到缓存
+      try {
+        final cacheRepo = await createScanCacheRepository();
+        await cacheRepo.saveScanResults(source.id, retained);
+      } catch (e) {
+        // 忽略保存失败
+      }
 
       state = AsyncData(
         (state.valueOrNull ?? current).copyWith(
@@ -350,10 +379,7 @@ class LibraryCatalogController extends _$LibraryCatalogController {
     final repository = ref.read(libraryPreferencesRepositoryProvider);
     final currentPreferences = await repository.load();
     await repository.save(
-      currentPreferences.copyWith(
-        favoriteTrackIds: nextState.favoriteTrackIds,
-        likedTrackIds: nextState.likedTrackIds,
-      ),
+      currentPreferences.copyWith(favoriteTrackIds: nextState.favoriteTrackIds, likedTrackIds: nextState.likedTrackIds),
     );
   }
 
@@ -363,9 +389,7 @@ class LibraryCatalogController extends _$LibraryCatalogController {
     required int progressOffsetTracks,
     required void Function(int directories, int tracks, String path) onProgress,
   }) async {
-    final session = await ref
-        .read(musicSourceSessionManagerProvider)
-        .get(source);
+    final session = await ref.read(musicSourceSessionManagerProvider).get(source);
     final queue = Queue<String>()..addAll(source.effectiveScanDirectories);
     final visited = <String>{};
     final excludedDirectories = source.effectiveExcludedScanDirectories;
@@ -391,8 +415,7 @@ class LibraryCatalogController extends _$LibraryCatalogController {
           continue;
         }
 
-        if (!entry.isPlayable ||
-            _isExcludedPath(entry.path, excludedDirectories)) {
+        if (!entry.isPlayable || _isExcludedPath(entry.path, excludedDirectories)) {
           continue;
         }
 
@@ -400,32 +423,18 @@ class LibraryCatalogController extends _$LibraryCatalogController {
       }
 
       if (scannedDirectoryCount % 4 == 0) {
-        onProgress(
-          progressOffsetDirectories + scannedDirectoryCount,
-          progressOffsetTracks + discovered.length,
-          path,
-        );
+        onProgress(progressOffsetDirectories + scannedDirectoryCount, progressOffsetTracks + discovered.length, path);
       }
     }
 
-    return _SourceScanResult(
-      tracks: discovered,
-      scannedDirectoryCount: scannedDirectoryCount,
-    );
+    return _SourceScanResult(tracks: discovered, scannedDirectoryCount: scannedDirectoryCount);
   }
 
   Future<LibrarySong> _mapSong(SourceProfile source, RemoteEntry entry) async {
     final directory = p.posix.dirname(entry.path);
-    final folderSegments = directory
-        .split('/')
-        .where((segment) => segment.isNotEmpty)
-        .toList();
-    final folderAlbumTitle = folderSegments.isEmpty
-        ? source.name
-        : folderSegments.last;
-    final folderArtistName = folderSegments.length >= 2
-        ? folderSegments[folderSegments.length - 2]
-        : source.name;
+    final folderSegments = directory.split('/').where((segment) => segment.isNotEmpty).toList();
+    final folderAlbumTitle = folderSegments.isEmpty ? source.name : folderSegments.last;
+    final folderArtistName = folderSegments.length >= 2 ? folderSegments[folderSegments.length - 2] : source.name;
     final scrapedMetadata = await _scrapeMetadata(entry);
     final albumTitle = _normalizeMetadataValue(scrapedMetadata?.album);
     final artistName = _normalizeMetadataValue(scrapedMetadata?.artist);
@@ -469,11 +478,7 @@ class LibraryCatalogController extends _$LibraryCatalogController {
       final key = '${track.sourceId}::${track.directoryPath.toLowerCase()}';
       grouped.putIfAbsent(key, () => []).add(track);
     }
-    return _toAlbums(
-      grouped,
-      titleOf: (track) => track.folderAlbumTitle,
-      artistOf: (track) => track.folderArtistName,
-    );
+    return _toAlbums(grouped, titleOf: (track) => track.folderAlbumTitle, artistOf: (track) => track.folderArtistName);
   }
 
   List<LibraryAlbum> _buildMetadataAlbums(List<LibrarySong> tracks) {
@@ -505,18 +510,11 @@ class LibraryCatalogController extends _$LibraryCatalogController {
                 sourceId: entry.value.first.sourceId,
                 sourceName: entry.value.first.sourceName,
                 tracks: [...entry.value]
-                  ..sort(
-                    (left, right) => left.title.toLowerCase().compareTo(
-                      right.title.toLowerCase(),
-                    ),
-                  ),
+                  ..sort((left, right) => left.title.toLowerCase().compareTo(right.title.toLowerCase())),
               ),
             )
             .toList()
-          ..sort(
-            (left, right) =>
-                left.title.toLowerCase().compareTo(right.title.toLowerCase()),
-          );
+          ..sort((left, right) => left.title.toLowerCase().compareTo(right.title.toLowerCase()));
 
     return albums;
   }

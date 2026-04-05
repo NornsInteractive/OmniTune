@@ -64,8 +64,7 @@ class LibraryPage extends ConsumerWidget {
             return catalogState.when(
               loading: () => _CollectionHomeBody(browser: browser),
               error: (_, _) => _CollectionHomeBody(browser: browser),
-              data: (catalog) =>
-                  _CollectionHomeBody(browser: browser, catalog: catalog),
+              data: (catalog) => _CollectionHomeBody(browser: browser, catalog: catalog),
             );
           },
         ),
@@ -106,9 +105,7 @@ class LibrarySongsPage extends ConsumerWidget {
 
             return RefreshIndicator(
               onRefresh: () {
-                return ref
-                    .read(libraryCatalogControllerProvider.notifier)
-                    .scanAllSources();
+                return ref.read(libraryCatalogControllerProvider.notifier).scanAllSources();
               },
               child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -129,11 +126,7 @@ class LibrarySongsPage extends ConsumerWidget {
                             ],
                           ),
                           borderRadius: BorderRadius.circular(36),
-                          border: Border.all(
-                            color: colorScheme.outlineVariant.withValues(
-                              alpha: 0.45,
-                            ),
-                          ),
+                          border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.45)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -143,32 +136,19 @@ class LibrarySongsPage extends ConsumerWidget {
                               icon: const Icon(Icons.arrow_back_rounded),
                             ),
                             const SizedBox(height: 20),
-                            Text(
-                              section.title(l10n),
-                              style: theme.textTheme.headlineMedium,
-                            ),
+                            Text(section.title(l10n), style: theme.textTheme.headlineMedium),
                             const SizedBox(height: 10),
                             Text(
                               '${tracks.length} ${l10n.tracksLabel}',
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
+                              style: theme.textTheme.bodyLarge?.copyWith(color: colorScheme.onSurfaceVariant),
                             ),
                             if (catalog.isScanning) ...[
                               const SizedBox(height: 18),
-                              LinearProgressIndicator(
-                                minHeight: 6,
-                                borderRadius: BorderRadius.circular(999),
-                              ),
+                              LinearProgressIndicator(minHeight: 6, borderRadius: BorderRadius.circular(999)),
                               const SizedBox(height: 10),
                               Text(
-                                l10n.scanningProgress(
-                                  catalog.scannedDirectoryCount,
-                                  catalog.discoveredTrackCount,
-                                ),
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
+                                l10n.scanningProgress(catalog.scannedDirectoryCount, catalog.discoveredTrackCount),
+                                style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
                               ),
                             ],
                           ],
@@ -180,10 +160,7 @@ class LibrarySongsPage extends ConsumerWidget {
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-                        child: _LibraryEmptyState(
-                          onAddSource: () =>
-                              context.push('/settings/add-source'),
-                        ),
+                        child: _LibraryEmptyState(onAddSource: () => context.push('/settings/add-source')),
                       ),
                     )
                   else if (tracks.isEmpty)
@@ -192,67 +169,56 @@ class LibrarySongsPage extends ConsumerWidget {
                         padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
                         child: _TrackEmptyState(
                           title: section.emptyTitle(l10n),
-                          description: catalog.hasScanResult
-                              ? l10n.collectionEmptyDescription
-                              : l10n.scanLibraryHint,
+                          description: catalog.hasScanResult ? l10n.collectionEmptyDescription : l10n.scanLibraryHint,
                           actionLabel: l10n.scanLibraryAction,
                           onPressed: () {
-                            ref
-                                .read(libraryCatalogControllerProvider.notifier)
-                                .scanAllSources();
+                            ref.read(libraryCatalogControllerProvider.notifier).scanAllSources();
                           },
                         ),
                       ),
                     )
                   else
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-                        child: Column(
-                          children: [
-                            for (
-                              var index = 0;
-                              index < tracks.length;
-                              index++
-                            ) ...[
-                              _SongTile(
-                                song: tracks[index],
-                                isFavorite: catalog.favoriteTrackIds.contains(
-                                  tracks[index].id,
-                                ),
-                                isLiked: catalog.likedTrackIds.contains(
-                                  tracks[index].id,
-                                ),
-                                isCurrentTrack:
-                                    playerState.currentTrack?.id ==
-                                    tracks[index].id,
-                                onFavorite: () {
-                                  ref
-                                      .read(
-                                        libraryCatalogControllerProvider
-                                            .notifier,
-                                      )
-                                      .toggleFavorite(tracks[index].id);
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                      sliver: SliverList.separated(
+                        itemCount: tracks.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final song = tracks[index];
+                          final isFavorite = catalog.favoriteTrackIds.contains(song.id);
+                          final isLiked = catalog.likedTrackIds.contains(song.id);
+                          final isCurrentTrack = playerState.currentTrack?.id == song.id;
+
+                          return _SongTile(
+                            song: song,
+                            isFavorite: isFavorite,
+                            isLiked: isLiked,
+                            isCurrentTrack: isCurrentTrack,
+                            onFavorite: () {
+                              ref.read(libraryCatalogControllerProvider.notifier).toggleFavorite(song.id);
+                            },
+                            onLiked: () {
+                              ref.read(libraryCatalogControllerProvider.notifier).toggleLiked(song.id);
+                            },
+                            onTap: () {
+                              ref.read(playerControllerProvider.notifier).playLibrarySong(song);
+                            },
+                            onShowDetails: () {
+                              _showSongDetailsBottomSheet(
+                                context,
+                                song: song,
+                                isFavorite: isFavorite,
+                                isLiked: isLiked,
+                                onToggleFavorite: () {
+                                  ref.read(libraryCatalogControllerProvider.notifier).toggleFavorite(song.id);
                                 },
-                                onLiked: () {
-                                  ref
-                                      .read(
-                                        libraryCatalogControllerProvider
-                                            .notifier,
-                                      )
-                                      .toggleLiked(tracks[index].id);
+                                onToggleLiked: () {
+                                  ref.read(libraryCatalogControllerProvider.notifier).toggleLiked(song.id);
                                 },
-                                onTap: () {
-                                  ref
-                                      .read(playerControllerProvider.notifier)
-                                      .playLibrarySong(tracks[index]);
-                                },
-                              ),
-                              if (index != tracks.length - 1)
-                                const SizedBox(height: 10),
-                            ],
-                          ],
-                        ),
+                              );
+                            },
+                          );
+                        },
                       ),
                     ),
                 ],
@@ -290,9 +256,7 @@ class LibraryBrowserPage extends ConsumerWidget {
             if (!browser.hasSources) {
               return Padding(
                 padding: const EdgeInsets.all(20),
-                child: _LibraryEmptyState(
-                  onAddSource: () => context.push('/settings/add-source'),
-                ),
+                child: _LibraryEmptyState(onAddSource: () => context.push('/settings/add-source')),
               );
             }
 
@@ -343,16 +307,12 @@ class _CollectionHomeBody extends ConsumerWidget {
     final colorScheme = theme.colorScheme;
 
     if (!browser.hasSources) {
-      return _LibraryEmptyState(
-        onAddSource: () => context.push('/settings/add-source'),
-      );
+      return _LibraryEmptyState(onAddSource: () => context.push('/settings/add-source'));
     }
 
     return RefreshIndicator(
       onRefresh: () {
-        return ref
-            .read(libraryCatalogControllerProvider.notifier)
-            .scanAllSources();
+        return ref.read(libraryCatalogControllerProvider.notifier).scanAllSources();
       },
       child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -376,11 +336,7 @@ class _CollectionHomeBody extends ConsumerWidget {
                         ],
                       ),
                       borderRadius: BorderRadius.circular(36),
-                      border: Border.all(
-                        color: colorScheme.outlineVariant.withValues(
-                          alpha: 0.45,
-                        ),
-                      ),
+                      border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.45)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -391,10 +347,7 @@ class _CollectionHomeBody extends ConsumerWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    l10n.collectionHeadline,
-                                    style: theme.textTheme.headlineMedium,
-                                  ),
+                                  Text(l10n.collectionHeadline, style: theme.textTheme.headlineMedium),
                                   const SizedBox(height: 10),
                                   Text(
                                     browser.sources.length > 1
@@ -402,34 +355,18 @@ class _CollectionHomeBody extends ConsumerWidget {
                                             browser.selectedSource?.name ?? '',
                                             browser.sources.length,
                                           )
-                                        : l10n.collectionDescription(
-                                            browser.selectedSource?.name ?? '',
-                                          ),
-                                    style: theme.textTheme.bodyLarge?.copyWith(
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
+                                        : l10n.collectionDescription(browser.selectedSource?.name ?? ''),
+                                    style: theme.textTheme.bodyLarge?.copyWith(color: colorScheme.onSurfaceVariant),
                                   ),
                                 ],
                               ),
                             ),
                             FilledButton.icon(
                               onPressed: () {
-                                ref
-                                    .read(
-                                      libraryCatalogControllerProvider.notifier,
-                                    )
-                                    .scanAllSources();
+                                ref.read(libraryCatalogControllerProvider.notifier).scanAllSources();
                               },
-                              icon: Icon(
-                                catalog?.isScanning == true
-                                    ? Icons.sync_rounded
-                                    : Icons.radar_rounded,
-                              ),
-                              label: Text(
-                                catalog?.isScanning == true
-                                    ? l10n.scanningAction
-                                    : l10n.scanLibraryAction,
-                              ),
+                              icon: Icon(catalog?.isScanning == true ? Icons.sync_rounded : Icons.radar_rounded),
+                              label: Text(catalog?.isScanning == true ? l10n.scanningAction : l10n.scanLibraryAction),
                             ),
                           ],
                         ),
@@ -439,25 +376,18 @@ class _CollectionHomeBody extends ConsumerWidget {
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: browser.sources.length + 1,
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(width: 12),
+                            separatorBuilder: (_, _) => const SizedBox(width: 12),
                             itemBuilder: (context, index) {
                               if (index == browser.sources.length) {
-                                return _AddSourceCard(
-                                  onTap: () =>
-                                      context.push('/settings/add-source'),
-                                );
+                                return _AddSourceCard(onTap: () => context.push('/settings/add-source'));
                               }
 
                               final source = browser.sources[index];
                               return _SourceCard(
                                 source: source,
-                                isSelected:
-                                    source.id == browser.selectedSource?.id,
+                                isSelected: source.id == browser.selectedSource?.id,
                                 onTap: () {
-                                  ref
-                                      .read(libraryControllerProvider.notifier)
-                                      .selectSource(source.id);
+                                  ref.read(libraryControllerProvider.notifier).selectSource(source.id);
                                 },
                               );
                             },
@@ -465,30 +395,17 @@ class _CollectionHomeBody extends ConsumerWidget {
                         ),
                         if (catalog?.isScanning == true) ...[
                           const SizedBox(height: 18),
-                          LinearProgressIndicator(
-                            minHeight: 6,
-                            borderRadius: BorderRadius.circular(999),
-                          ),
+                          LinearProgressIndicator(minHeight: 6, borderRadius: BorderRadius.circular(999)),
                           const SizedBox(height: 10),
                           Text(
-                            l10n.scanningProgress(
-                              catalog!.scannedDirectoryCount,
-                              catalog!.discoveredTrackCount,
-                            ),
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
+                            l10n.scanningProgress(catalog!.scannedDirectoryCount, catalog!.discoveredTrackCount),
+                            style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
                           ),
-                          if ((catalog!.lastScanSourceName ?? '')
-                              .isNotEmpty) ...[
+                          if ((catalog!.lastScanSourceName ?? '').isNotEmpty) ...[
                             const SizedBox(height: 6),
                             Text(
-                              l10n.currentScanSourceLabel(
-                                catalog!.lastScanSourceName!,
-                              ),
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
+                              l10n.currentScanSourceLabel(catalog!.lastScanSourceName!),
+                              style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
                             ),
                           ],
                         ],
@@ -541,33 +458,28 @@ class _CollectionHomeBody extends ConsumerWidget {
                     _CollectionEntryTile(
                       icon: LibraryCollectionSection.allSongs.icon,
                       title: l10n.allSongsCollectionTitle,
-                      subtitle:
-                          '${catalog?.tracks.length ?? 0} ${l10n.tracksLabel}',
+                      subtitle: '${catalog?.tracks.length ?? 0} ${l10n.tracksLabel}',
                       onTap: () => context.push('/collection/list/all'),
                     ),
                     const SizedBox(height: 12),
                     _CollectionEntryTile(
                       icon: LibraryCollectionSection.liked.icon,
                       title: l10n.likedCollectionTitle,
-                      subtitle:
-                          '${catalog?.likedTracks.length ?? 0} ${l10n.tracksLabel}',
+                      subtitle: '${catalog?.likedTracks.length ?? 0} ${l10n.tracksLabel}',
                       onTap: () => context.push('/collection/list/liked'),
                     ),
                     const SizedBox(height: 12),
                     _CollectionEntryTile(
                       icon: LibraryCollectionSection.favorites.icon,
                       title: l10n.favoritesCollectionTitle,
-                      subtitle:
-                          '${catalog?.favoriteTracks.length ?? 0} ${l10n.tracksLabel}',
+                      subtitle: '${catalog?.favoriteTracks.length ?? 0} ${l10n.tracksLabel}',
                       onTap: () => context.push('/collection/list/favorites'),
                     ),
                     const SizedBox(height: 12),
                     _CollectionEntryTile(
                       icon: Icons.folder_open_rounded,
                       title: l10n.browserTitle,
-                      subtitle:
-                          browser.selectedSource?.name ??
-                          l10n.sourceManagementEmptySummary,
+                      subtitle: browser.selectedSource?.name ?? l10n.sourceManagementEmptySummary,
                       onTap: () => context.push('/collection/browser'),
                     ),
                   ],
@@ -598,24 +510,15 @@ class _BrowserHero extends ConsumerWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            colorScheme.primaryContainer,
-            colorScheme.surfaceContainerHighest,
-            colorScheme.secondaryContainer,
-          ],
+          colors: [colorScheme.primaryContainer, colorScheme.surfaceContainerHighest, colorScheme.secondaryContainer],
         ),
         borderRadius: BorderRadius.circular(36),
-        border: Border.all(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.45),
-        ),
+        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.45)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          IconButton.filledTonal(
-            onPressed: () => context.pop(),
-            icon: const Icon(Icons.arrow_back_rounded),
-          ),
+          IconButton.filledTonal(onPressed: () => context.pop(), icon: const Icon(Icons.arrow_back_rounded)),
           const SizedBox(height: 20),
           Text(l10n.browserTitle, style: theme.textTheme.headlineMedium),
           const SizedBox(height: 10),
@@ -623,9 +526,7 @@ class _BrowserHero extends ConsumerWidget {
             browser.selectedSource == null
                 ? l10n.sourceManagementEmptySummary
                 : l10n.collectionDescription(browser.selectedSource!.name),
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
+            style: theme.textTheme.bodyLarge?.copyWith(color: colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 22),
           SizedBox(
@@ -636,9 +537,7 @@ class _BrowserHero extends ConsumerWidget {
               separatorBuilder: (_, _) => const SizedBox(width: 12),
               itemBuilder: (context, index) {
                 if (index == browser.sources.length) {
-                  return _AddSourceCard(
-                    onTap: () => context.push('/settings/add-source'),
-                  );
+                  return _AddSourceCard(onTap: () => context.push('/settings/add-source'));
                 }
 
                 final source = browser.sources[index];
@@ -646,9 +545,7 @@ class _BrowserHero extends ConsumerWidget {
                   source: source,
                   isSelected: source.id == browser.selectedSource?.id,
                   onTap: () {
-                    ref
-                        .read(libraryControllerProvider.notifier)
-                        .selectSource(source.id);
+                    ref.read(libraryControllerProvider.notifier).selectSource(source.id);
                   },
                 );
               },
@@ -661,12 +558,7 @@ class _BrowserHero extends ConsumerWidget {
 }
 
 class _CollectionEntryTile extends StatelessWidget {
-  const _CollectionEntryTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
+  const _CollectionEntryTile({required this.icon, required this.title, required this.subtitle, required this.onTap});
 
   final IconData icon;
   final String title;
@@ -702,26 +594,13 @@ class _CollectionEntryTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
                     const SizedBox(height: 6),
-                    Text(
-                      subtitle,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
+                    Text(subtitle, style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
                   ],
                 ),
               ),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: colorScheme.onSurfaceVariant,
-              ),
+              Icon(Icons.chevron_right_rounded, color: colorScheme.onSurfaceVariant),
             ],
           ),
         ),
@@ -731,11 +610,7 @@ class _CollectionEntryTile extends StatelessWidget {
 }
 
 class _CollectionStatCard extends StatelessWidget {
-  const _CollectionStatCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
+  const _CollectionStatCard({required this.label, required this.value, required this.icon});
 
   final String label;
   final String value;
@@ -759,19 +634,9 @@ class _CollectionStatCard extends StatelessWidget {
         children: [
           Icon(icon, color: colorScheme.primary),
           const SizedBox(height: 18),
-          Text(
-            value,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          Text(value, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
-          Text(
-            label,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
+          Text(label, style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
         ],
       ),
     );
@@ -787,6 +652,7 @@ class _SongTile extends StatelessWidget {
     required this.onFavorite,
     required this.onLiked,
     required this.onTap,
+    required this.onShowDetails,
   });
 
   final LibrarySong song;
@@ -796,6 +662,7 @@ class _SongTile extends StatelessWidget {
   final VoidCallback onFavorite;
   final VoidCallback onLiked;
   final VoidCallback onTap;
+  final VoidCallback onShowDetails;
 
   @override
   Widget build(BuildContext context) {
@@ -803,13 +670,12 @@ class _SongTile extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Material(
-      color: isCurrentTrack
-          ? colorScheme.secondaryContainer
-          : colorScheme.surfaceContainerLow,
+      color: isCurrentTrack ? colorScheme.secondaryContainer : colorScheme.surfaceContainerLow,
       borderRadius: BorderRadius.circular(28),
       child: InkWell(
         borderRadius: BorderRadius.circular(28),
         onTap: onTap,
+        onLongPress: onShowDetails,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           child: Row(
@@ -818,11 +684,7 @@ class _SongTile extends StatelessWidget {
                 radius: 24,
                 backgroundColor: colorScheme.surface,
                 foregroundColor: colorScheme.primary,
-                child: Icon(
-                  isCurrentTrack
-                      ? Icons.graphic_eq_rounded
-                      : Icons.music_note_rounded,
-                ),
+                child: Icon(isCurrentTrack ? Icons.graphic_eq_rounded : Icons.music_note_rounded),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -833,42 +695,27 @@ class _SongTile extends StatelessWidget {
                       song.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       '${song.artistName} · ${song.albumTitle} · ${song.sourceName}',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                      style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
                     ),
                   ],
                 ),
               ),
               IconButton(
                 onPressed: onFavorite,
-                icon: Icon(
-                  isFavorite
-                      ? Icons.bookmark_rounded
-                      : Icons.bookmark_border_rounded,
-                ),
+                icon: Icon(isFavorite ? Icons.bookmark_rounded : Icons.bookmark_border_rounded),
               ),
               IconButton(
                 onPressed: onLiked,
-                icon: Icon(
-                  isLiked
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                ),
+                icon: Icon(isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded),
               ),
-              IconButton.filledTonal(
-                onPressed: onTap,
-                icon: const Icon(Icons.play_arrow_rounded),
-              ),
+              IconButton(onPressed: onShowDetails, icon: const Icon(Icons.more_vert_rounded)),
             ],
           ),
         ),
@@ -909,16 +756,11 @@ class _BrowserPanel extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            l10n.browserTitle,
-                            style: theme.textTheme.headlineSmall,
-                          ),
+                          Text(l10n.browserTitle, style: theme.textTheme.headlineSmall),
                           const SizedBox(height: 8),
                           Text(
                             '${l10n.currentPathLabel}: ${state.displayPath}',
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
+                            style: theme.textTheme.bodyLarge?.copyWith(color: colorScheme.onSurfaceVariant),
                           ),
                         ],
                       ),
@@ -943,9 +785,7 @@ class _BrowserPanel extends ConsumerWidget {
                 if (state.entries.isEmpty)
                   _TrackEmptyState(
                     title: l10n.noFilesTitle,
-                    description: state.hasError
-                        ? state.errorMessage!
-                        : l10n.noFilesDescription,
+                    description: state.hasError ? state.errorMessage! : l10n.noFilesDescription,
                     actionLabel: l10n.refreshAction,
                     onPressed: controller.refresh,
                   )
@@ -959,8 +799,7 @@ class _BrowserPanel extends ConsumerWidget {
                       final entry = state.entries[index];
                       final isCurrentTrack =
                           playerState.currentTrack?.remotePath == entry.path &&
-                          playerState.currentTrack?.sourceId ==
-                              state.selectedSource?.id;
+                          playerState.currentTrack?.sourceId == state.selectedSource?.id;
                       return _EntryTile(
                         entry: entry,
                         isCurrentTrack: isCurrentTrack,
@@ -971,20 +810,16 @@ class _BrowserPanel extends ConsumerWidget {
                             if (!context.mounted) {
                               return;
                             }
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(error.toString())),
-                            );
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
                           }
 
                           if (!entry.isDirectory && !entry.isPlayable) {
                             if (!context.mounted) {
                               return;
                             }
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(l10n.unsupportedFileMessage),
-                              ),
-                            );
+                            ScaffoldMessenger.of(
+                              context,
+                            ).showSnackBar(SnackBar(content: Text(l10n.unsupportedFileMessage)));
                           }
                         },
                       );
@@ -1028,38 +863,21 @@ class _DiagnosticsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            l10n.browserDiagnosticsTitle,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          Text(l10n.browserDiagnosticsTitle, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 10),
           if (state.errorMessage != null)
-            Text(
-              state.errorMessage!,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: colorScheme.error,
-              ),
-            ),
+            Text(state.errorMessage!, style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.error)),
           if (diagnostics != null) ...[
             const SizedBox(height: 10),
             Text(
               '${diagnostics.protocolLabel} · ${diagnostics.requestedPath}',
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: colorScheme.primary,
-              ),
+              style: theme.textTheme.labelLarge?.copyWith(color: colorScheme.primary),
             ),
             const SizedBox(height: 10),
             ...diagnostics.details.map(
               (detail) => Padding(
                 padding: const EdgeInsets.only(bottom: 6),
-                child: Text(
-                  detail,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
+                child: Text(detail, style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
               ),
             ),
           ],
@@ -1070,11 +888,7 @@ class _DiagnosticsCard extends StatelessWidget {
 }
 
 class _EntryTile extends StatelessWidget {
-  const _EntryTile({
-    required this.entry,
-    required this.isCurrentTrack,
-    required this.onTap,
-  });
+  const _EntryTile({required this.entry, required this.isCurrentTrack, required this.onTap});
 
   final RemoteEntry entry;
   final bool isCurrentTrack;
@@ -1086,15 +900,12 @@ class _EntryTile extends StatelessWidget {
 
     final icon = switch (entry.kind) {
       RemoteEntryKind.directory => Icons.folder_rounded,
-      RemoteEntryKind.audio =>
-        isCurrentTrack ? Icons.graphic_eq_rounded : Icons.music_note_rounded,
+      RemoteEntryKind.audio => isCurrentTrack ? Icons.graphic_eq_rounded : Icons.music_note_rounded,
       RemoteEntryKind.file => Icons.description_rounded,
     };
 
     return Material(
-      color: isCurrentTrack
-          ? colorScheme.secondaryContainer
-          : colorScheme.surface,
+      color: isCurrentTrack ? colorScheme.secondaryContainer : colorScheme.surface,
       borderRadius: BorderRadius.circular(24),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
@@ -1105,11 +916,7 @@ class _EntryTile extends StatelessWidget {
         ),
         title: Text(entry.name),
         subtitle: Text(entry.path),
-        trailing: Icon(
-          entry.isDirectory
-              ? Icons.chevron_right_rounded
-              : Icons.play_arrow_rounded,
-        ),
+        trailing: Icon(entry.isDirectory ? Icons.chevron_right_rounded : Icons.play_arrow_rounded),
         onTap: onTap,
       ),
     );
@@ -1147,12 +954,7 @@ class _TrackEmptyState extends StatelessWidget {
         children: [
           Text(title, style: theme.textTheme.headlineSmall),
           const SizedBox(height: 12),
-          Text(
-            description,
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
+          Text(description, style: theme.textTheme.bodyLarge?.copyWith(color: colorScheme.onSurfaceVariant)),
           const SizedBox(height: 20),
           FilledButton(onPressed: onPressed, child: Text(actionLabel)),
         ],
@@ -1180,11 +982,7 @@ class _LibraryEmptyState extends StatelessWidget {
 }
 
 class _SourceCard extends StatelessWidget {
-  const _SourceCard({
-    required this.source,
-    required this.isSelected,
-    required this.onTap,
-  });
+  const _SourceCard({required this.source, required this.isSelected, required this.onTap});
 
   final SourceProfile source;
   final bool isSelected;
@@ -1196,9 +994,7 @@ class _SourceCard extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Material(
-      color: isSelected
-          ? colorScheme.secondaryContainer
-          : colorScheme.surfaceContainerLow,
+      color: isSelected ? colorScheme.secondaryContainer : colorScheme.surfaceContainerLow,
       borderRadius: BorderRadius.circular(28),
       child: InkWell(
         borderRadius: BorderRadius.circular(28),
@@ -1218,11 +1014,7 @@ class _SourceCard extends StatelessWidget {
                       child: const Icon(Icons.cloud_circle_rounded),
                     ),
                     const Spacer(),
-                    if (isSelected)
-                      Icon(
-                        Icons.check_circle_rounded,
-                        color: colorScheme.primary,
-                      ),
+                    if (isSelected) Icon(Icons.check_circle_rounded, color: colorScheme.primary),
                   ],
                 ),
                 const SizedBox(height: 18),
@@ -1230,18 +1022,14 @@ class _SourceCard extends StatelessWidget {
                   source.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   source.hostLabel,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
+                  style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
                 ),
               ],
             ),
@@ -1288,6 +1076,126 @@ class _AddSourceCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+void _showSongDetailsBottomSheet(
+  BuildContext context, {
+  required LibrarySong song,
+  required bool isFavorite,
+  required bool isLiked,
+  required VoidCallback onToggleFavorite,
+  required VoidCallback onToggleLiked,
+}) {
+  showModalBottomSheet(
+    context: context,
+    builder: (context) => _SongDetailsBottomSheet(
+      song: song,
+      isFavorite: isFavorite,
+      isLiked: isLiked,
+      onToggleFavorite: onToggleFavorite,
+      onToggleLiked: onToggleLiked,
+    ),
+  );
+}
+
+class _SongDetailsBottomSheet extends StatelessWidget {
+  const _SongDetailsBottomSheet({
+    required this.song,
+    required this.isFavorite,
+    required this.isLiked,
+    required this.onToggleFavorite,
+    required this.onToggleLiked,
+  });
+
+  final LibrarySong song;
+  final bool isFavorite;
+  final bool isLiked;
+  final VoidCallback onToggleFavorite;
+  final VoidCallback onToggleLiked;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with title
+            Text(l10n.songDetailsTitle, style: theme.textTheme.headlineSmall),
+            const SizedBox(height: 24),
+
+            // Song details
+            _SongDetailRow(label: l10n.filePathLabel, value: song.remotePath),
+            const SizedBox(height: 16),
+            _SongDetailRow(label: l10n.sourceLabel, value: song.sourceName),
+            const SizedBox(height: 16),
+            _SongDetailRow(label: l10n.artistLabel, value: song.artistName),
+            const SizedBox(height: 16),
+            _SongDetailRow(label: l10n.albumLabel, value: song.albumTitle),
+            const SizedBox(height: 28),
+
+            // Action buttons
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.tonalIcon(
+                    onPressed: onToggleFavorite,
+                    icon: Icon(isFavorite ? Icons.bookmark_rounded : Icons.bookmark_border_rounded),
+                    label: Text(isFavorite ? l10n.removeFromFavoritesAction : l10n.addToFavoritesAction),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton.tonalIcon(
+                    onPressed: onToggleLiked,
+                    icon: Icon(isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded),
+                    label: Text(isLiked ? l10n.removeFromLikedAction : l10n.addToLikedAction),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SongDetailRow extends StatelessWidget {
+  const _SongDetailRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+        const SizedBox(height: 6),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: colorScheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(12)),
+          child: Text(
+            value,
+            style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace', color: colorScheme.onSurface),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 }

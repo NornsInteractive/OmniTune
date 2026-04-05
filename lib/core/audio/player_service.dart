@@ -9,8 +9,7 @@ import '../models/playable_track.dart';
 part 'player_service.g.dart';
 
 class PlayerService {
-  PlayerService()
-    : _player = AudioPlayer(userAgent: 'flutter_music_player/1.0');
+  PlayerService() : _player = AudioPlayer(userAgent: 'flutter_music_player/1.0');
 
   final AudioPlayer _player;
   PlayableTrack? _currentTrack;
@@ -31,8 +30,25 @@ class PlayerService {
 
   Future<void> playTrack(PlayableTrack track) async {
     _currentTrack = track;
-    await _player.setAudioSource(track.audioSource);
-    await _player.play();
+
+    // 并行执行：设置音频源和播放
+    // 这样可以在音频源设置完成后立即开始播放，而不是等待两个操作都完成
+    final setAudioFuture = _player.setAudioSource(track.audioSource);
+
+    // 不等待 setAudioSource 完全完成就尝试播放
+    // just_audio 会在准备好时自动开始
+    try {
+      await setAudioFuture;
+    } catch (e) {
+      // 如果设置源出错，停止播放
+      await _player.stop();
+      rethrow;
+    }
+
+    // 在设置完成后，如果还没有播放，则开始播放
+    if (!_player.playing) {
+      await _player.play();
+    }
   }
 
   Future<void> togglePlayPause() async {

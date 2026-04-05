@@ -285,5 +285,18 @@
   "connectionFailedMessage": "Connection failed. Check your WebDAV address and credentials.",
   "playbackFailedMessage": "Playback could not be started for this file.",
   "folderAlbumsModeLabel": "By folder",
-  "scrapedAlbumsModeLabel": "By scraped data"
+  "scrapedAlbumsModeLabel": "By scraped data",
+  "songDetailsTitle": "Track details",
+  "filePathLabel": "File path",
+  "sourceLabel": "Source",
+  "artistLabel": "Artist",
+  "albumLabel": "Album",
+  "addToFavoritesAction": "Add to favorites",
+  "removeFromFavoritesAction": "Remove from favorites",
+  "addToLikedAction": "Add to liked",
+  "removeFromLikedAction": "Remove from liked",
+  "moreOptionsAction": "More options",
+  "debugSettingsTitle": "Developer",
+  "debugModeLabel": "Debug mode",
+  "debugModeDescription": "Show error dialogs when exceptions occur"
 }

@@ -571,4 +571,43 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scrapedAlbumsModeLabel => 'By scraped data';
+
+  @override
+  String get songDetailsTitle => 'Track details';
+
+  @override
+  String get filePathLabel => 'File path';
+
+  @override
+  String get sourceLabel => 'Source';
+
+  @override
+  String get artistLabel => 'Artist';
+
+  @override
+  String get albumLabel => 'Album';
+
+  @override
+  String get addToFavoritesAction => 'Add to favorites';
+
+  @override
+  String get removeFromFavoritesAction => 'Remove from favorites';
+
+  @override
+  String get addToLikedAction => 'Add to liked';
+
+  @override
+  String get removeFromLikedAction => 'Remove from liked';
+
+  @override
+  String get moreOptionsAction => 'More options';
+
+  @override
+  String get debugSettingsTitle => 'Developer';
+
+  @override
+  String get debugModeLabel => 'Debug mode';
+
+  @override
+  String get debugModeDescription => 'Show error dialogs when exceptions occur';
 }

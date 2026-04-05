@@ -24,15 +24,10 @@ class SettingsPage extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final preferences =
-        ref.watch(appSettingsControllerProvider).valueOrNull ??
-        const LibraryPreferences();
+    final preferences = ref.watch(appSettingsControllerProvider).valueOrNull ?? const LibraryPreferences();
     final cacheSettings =
-        ref.watch(playbackCacheSettingsControllerProvider).valueOrNull ??
-        const PlaybackCacheSettings();
-    final sources =
-        ref.watch(sourcesControllerProvider).valueOrNull ??
-        const <SourceProfile>[];
+        ref.watch(playbackCacheSettingsControllerProvider).valueOrNull ?? const PlaybackCacheSettings();
+    final sources = ref.watch(sourcesControllerProvider).valueOrNull ?? const <SourceProfile>[];
     final browser = ref.watch(libraryControllerProvider).valueOrNull;
 
     return Scaffold(
@@ -58,23 +53,16 @@ class SettingsPage extends ConsumerWidget {
                       ],
                     ),
                     borderRadius: BorderRadius.circular(36),
-                    border: Border.all(
-                      color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-                    ),
+                    border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        l10n.settingsCenterHeadline,
-                        style: theme.textTheme.headlineMedium,
-                      ),
+                      Text(l10n.settingsCenterHeadline, style: theme.textTheme.headlineMedium),
                       const SizedBox(height: 12),
                       Text(
                         l10n.settingsCenterDescription,
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
+                        style: theme.textTheme.bodyLarge?.copyWith(color: colorScheme.onSurfaceVariant),
                       ),
                       const SizedBox(height: 20),
                       Wrap(
@@ -83,22 +71,13 @@ class SettingsPage extends ConsumerWidget {
                         children: [
                           _MetaPill(
                             icon: Icons.language_rounded,
-                            label: _localeLabel(
-                              l10n,
-                              preferences.localePreference,
-                            ),
+                            label: _localeLabel(l10n, preferences.localePreference),
                           ),
                           _MetaPill(
                             icon: Icons.palette_outlined,
-                            label: _themeLabel(
-                              l10n,
-                              preferences.themePreference,
-                            ),
+                            label: _themeLabel(l10n, preferences.themePreference),
                           ),
-                          _MetaPill(
-                            icon: Icons.cloud_done_rounded,
-                            label: l10n.savedSourcesCountLabel(sources.length),
-                          ),
+                          _MetaPill(icon: Icons.cloud_done_rounded, label: l10n.savedSourcesCountLabel(sources.length)),
                         ],
                       ),
                     ],
@@ -111,10 +90,7 @@ class SettingsPage extends ConsumerWidget {
                     _SettingTile(
                       icon: Icons.language_rounded,
                       title: l10n.languageSettingTitle,
-                      subtitle: _localeLabel(
-                        l10n,
-                        preferences.localePreference,
-                      ),
+                      subtitle: _localeLabel(l10n, preferences.localePreference),
                       onTap: () => _showSelectionDialog<AppLocalePreference>(
                         context: context,
                         title: l10n.languageSettingTitle,
@@ -122,33 +98,22 @@ class SettingsPage extends ConsumerWidget {
                         options: [
                           _DialogOption(
                             value: AppLocalePreference.system,
-                            label: _localeLabel(
-                              l10n,
-                              AppLocalePreference.system,
-                            ),
+                            label: _localeLabel(l10n, AppLocalePreference.system),
                             icon: Icons.settings_suggest_rounded,
                           ),
                           _DialogOption(
                             value: AppLocalePreference.chinese,
-                            label: _localeLabel(
-                              l10n,
-                              AppLocalePreference.chinese,
-                            ),
+                            label: _localeLabel(l10n, AppLocalePreference.chinese),
                             icon: Icons.translate_rounded,
                           ),
                           _DialogOption(
                             value: AppLocalePreference.english,
-                            label: _localeLabel(
-                              l10n,
-                              AppLocalePreference.english,
-                            ),
+                            label: _localeLabel(l10n, AppLocalePreference.english),
                             icon: Icons.public_rounded,
                           ),
                         ],
                         onSelected: (value) {
-                          return ref
-                              .read(appSettingsControllerProvider.notifier)
-                              .setLocalePreference(value);
+                          return ref.read(appSettingsControllerProvider.notifier).setLocalePreference(value);
                         },
                       ),
                     ),
@@ -178,18 +143,14 @@ class SettingsPage extends ConsumerWidget {
                           ),
                         ],
                         onSelected: (value) {
-                          return ref
-                              .read(appSettingsControllerProvider.notifier)
-                              .setThemePreference(value);
+                          return ref.read(appSettingsControllerProvider.notifier).setThemePreference(value);
                         },
                       ),
                     ),
                     _SettingTile(
                       icon: Icons.dashboard_customize_outlined,
                       title: l10n.interfaceSizeSettingTitle,
-                      subtitle: l10n.interfaceScaleSummary(
-                        _scalePercent(preferences.interfaceScaleFactor),
-                      ),
+                      subtitle: l10n.interfaceScaleSummary(_scalePercent(preferences.interfaceScaleFactor)),
                       onTap: () => _showScaleDialog(
                         context: context,
                         title: l10n.interfaceSizeSettingTitle,
@@ -199,18 +160,14 @@ class SettingsPage extends ConsumerWidget {
                         divisions: 50,
                         initialValue: preferences.interfaceScaleFactor,
                         onSaved: (value) {
-                          return ref
-                              .read(appSettingsControllerProvider.notifier)
-                              .setInterfaceScale(value);
+                          return ref.read(appSettingsControllerProvider.notifier).setInterfaceScale(value);
                         },
                       ),
                     ),
                     _SettingTile(
                       icon: Icons.format_size_rounded,
                       title: l10n.fontSizeSettingTitle,
-                      subtitle: l10n.fontScaleSummary(
-                        _scalePercent(preferences.fontScaleFactor),
-                      ),
+                      subtitle: l10n.fontScaleSummary(_scalePercent(preferences.fontScaleFactor)),
                       onTap: () => _showScaleDialog(
                         context: context,
                         title: l10n.fontSizeSettingTitle,
@@ -220,9 +177,7 @@ class SettingsPage extends ConsumerWidget {
                         divisions: 57,
                         initialValue: preferences.fontScaleFactor,
                         onSaved: (value) {
-                          return ref
-                              .read(appSettingsControllerProvider.notifier)
-                              .setFontScale(value);
+                          return ref.read(appSettingsControllerProvider.notifier).setFontScale(value);
                         },
                       ),
                     ),
@@ -237,10 +192,7 @@ class SettingsPage extends ConsumerWidget {
                       title: l10n.sourceManagementSettingTitle,
                       subtitle: browser?.selectedSource == null
                           ? l10n.sourceManagementEmptySummary
-                          : l10n.sourceManagementSummary(
-                              browser!.selectedSource!.name,
-                              sources.length,
-                            ),
+                          : l10n.sourceManagementSummary(browser!.selectedSource!.name, sources.length),
                       onTap: () => _showSourceManagementDialog(
                         pageContext: context,
                         ref: ref,
@@ -258,16 +210,10 @@ class SettingsPage extends ConsumerWidget {
                       icon: Icons.offline_bolt_outlined,
                       title: l10n.cacheSettingsEntryTitle,
                       subtitle: l10n.cacheSettingsSummary(
-                        cacheSettings.enablePersistentCache
-                            ? l10n.cacheStorageModeLocal
-                            : l10n.cacheStorageModeMemory,
+                        cacheSettings.enablePersistentCache ? l10n.cacheStorageModeLocal : l10n.cacheStorageModeMemory,
                         cacheSettings.memoryCacheTrackLimit,
                       ),
-                      onTap: () => _showCacheSettingsDialog(
-                        context: context,
-                        ref: ref,
-                        initialSettings: cacheSettings,
-                      ),
+                      onTap: () => _showCacheSettingsDialog(context: context, ref: ref, initialSettings: cacheSettings),
                     ),
                     _SettingTile(
                       icon: Icons.delete_sweep_outlined,
@@ -276,8 +222,24 @@ class SettingsPage extends ConsumerWidget {
                       destructive: true,
                       onTap: () => _showCacheManagementDialog(
                         context: context,
-                        sourceNames: {
-                          for (final source in sources) source.id: source.name,
+                        sourceNames: {for (final source in sources) source.id: source.name},
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                _SettingsSection(
+                  title: l10n.debugSettingsTitle,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                      child: SwitchListTile.adaptive(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(l10n.debugModeLabel),
+                        subtitle: Text(l10n.debugModeDescription),
+                        value: preferences.enableDebugMode,
+                        onChanged: (value) {
+                          ref.read(appSettingsControllerProvider.notifier).setDebugMode(value);
                         },
                       ),
                     ),
@@ -299,8 +261,7 @@ class SettingsPage extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final materialL10n = MaterialLocalizations.of(context);
     var enablePersistentCache = initialSettings.enablePersistentCache;
-    var memoryCacheTrackLimit = initialSettings.memoryCacheTrackLimit
-        .toDouble();
+    var memoryCacheTrackLimit = initialSettings.memoryCacheTrackLimit.toDouble();
 
     return showDialog<void>(
       context: context,
@@ -328,20 +289,12 @@ class SettingsPage extends ConsumerWidget {
                         },
                       ),
                       const SizedBox(height: 20),
-                      Text(
-                        l10n.memoryCacheTrackLimitLabel,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
+                      Text(l10n.memoryCacheTrackLimitLabel, style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 8),
-                      Text(
-                        l10n.memoryCacheTrackLimitDescription,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
+                      Text(l10n.memoryCacheTrackLimitDescription, style: Theme.of(context).textTheme.bodyMedium),
                       const SizedBox(height: 16),
                       Text(
-                        l10n.memoryCacheTrackLimitValue(
-                          memoryCacheTrackLimit.round(),
-                        ),
+                        l10n.memoryCacheTrackLimitValue(memoryCacheTrackLimit.round()),
                         style: Theme.of(context).textTheme.labelLarge,
                       ),
                       Slider(
@@ -349,9 +302,7 @@ class SettingsPage extends ConsumerWidget {
                         max: 12,
                         divisions: 11,
                         value: memoryCacheTrackLimit,
-                        label: l10n.memoryCacheTrackLimitValue(
-                          memoryCacheTrackLimit.round(),
-                        ),
+                        label: l10n.memoryCacheTrackLimitValue(memoryCacheTrackLimit.round()),
                         onChanged: (value) {
                           setState(() {
                             memoryCacheTrackLimit = value;
@@ -369,15 +320,9 @@ class SettingsPage extends ConsumerWidget {
                 ),
                 FilledButton(
                   onPressed: () async {
-                    final controller = ref.read(
-                      playbackCacheSettingsControllerProvider.notifier,
-                    );
-                    await controller.setPersistentCacheEnabled(
-                      enablePersistentCache,
-                    );
-                    await controller.setMemoryCacheTrackLimit(
-                      memoryCacheTrackLimit.round(),
-                    );
+                    final controller = ref.read(playbackCacheSettingsControllerProvider.notifier);
+                    await controller.setPersistentCacheEnabled(enablePersistentCache);
+                    await controller.setMemoryCacheTrackLimit(memoryCacheTrackLimit.round());
                     if (dialogContext.mounted) {
                       Navigator.of(dialogContext).pop();
                     }
@@ -441,13 +386,10 @@ class SettingsPage extends ConsumerWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        l10n.scaleRangeLabel(
-                          _scalePercent(min),
-                          _scalePercent(max),
-                        ),
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                        l10n.scaleRangeLabel(_scalePercent(min), _scalePercent(max)),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                       ),
                     ],
                   ),
@@ -475,10 +417,7 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  Future<void> _showCacheManagementDialog({
-    required BuildContext context,
-    required Map<String, String> sourceNames,
-  }) {
+  Future<void> _showCacheManagementDialog({required BuildContext context, required Map<String, String> sourceNames}) {
     return showDialog<void>(
       context: context,
       builder: (_) => _CacheManagementDialog(sourceNames: sourceNames),
@@ -520,14 +459,9 @@ class SettingsPage extends ConsumerWidget {
                     for (final source in sources) ...[
                       Card(
                         child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           leading: CircleAvatar(
-                            backgroundColor: Theme.of(
-                              dialogContext,
-                            ).colorScheme.surface,
+                            backgroundColor: Theme.of(dialogContext).colorScheme.surface,
                             child: const Icon(Icons.cloud_circle_rounded),
                           ),
                           title: Text(source.name),
@@ -538,19 +472,12 @@ class SettingsPage extends ConsumerWidget {
                             spacing: 4,
                             children: [
                               if (selectedSource?.id == source.id)
-                                Icon(
-                                  Icons.check_circle_rounded,
-                                  color: Theme.of(
-                                    dialogContext,
-                                  ).colorScheme.primary,
-                                ),
+                                Icon(Icons.check_circle_rounded, color: Theme.of(dialogContext).colorScheme.primary),
                               IconButton(
                                 tooltip: l10n.editSourceAction,
                                 onPressed: () {
                                   Navigator.of(dialogContext).pop();
-                                  GoRouter.of(
-                                    pageContext,
-                                  ).push('/settings/source/${source.id}');
+                                  GoRouter.of(pageContext).push('/settings/source/${source.id}');
                                 },
                                 icon: const Icon(Icons.edit_outlined),
                               ),
@@ -558,13 +485,9 @@ class SettingsPage extends ConsumerWidget {
                                 tooltip: materialL10n.deleteButtonTooltip,
                                 onPressed: () async {
                                   Navigator.of(dialogContext).pop();
-                                  await ref
-                                      .read(sourcesControllerProvider.notifier)
-                                      .deleteProfile(source.id);
+                                  await ref.read(sourcesControllerProvider.notifier).deleteProfile(source.id);
                                   ref.invalidate(libraryControllerProvider);
-                                  ref.invalidate(
-                                    libraryCatalogControllerProvider,
-                                  );
+                                  ref.invalidate(libraryCatalogControllerProvider);
                                 },
                                 icon: const Icon(Icons.delete_outline_rounded),
                               ),
@@ -572,9 +495,7 @@ class SettingsPage extends ConsumerWidget {
                           ),
                           onTap: () async {
                             Navigator.of(dialogContext).pop();
-                            await ref
-                                .read(libraryControllerProvider.notifier)
-                                .selectSource(source.id);
+                            await ref.read(libraryControllerProvider.notifier).selectSource(source.id);
                           },
                         ),
                       ),
@@ -589,17 +510,12 @@ class SettingsPage extends ConsumerWidget {
               OutlinedButton.icon(
                 onPressed: () async {
                   Navigator.of(dialogContext).pop();
-                  await ref
-                      .read(libraryCatalogControllerProvider.notifier)
-                      .scanAllSources();
+                  await ref.read(libraryCatalogControllerProvider.notifier).scanAllSources();
                 },
                 icon: const Icon(Icons.radar_rounded),
                 label: Text(l10n.scanLibraryAction),
               ),
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(materialL10n.closeButtonLabel),
-            ),
+            TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: Text(materialL10n.closeButtonLabel)),
             FilledButton.icon(
               onPressed: () {
                 Navigator.of(dialogContext).pop();
@@ -734,9 +650,7 @@ class _SettingTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final accentColor = destructive
-        ? colorScheme.error
-        : colorScheme.onSurfaceVariant;
+    final accentColor = destructive ? colorScheme.error : colorScheme.onSurfaceVariant;
 
     return Material(
       color: colorScheme.surface,
@@ -752,17 +666,10 @@ class _SettingTile extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: destructive
-                      ? colorScheme.errorContainer
-                      : colorScheme.surfaceContainerHighest,
+                  color: destructive ? colorScheme.errorContainer : colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(
-                  icon,
-                  color: destructive
-                      ? colorScheme.onErrorContainer
-                      : colorScheme.primary,
-                ),
+                child: Icon(icon, color: destructive ? colorScheme.onErrorContainer : colorScheme.primary),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -771,17 +678,12 @@ class _SettingTile extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: destructive ? colorScheme.error : null,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      subtitle,
                       style: Theme.of(
                         context,
-                      ).textTheme.bodyMedium?.copyWith(color: accentColor),
+                      ).textTheme.titleMedium?.copyWith(color: destructive ? colorScheme.error : null),
                     ),
+                    const SizedBox(height: 6),
+                    Text(subtitle, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: accentColor)),
                   ],
                 ),
               ),
@@ -801,21 +703,17 @@ class _CacheManagementDialog extends ConsumerStatefulWidget {
   final Map<String, String> sourceNames;
 
   @override
-  ConsumerState<_CacheManagementDialog> createState() =>
-      _CacheManagementDialogState();
+  ConsumerState<_CacheManagementDialog> createState() => _CacheManagementDialogState();
 }
 
-class _CacheManagementDialogState
-    extends ConsumerState<_CacheManagementDialog> {
+class _CacheManagementDialogState extends ConsumerState<_CacheManagementDialog> {
   final Set<String> _selectedTrackIds = <String>{};
   late final Stream<List<PlaybackCacheInventoryItem>> _inventoryStream;
 
   @override
   void initState() {
     super.initState();
-    _inventoryStream = ref
-        .read(webDavPlaybackCacheProvider)
-        .watchCachedTracks();
+    _inventoryStream = ref.read(webDavPlaybackCacheProvider).watchCachedTracks();
   }
 
   @override
@@ -833,13 +731,8 @@ class _CacheManagementDialogState
           title: Text(l10n.clearCachedFilesTitle),
           content: SizedBox(
             width: 560,
-            child:
-                !snapshot.hasData &&
-                    snapshot.connectionState == ConnectionState.waiting
-                ? const SizedBox(
-                    height: 220,
-                    child: Center(child: CircularProgressIndicator()),
-                  )
+            child: !snapshot.hasData && snapshot.connectionState == ConnectionState.waiting
+                ? const SizedBox(height: 220, child: Center(child: CircularProgressIndicator()))
                 : (items.isEmpty
                       ? _DialogEmptyState(
                           icon: Icons.offline_bolt_outlined,
@@ -862,45 +755,24 @@ class _CacheManagementDialogState
                               child: ListView.separated(
                                 shrinkWrap: true,
                                 itemCount: items.length,
-                                separatorBuilder: (_, _) =>
-                                    const SizedBox(height: 8),
+                                separatorBuilder: (_, _) => const SizedBox(height: 8),
                                 itemBuilder: (context, index) {
                                   final item = items[index];
-                                  final selected = selectedIds.contains(
-                                    item.trackId,
-                                  );
-                                  final sourceName =
-                                      widget.sourceNames[item.sourceId] ??
-                                      l10n.cacheUnknownSourceLabel;
+                                  final selected = selectedIds.contains(item.trackId);
+                                  final sourceName = widget.sourceNames[item.sourceId] ?? l10n.cacheUnknownSourceLabel;
                                   final cacheMode = _cacheModeLabel(l10n, item);
-                                  final coverage =
-                                      item.totalBytes == null ||
-                                          item.totalBytes == 0
+                                  final coverage = item.totalBytes == null || item.totalBytes == 0
                                       ? l10n.cacheCoverageUnknownLabel
-                                      : l10n.cacheCoverageLabel(
-                                          ((item.cachedBytes /
-                                                      item.totalBytes!) *
-                                                  100)
-                                              .round(),
-                                        );
+                                      : l10n.cacheCoverageLabel(((item.cachedBytes / item.totalBytes!) * 100).round());
 
                                   return Material(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.surfaceContainerLow,
+                                    color: Theme.of(context).colorScheme.surfaceContainerLow,
                                     borderRadius: BorderRadius.circular(22),
                                     child: CheckboxListTile(
                                       value: selected,
-                                      controlAffinity:
-                                          ListTileControlAffinity.leading,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(22),
-                                      ),
-                                      title: Text(
-                                        item.title,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+                                      controlAffinity: ListTileControlAffinity.leading,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                                      title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
                                       subtitle: Text(
                                         '$sourceName · $cacheMode · $coverage\n${item.remotePath}',
                                         maxLines: 2,
@@ -911,9 +783,7 @@ class _CacheManagementDialogState
                                           if (value == true) {
                                             _selectedTrackIds.add(item.trackId);
                                           } else {
-                                            _selectedTrackIds.remove(
-                                              item.trackId,
-                                            );
+                                            _selectedTrackIds.remove(item.trackId);
                                           }
                                         });
                                       },
@@ -930,10 +800,7 @@ class _CacheManagementDialogState
               spacing: 8,
               runSpacing: 8,
               children: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(materialL10n.closeButtonLabel),
-                ),
+                TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(materialL10n.closeButtonLabel)),
                 if (items.isNotEmpty)
                   TextButton(
                     onPressed: () {
@@ -947,27 +814,19 @@ class _CacheManagementDialogState
                         }
                       });
                     },
-                    child: Text(
-                      selectedIds.length == items.length
-                          ? l10n.clearSelectionAction
-                          : l10n.selectAllAction,
-                    ),
+                    child: Text(selectedIds.length == items.length ? l10n.clearSelectionAction : l10n.selectAllAction),
                   ),
                 OutlinedButton(
                   onPressed: items.isEmpty
                       ? null
                       : () async {
                           final messenger = ScaffoldMessenger.of(this.context);
-                          await ref
-                              .read(webDavPlaybackCacheProvider)
-                              .clearAllCachedData();
+                          await ref.read(webDavPlaybackCacheProvider).clearAllCachedData();
                           if (!mounted) {
                             return;
                           }
                           setState(_selectedTrackIds.clear);
-                          messenger.showSnackBar(
-                            SnackBar(content: Text(l10n.cacheClearedMessage)),
-                          );
+                          messenger.showSnackBar(SnackBar(content: Text(l10n.cacheClearedMessage)));
                         },
                   child: Text(l10n.clearCacheAction),
                 ),
@@ -976,9 +835,7 @@ class _CacheManagementDialogState
                       ? null
                       : () async {
                           final messenger = ScaffoldMessenger.of(this.context);
-                          await ref
-                              .read(webDavPlaybackCacheProvider)
-                              .removeCachedTracks(selectedIds);
+                          await ref.read(webDavPlaybackCacheProvider).removeCachedTracks(selectedIds);
                           if (!mounted) {
                             return;
                           }
@@ -986,13 +843,7 @@ class _CacheManagementDialogState
                             _selectedTrackIds.removeAll(selectedIds);
                           });
                           messenger.showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                l10n.selectedCacheDeletedMessage(
-                                  selectedIds.length,
-                                ),
-                              ),
-                            ),
+                            SnackBar(content: Text(l10n.selectedCacheDeletedMessage(selectedIds.length))),
                           );
                         },
                   child: Text(l10n.deleteSelectedCacheAction),
@@ -1005,10 +856,7 @@ class _CacheManagementDialogState
     );
   }
 
-  String _cacheModeLabel(
-    AppLocalizations l10n,
-    PlaybackCacheInventoryItem item,
-  ) {
+  String _cacheModeLabel(AppLocalizations l10n, PlaybackCacheInventoryItem item) {
     if (item.hasPersistentCopy && item.hasMemoryData) {
       return l10n.cacheModeHybridLabel;
     }
@@ -1049,11 +897,7 @@ class _MetaPill extends StatelessWidget {
 }
 
 class _DialogEmptyState extends StatelessWidget {
-  const _DialogEmptyState({
-    required this.icon,
-    required this.title,
-    required this.description,
-  });
+  const _DialogEmptyState({required this.icon, required this.title, required this.description});
 
   final IconData icon;
   final String title;
@@ -1080,9 +924,7 @@ class _DialogEmptyState extends StatelessWidget {
           Text(
             description,
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
           ),
         ],
       ),
@@ -1091,11 +933,7 @@ class _DialogEmptyState extends StatelessWidget {
 }
 
 class _DialogOption<T> {
-  const _DialogOption({
-    required this.value,
-    required this.label,
-    required this.icon,
-  });
+  const _DialogOption({required this.value, required this.label, required this.icon});
 
   final T value;
   final String label;

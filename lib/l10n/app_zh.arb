@@ -285,5 +285,18 @@
   "connectionFailedMessage": "连接失败，请检查 WebDAV 地址和凭证。",
   "playbackFailedMessage": "当前文件无法启动播放。",
   "folderAlbumsModeLabel": "按文件夹",
-  "scrapedAlbumsModeLabel": "按刮削分类"
+  "scrapedAlbumsModeLabel": "按刮削分类",
+  "songDetailsTitle": "歌曲详情",
+  "filePathLabel": "文件路径",
+  "sourceLabel": "音源",
+  "artistLabel": "艺术家",
+  "albumLabel": "专辑",
+  "addToFavoritesAction": "添加到收藏",
+  "removeFromFavoritesAction": "从收藏移除",
+  "addToLikedAction": "标记为喜欢",
+  "removeFromLikedAction": "取消喜欢",
+  "moreOptionsAction": "更多选项",
+  "debugSettingsTitle": "开发者",
+  "debugModeLabel": "调试模式",
+  "debugModeDescription": "异常发生时显示错误对话框"
 }

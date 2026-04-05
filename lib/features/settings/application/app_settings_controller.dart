@@ -18,18 +18,18 @@ class AppSettingsController extends AsyncNotifier<LibraryPreferences> {
   }
 
   Future<void> setInterfaceScale(double value) async {
-    await _save(
-      (preferences) => preferences.copyWith(interfaceScaleFactor: value),
-    );
+    await _save((preferences) => preferences.copyWith(interfaceScaleFactor: value));
   }
 
   Future<void> setFontScale(double value) async {
     await _save((preferences) => preferences.copyWith(fontScaleFactor: value));
   }
 
-  Future<void> _save(
-    LibraryPreferences Function(LibraryPreferences preferences) transform,
-  ) async {
+  Future<void> setDebugMode(bool value) async {
+    await _save((preferences) => preferences.copyWith(enableDebugMode: value));
+  }
+
+  Future<void> _save(LibraryPreferences Function(LibraryPreferences preferences) transform) async {
     final repository = ref.read(libraryPreferencesRepositoryProvider);
     final current = state.valueOrNull ?? await repository.load();
     final next = transform(current);
@@ -38,7 +38,6 @@ class AppSettingsController extends AsyncNotifier<LibraryPreferences> {
   }
 }
 
-final appSettingsControllerProvider =
-    AsyncNotifierProvider<AppSettingsController, LibraryPreferences>(
-      AppSettingsController.new,
-    );
+final appSettingsControllerProvider = AsyncNotifierProvider<AppSettingsController, LibraryPreferences>(
+  AppSettingsController.new,
+);

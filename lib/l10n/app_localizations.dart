@@ -1084,6 +1084,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'By scraped data'**
   String get scrapedAlbumsModeLabel;
+
+  /// No description provided for @songDetailsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Track details'**
+  String get songDetailsTitle;
+
+  /// No description provided for @filePathLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'File path'**
+  String get filePathLabel;
+
+  /// No description provided for @sourceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Source'**
+  String get sourceLabel;
+
+  /// No description provided for @artistLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Artist'**
+  String get artistLabel;
+
+  /// No description provided for @albumLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Album'**
+  String get albumLabel;
+
+  /// No description provided for @addToFavoritesAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to favorites'**
+  String get addToFavoritesAction;
+
+  /// No description provided for @removeFromFavoritesAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from favorites'**
+  String get removeFromFavoritesAction;
+
+  /// No description provided for @addToLikedAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to liked'**
+  String get addToLikedAction;
+
+  /// No description provided for @removeFromLikedAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from liked'**
+  String get removeFromLikedAction;
+
+  /// No description provided for @moreOptionsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'More options'**
+  String get moreOptionsAction;
+
+  /// No description provided for @debugSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Developer'**
+  String get debugSettingsTitle;
+
+  /// No description provided for @debugModeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Debug mode'**
+  String get debugModeLabel;
+
+  /// No description provided for @debugModeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Show error dialogs when exceptions occur'**
+  String get debugModeDescription;
 }
 
 class _AppLocalizationsDelegate
