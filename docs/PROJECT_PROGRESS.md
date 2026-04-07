@@ -1,10 +1,11 @@
 # Project Progress
 
 ## Snapshot
-- Last updated: v1.0.22+23 (debug mode feature, first song investigation)
+- Last updated: v1.0.23+24 (UI redesign Stage 4 - custom theme system)
 - Delivery focus: Android-first, while keeping the project multi-platform
 - Current maturity: strong prototype / production-oriented foundation
 - Build Status: ✅ Zero warnings, fully functional
+- UI Redesign: **80% complete (Stage 4/5)**
 
 ## Milestones
 
@@ -48,6 +49,14 @@
   - 3-7x faster startup (500ms-3s vs 5-15s)
 - **[NEW] Global debug mode feature (v1.0.22+23)**
   - Toggle in Settings → Developer section
+- **[NEW] UI Redesign Stage 4 - Custom Theme System (v1.0.23+24)**
+  - Custom color selection (8 presets + hex input)
+  - Dynamic border radius control (12px - 32px)
+  - Interface compactness adjustment (50% - 150%)
+  - Material Design 3 ColorScheme.fromSeed() integration
+  - Full settings UI with dialogs and sliders
+  - Real-time theme application across entire app
+  - Persistent theme preferences
   - Exception dialogs with copyable error text
   - Global error handler for all exception types
   - Full English and Chinese support

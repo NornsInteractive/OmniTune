@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/app_preferences.dart';
+import '../../../core/models/custom_theme_colors.dart';
 import '../../../core/storage/library_preferences_repository.dart';
 
 class AppSettingsController extends AsyncNotifier<LibraryPreferences> {
@@ -27,6 +28,10 @@ class AppSettingsController extends AsyncNotifier<LibraryPreferences> {
 
   Future<void> setDebugMode(bool value) async {
     await _save((preferences) => preferences.copyWith(enableDebugMode: value));
+  }
+
+  Future<void> setCustomThemeColors(CustomThemeColors value) async {
+    await _save((preferences) => preferences.copyWith(customThemeColors: value));
   }
 
   Future<void> _save(LibraryPreferences Function(LibraryPreferences preferences) transform) async {

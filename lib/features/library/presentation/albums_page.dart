@@ -47,25 +47,15 @@ class _AlbumsPageState extends ConsumerState<AlbumsPage> {
 
             final sources = browser.sources;
             final selectedSource = _resolveSelectedSource(sources, browser);
-            final groupingMode =
-                _groupingBySourceId[selectedSource.id] ??
-                LibraryAlbumGroupingMode.folder;
+            final groupingMode = _groupingBySourceId[selectedSource.id] ?? LibraryAlbumGroupingMode.folder;
 
             return catalogAsync.when(
-              loading: () => _AlbumsScaffold(
-                sources: sources,
-                selectedSource: selectedSource,
-                groupingMode: groupingMode,
-              ),
+              loading: () =>
+                  _AlbumsScaffold(sources: sources, selectedSource: selectedSource, groupingMode: groupingMode),
               error: (error, _) => Center(child: Text(error.toString())),
               data: (catalog) {
-                final albums = catalog.albumsForSource(
-                  selectedSource.id,
-                  groupingMode,
-                );
-                final sourceTracks = catalog.tracks
-                    .where((track) => track.sourceId == selectedSource.id)
-                    .length;
+                final albums = catalog.albumsForSource(selectedSource.id, groupingMode);
+                final sourceTracks = catalog.tracks.where((track) => track.sourceId == selectedSource.id).length;
 
                 return _AlbumsScaffold(
                   sources: sources,
@@ -93,10 +83,7 @@ class _AlbumsPageState extends ConsumerState<AlbumsPage> {
     );
   }
 
-  SourceProfile _resolveSelectedSource(
-    List<SourceProfile> sources,
-    LibraryViewState browser,
-  ) {
+  SourceProfile _resolveSelectedSource(List<SourceProfile> sources, LibraryViewState browser) {
     for (final source in sources) {
       if (source.id == _selectedSourceId) {
         return source;
@@ -136,10 +123,10 @@ class _AlbumsScaffold extends ConsumerWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
             child: Container(
               padding: const EdgeInsets.all(28),
@@ -154,23 +141,16 @@ class _AlbumsScaffold extends ConsumerWidget {
                   ],
                 ),
                 borderRadius: BorderRadius.circular(36),
-                border: Border.all(
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.45),
-                ),
+                border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.45)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    l10n.albumsHeadline,
-                    style: theme.textTheme.headlineMedium,
-                  ),
+                  Text(l10n.albumsHeadline, style: theme.textTheme.headlineMedium),
                   const SizedBox(height: 12),
                   Text(
                     l10n.albumsDescriptionWithSource(selectedSource.name),
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
+                    style: theme.textTheme.bodyLarge?.copyWith(color: colorScheme.onSurfaceVariant),
                   ),
                   const SizedBox(height: 24),
                   SizedBox(
@@ -182,20 +162,13 @@ class _AlbumsScaffold extends ConsumerWidget {
                       itemBuilder: (context, index) {
                         final source = sources[index];
                         final isSelected = source.id == selectedSource.id;
-                        final albumCount =
-                            catalog?.albumCountForSource(
-                              source.id,
-                              _groupingModeFor(source.id),
-                            ) ??
-                            0;
+                        final albumCount = catalog?.albumCountForSource(source.id, _groupingModeFor(source.id)) ?? 0;
 
                         return _SourceFilterChip(
                           source: source,
                           albumCount: albumCount,
                           isSelected: isSelected,
-                          onTap: onSourceSelected == null
-                              ? null
-                              : () => onSourceSelected!(source.id),
+                          onTap: onSourceSelected == null ? null : () => onSourceSelected!(source.id),
                         );
                       },
                     ),
@@ -208,30 +181,16 @@ class _AlbumsScaffold extends ConsumerWidget {
                     children: [
                       FilledButton.icon(
                         onPressed: () {
-                          final controller = ref.read(
-                            libraryCatalogControllerProvider.notifier,
-                          );
+                          final controller = ref.read(libraryCatalogControllerProvider.notifier);
                           if (catalog == null ||
-                              catalog!.scannedSources
-                                  .where(
-                                    (source) => source.id == selectedSource.id,
-                                  )
-                                  .isEmpty) {
+                              catalog!.scannedSources.where((source) => source.id == selectedSource.id).isEmpty) {
                             controller.scanAllSources();
                           } else {
                             controller.rescanSource(selectedSource.id);
                           }
                         },
-                        icon: Icon(
-                          catalog?.isScanning == true
-                              ? Icons.sync_rounded
-                              : Icons.radar_rounded,
-                        ),
-                        label: Text(
-                          catalog?.isScanning == true
-                              ? l10n.scanningAction
-                              : l10n.scanLibraryAction,
-                        ),
+                        icon: Icon(catalog?.isScanning == true ? Icons.sync_rounded : Icons.radar_rounded),
+                        label: Text(catalog?.isScanning == true ? l10n.scanningAction : l10n.scanLibraryAction),
                       ),
                       SegmentedButton<LibraryAlbumGroupingMode>(
                         segments: [
@@ -249,8 +208,7 @@ class _AlbumsScaffold extends ConsumerWidget {
                         selected: {groupingMode},
                         onSelectionChanged: onGroupingChanged == null
                             ? null
-                            : (selection) =>
-                                  onGroupingChanged!(selection.first),
+                            : (selection) => onGroupingChanged!(selection.first),
                       ),
                     ],
                   ),
@@ -259,10 +217,7 @@ class _AlbumsScaffold extends ConsumerWidget {
                     spacing: 12,
                     runSpacing: 12,
                     children: [
-                      _AlbumMetaPill(
-                        icon: Icons.album_rounded,
-                        label: '${albums.length} ${l10n.albumsTabLabel}',
-                      ),
+                      _AlbumMetaPill(icon: Icons.album_rounded, label: '${albums.length} ${l10n.albumsTabLabel}'),
                       _AlbumMetaPill(
                         icon: Icons.music_note_rounded,
                         label: '$sourceTracks ${l10n.allSongsCollectionTitle}',
@@ -271,29 +226,17 @@ class _AlbumsScaffold extends ConsumerWidget {
                   ),
                   if (catalog?.isScanning == true) ...[
                     const SizedBox(height: 22),
-                    LinearProgressIndicator(
-                      minHeight: 6,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
+                    LinearProgressIndicator(minHeight: 6, borderRadius: BorderRadius.circular(999)),
                     const SizedBox(height: 12),
                     Text(
-                      l10n.scanningProgress(
-                        catalog!.scannedDirectoryCount,
-                        catalog!.discoveredTrackCount,
-                      ),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                      l10n.scanningProgress(catalog!.scannedDirectoryCount, catalog!.discoveredTrackCount),
+                      style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
                     ),
                     if ((catalog!.lastScanSourceName ?? '').isNotEmpty) ...[
                       const SizedBox(height: 6),
                       Text(
-                        l10n.currentScanSourceLabel(
-                          catalog!.lastScanSourceName!,
-                        ),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
+                        l10n.currentScanSourceLabel(catalog!.lastScanSourceName!),
+                        style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
                       ),
                     ],
                   ],
@@ -301,43 +244,39 @@ class _AlbumsScaffold extends ConsumerWidget {
               ),
             ),
           ),
-        ),
-        if (albums.isEmpty)
-          SliverToBoxAdapter(
-            child: Padding(
+          if (albums.isEmpty)
+            Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
               child: _AlbumsEmptyCard(
                 title: l10n.albumsEmptyTitle,
                 description: l10n.albumsEmptyDescription,
                 actionLabel: l10n.scanLibraryAction,
                 onPressed: () {
-                  ref
-                      .read(libraryCatalogControllerProvider.notifier)
-                      .scanAllSources();
+                  ref.read(libraryCatalogControllerProvider.notifier).scanAllSources();
+                },
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+              child: GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 280,
+                  mainAxisExtent: 280,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                ),
+                itemCount: albums.length,
+                itemBuilder: (context, index) {
+                  final album = albums[index];
+                  return _AlbumCard(album: album, onTap: () => _openAlbumSheet(context, ref, album));
                 },
               ),
             ),
-          )
-        else
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-            sliver: SliverGrid(
-              delegate: SliverChildBuilderDelegate((context, index) {
-                final album = albums[index];
-                return _AlbumCard(
-                  album: album,
-                  onTap: () => _openAlbumSheet(context, ref, album),
-                );
-              }, childCount: albums.length),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 280,
-                mainAxisExtent: 280,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-              ),
-            ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -348,11 +287,7 @@ class _AlbumsScaffold extends ConsumerWidget {
     return LibraryAlbumGroupingMode.folder;
   }
 
-  Future<void> _openAlbumSheet(
-    BuildContext context,
-    WidgetRef ref,
-    LibraryAlbum album,
-  ) {
+  Future<void> _openAlbumSheet(BuildContext context, WidgetRef ref, LibraryAlbum album) {
     final l10n = AppLocalizations.of(context)!;
     final catalogState = ref.read(libraryCatalogControllerProvider).valueOrNull;
 
@@ -373,34 +308,22 @@ class _AlbumsScaffold extends ConsumerWidget {
               children: [
                 Row(
                   children: [
-                    GeneratedCoverArt(
-                      title: album.title,
-                      subtitle: album.artistName,
-                      size: 108,
-                      borderRadius: 26,
-                    ),
+                    GeneratedCoverArt(title: album.title, subtitle: album.artistName, size: 108, borderRadius: 26),
                     const SizedBox(width: 18),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            album.title,
-                            style: theme.textTheme.headlineSmall,
-                          ),
+                          Text(album.title, style: theme.textTheme.headlineSmall),
                           const SizedBox(height: 8),
                           Text(
                             '${album.artistName} · ${album.sourceName}',
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
+                            style: theme.textTheme.bodyLarge?.copyWith(color: colorScheme.onSurfaceVariant),
                           ),
                           const SizedBox(height: 6),
                           Text(
                             '${album.trackCount} ${l10n.tracksLabel}',
-                            style: theme.textTheme.labelLarge?.copyWith(
-                              color: colorScheme.primary,
-                            ),
+                            style: theme.textTheme.labelLarge?.copyWith(color: colorScheme.primary),
                           ),
                         ],
                       ),
@@ -415,19 +338,13 @@ class _AlbumsScaffold extends ConsumerWidget {
                     separatorBuilder: (_, _) => const SizedBox(height: 8),
                     itemBuilder: (context, index) {
                       final track = album.tracks[index];
-                      final isFavorite =
-                          catalogState?.favoriteTrackIds.contains(track.id) ??
-                          false;
-                      final isLiked =
-                          catalogState?.likedTrackIds.contains(track.id) ??
-                          false;
+                      final isFavorite = catalogState?.favoriteTrackIds.contains(track.id) ?? false;
+                      final isLiked = catalogState?.likedTrackIds.contains(track.id) ?? false;
                       return Material(
                         color: colorScheme.surfaceContainerLow,
                         borderRadius: BorderRadius.circular(22),
                         child: ListTile(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(22),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
                           title: Text(track.title),
                           subtitle: Text(track.artistName),
                           trailing: Wrap(
@@ -435,39 +352,19 @@ class _AlbumsScaffold extends ConsumerWidget {
                             children: [
                               IconButton(
                                 onPressed: () {
-                                  ref
-                                      .read(
-                                        libraryCatalogControllerProvider
-                                            .notifier,
-                                      )
-                                      .toggleFavorite(track.id);
+                                  ref.read(libraryCatalogControllerProvider.notifier).toggleFavorite(track.id);
                                 },
-                                icon: Icon(
-                                  isFavorite
-                                      ? Icons.bookmark_rounded
-                                      : Icons.bookmark_border_rounded,
-                                ),
+                                icon: Icon(isFavorite ? Icons.bookmark_rounded : Icons.bookmark_border_rounded),
                               ),
                               IconButton(
                                 onPressed: () {
-                                  ref
-                                      .read(
-                                        libraryCatalogControllerProvider
-                                            .notifier,
-                                      )
-                                      .toggleLiked(track.id);
+                                  ref.read(libraryCatalogControllerProvider.notifier).toggleLiked(track.id);
                                 },
-                                icon: Icon(
-                                  isLiked
-                                      ? Icons.favorite_rounded
-                                      : Icons.favorite_border_rounded,
-                                ),
+                                icon: Icon(isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded),
                               ),
                               IconButton.filledTonal(
                                 onPressed: () {
-                                  ref
-                                      .read(playerControllerProvider.notifier)
-                                      .playLibrarySong(track);
+                                  ref.read(playerControllerProvider.notifier).playLibrarySong(track);
                                   Navigator.of(context).pop();
                                 },
                                 icon: const Icon(Icons.play_arrow_rounded),
@@ -489,12 +386,7 @@ class _AlbumsScaffold extends ConsumerWidget {
 }
 
 class _SourceFilterChip extends StatelessWidget {
-  const _SourceFilterChip({
-    required this.source,
-    required this.albumCount,
-    required this.isSelected,
-    this.onTap,
-  });
+  const _SourceFilterChip({required this.source, required this.albumCount, required this.isSelected, this.onTap});
 
   final SourceProfile source;
   final int albumCount;
@@ -507,9 +399,7 @@ class _SourceFilterChip extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Material(
-      color: isSelected
-          ? colorScheme.secondaryContainer
-          : colorScheme.surfaceContainerLow,
+      color: isSelected ? colorScheme.secondaryContainer : colorScheme.surfaceContainerLow,
       borderRadius: BorderRadius.circular(24),
       child: InkWell(
         borderRadius: BorderRadius.circular(24),
@@ -520,19 +410,9 @@ class _SourceFilterChip extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                source.name,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+              Text(source.name, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: 6),
-              Text(
-                '$albumCount',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
+              Text('$albumCount', style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
             ],
           ),
         ),
@@ -565,37 +445,26 @@ class _AlbumCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Center(
-                child: GeneratedCoverArt(
-                  title: album.title,
-                  subtitle: album.artistName,
-                  size: 168,
-                  borderRadius: 28,
-                ),
+                child: GeneratedCoverArt(title: album.title, subtitle: album.artistName, size: 168, borderRadius: 28),
               ),
               const SizedBox(height: 14),
               Text(
                 album.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
               Text(
                 '${album.artistName} · ${album.sourceName}',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
               ),
               const Spacer(),
               Text(
                 '${album.trackCount} ${l10n.tracksLabel}',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: colorScheme.primary,
-                ),
+                style: theme.textTheme.labelLarge?.copyWith(color: colorScheme.primary),
               ),
             ],
           ),
@@ -664,12 +533,7 @@ class _AlbumsEmptyCard extends StatelessWidget {
         children: [
           Text(title, style: theme.textTheme.headlineSmall),
           const SizedBox(height: 12),
-          Text(
-            description,
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
+          Text(description, style: theme.textTheme.bodyLarge?.copyWith(color: colorScheme.onSurfaceVariant)),
           const SizedBox(height: 20),
           FilledButton(onPressed: onPressed, child: Text(actionLabel)),
         ],

@@ -181,6 +181,46 @@ class SettingsPage extends ConsumerWidget {
                         },
                       ),
                     ),
+                    _SettingTile(
+                      icon: Icons.palette_rounded,
+                      title: '主题颜色',
+                      subtitle: preferences.customThemeColors.primaryColorSeed ?? '使用默认颜色',
+                      onTap: () => _showColorPickerDialog(
+                        context: context,
+                        ref: ref,
+                        currentColor: preferences.customThemeColors.primaryColorSeed ?? '',
+                        onSelected: (colorHex) {
+                          final updated = preferences.customThemeColors.copyWith(primaryColorSeed: colorHex);
+                          ref.read(appSettingsControllerProvider.notifier).setCustomThemeColors(updated);
+                        },
+                      ),
+                    ),
+                    _SettingTile(
+                      icon: Icons.rounded_corner,
+                      title: '边框圆角',
+                      subtitle: '${preferences.customThemeColors.borderRadius.toStringAsFixed(1)}px',
+                      onTap: () => _showBorderRadiusSlider(
+                        context: context,
+                        initialValue: preferences.customThemeColors.borderRadius,
+                        onSaved: (value) {
+                          final updated = preferences.customThemeColors.copyWith(borderRadius: value);
+                          ref.read(appSettingsControllerProvider.notifier).setCustomThemeColors(updated);
+                        },
+                      ),
+                    ),
+                    _SettingTile(
+                      icon: Icons.density_medium_rounded,
+                      title: '界面紧凑度',
+                      subtitle: '${(preferences.customThemeColors.interfaceCompactness * 100).toStringAsFixed(0)}%',
+                      onTap: () => _showCompactnessSlider(
+                        context: context,
+                        initialValue: preferences.customThemeColors.interfaceCompactness,
+                        onSaved: (value) {
+                          final updated = preferences.customThemeColors.copyWith(interfaceCompactness: value);
+                          ref.read(appSettingsControllerProvider.notifier).setCustomThemeColors(updated);
+                        },
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 18),
@@ -408,6 +448,211 @@ class SettingsPage extends ConsumerWidget {
                     }
                   },
                   child: Text(materialL10n.okButtonLabel),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _showColorPickerDialog({
+    required BuildContext context,
+    required WidgetRef ref,
+    required String currentColor,
+    required void Function(String colorHex) onSelected,
+  }) {
+    var selectedColor = currentColor;
+    final colors = ['#FF5722', '#FF9800', '#FFC107', '#8BC34A', '#4CAF50', '#00BCD4', '#2196F3', '#3F51B5'];
+
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('选择主题颜色'),
+              content: SizedBox(
+                width: 400,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('预设颜色：'),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: colors.map((color) {
+                        final isSelected = selectedColor == color;
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              selectedColor = color;
+                            });
+                          },
+                          child: Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              color: Color(int.parse(color.replaceFirst('#', '0xff'))),
+                              borderRadius: BorderRadius.circular(12),
+                              border: isSelected ? Border.all(color: Colors.black, width: 3) : null,
+                            ),
+                            child: isSelected ? const Icon(Icons.check_rounded, color: Colors.white) : null,
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 20),
+                    TextField(
+                      decoration: InputDecoration(
+                        labelText: 'Hex 颜色值（如 #FF5722）',
+                        hintText: currentColor,
+                        border: const OutlineInputBorder(),
+                      ),
+                      onChanged: (value) {
+                        if (value.isNotEmpty && RegExp(r'^#?[0-9A-Fa-f]{6}$').hasMatch(value)) {
+                          setState(() {
+                            selectedColor = value.startsWith('#') ? value : '#$value';
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('取消')),
+                FilledButton(
+                  onPressed: () {
+                    onSelected(selectedColor);
+                    Navigator.of(dialogContext).pop();
+                  },
+                  child: const Text('确认'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _showBorderRadiusSlider({
+    required BuildContext context,
+    required double initialValue,
+    required void Function(double value) onSaved,
+  }) {
+    var value = initialValue;
+
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('边框圆角'),
+              content: SizedBox(
+                width: 400,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${value.toStringAsFixed(1)}px', style: Theme.of(context).textTheme.headlineSmall),
+                    const SizedBox(height: 20),
+                    Slider(
+                      min: 12,
+                      max: 32,
+                      divisions: 20,
+                      value: value,
+                      label: '${value.toStringAsFixed(1)}px',
+                      onChanged: (nextValue) {
+                        setState(() {
+                          value = nextValue;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      '范围：12.0 - 32.0px',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('取消')),
+                FilledButton(
+                  onPressed: () {
+                    onSaved(value);
+                    Navigator.of(dialogContext).pop();
+                  },
+                  child: const Text('确认'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _showCompactnessSlider({
+    required BuildContext context,
+    required double initialValue,
+    required void Function(double value) onSaved,
+  }) {
+    var value = initialValue;
+
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('界面紧凑度'),
+              content: SizedBox(
+                width: 400,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${(value * 100).toStringAsFixed(0)}%', style: Theme.of(context).textTheme.headlineSmall),
+                    const SizedBox(height: 20),
+                    Slider(
+                      min: 0.5,
+                      max: 1.5,
+                      divisions: 10,
+                      value: value,
+                      label: '${(value * 100).toStringAsFixed(0)}%',
+                      onChanged: (nextValue) {
+                        setState(() {
+                          value = nextValue;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      '50% (紧凑) - 150% (宽松)',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('取消')),
+                FilledButton(
+                  onPressed: () {
+                    onSaved(value);
+                    Navigator.of(dialogContext).pop();
+                  },
+                  child: const Text('确认'),
                 ),
               ],
             );

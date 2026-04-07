@@ -5,21 +5,23 @@ When continuing work in this repository, read files in this order:
 
 1. `AGENTS.md`
 2. `.github/copilot-instructions.md`
-3. `docs/COPILOT_HANDOFF.md`
-4. `docs/PROJECT_PROGRESS.md`
-5. `docs/NEXT_STEPS.md`
+3. `STAGE_4_HANDOFF.md` — **[NEW - Stage 4 完成总结]**
+4. `docs/DOCUMENTATION_INDEX.md` — **[NEW - 文档导航]**
+5. `docs/PROJECT_PROGRESS.md`
+6. `docs/NEXT_STEPS.md`
 
 The newer docs are the source of truth. If an older document conflicts with the current code, trust the current code and the handoff docs.
 
 ## Current Project Snapshot
 - Flutter cross-platform music player skeleton focused on Android-first delivery.
-- Current version: `1.0.18+19`
+- Current version: `1.0.23+24` **(Updated: Stage 4 完成)**
 - State management: Riverpod with code generation
 - Routing: `go_router`
 - Playback: `just_audio`
 - Credentials storage: `flutter_secure_storage`
 - Remote protocol currently implemented: `WebDAV`
 - Current APK build command with auto version bump: `bash scripts/build_apk.sh`
+- **[NEW] UI Redesign: Stage 4 (80% complete) - Custom Theme System**
 
 ## What Already Works
 - Multiple WebDAV music sources can be added and edited.
@@ -44,6 +46,13 @@ The newer docs are the source of truth. If an older document conflicts with the 
   - separate song list pages for all songs, liked, favorites
   - separate remote browser page
 - Settings page is entered from the top-right gear icon, not from bottom navigation.
+- **[NEW - Stage 4] Custom Theme System:**
+  - Custom color selection (8 presets + hex input)
+  - Dynamic border radius control (12-32px)
+  - Interface compactness adjustment (50%-150%)
+  - Material Design 3 ColorScheme.fromSeed() integration
+  - Real-time theme application across entire app
+  - Persistent theme preferences
 
 ## Important Current Limitations
 - Only WebDAV is fully implemented. SFTP/cloud drives are not started.

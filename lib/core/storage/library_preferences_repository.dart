@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../models/app_preferences.dart';
+import '../models/custom_theme_colors.dart';
 import '../models/playback_cache_settings.dart';
 
 part 'library_preferences_repository.g.dart';
@@ -20,6 +21,7 @@ class LibraryPreferences {
     this.interfaceScaleFactor = AppDisplayPreferences.defaultInterfaceScale,
     this.fontScaleFactor = AppDisplayPreferences.defaultFontScale,
     this.enableDebugMode = false,
+    this.customThemeColors = const CustomThemeColors(),
   });
 
   final Set<String> favoriteTrackIds;
@@ -31,6 +33,7 @@ class LibraryPreferences {
   final double interfaceScaleFactor;
   final double fontScaleFactor;
   final bool enableDebugMode;
+  final CustomThemeColors customThemeColors;
 
   PlaybackCacheSettings get playbackCacheSettings {
     return PlaybackCacheSettings(
@@ -49,6 +52,7 @@ class LibraryPreferences {
     double? interfaceScaleFactor,
     double? fontScaleFactor,
     bool? enableDebugMode,
+    CustomThemeColors? customThemeColors,
   }) {
     return LibraryPreferences(
       favoriteTrackIds: favoriteTrackIds ?? this.favoriteTrackIds,
@@ -62,6 +66,7 @@ class LibraryPreferences {
       ),
       fontScaleFactor: AppDisplayPreferences.normalizeFontScale(fontScaleFactor ?? this.fontScaleFactor),
       enableDebugMode: enableDebugMode ?? this.enableDebugMode,
+      customThemeColors: customThemeColors ?? this.customThemeColors,
     );
   }
 }
@@ -99,6 +104,9 @@ class SecureLibraryPreferencesRepository implements LibraryPreferencesRepository
       ),
       fontScaleFactor: AppDisplayPreferences.fontScaleFromStorage(json['fontScaleFactor'] ?? json['fontScale']),
       enableDebugMode: json['enableDebugMode'] as bool? ?? false,
+      customThemeColors: json['customThemeColors'] != null
+          ? CustomThemeColors.fromJson(json['customThemeColors'] as Map<String, dynamic>)
+          : const CustomThemeColors(),
     );
   }
 
@@ -115,6 +123,7 @@ class SecureLibraryPreferencesRepository implements LibraryPreferencesRepository
       'interfaceScaleFactor': AppDisplayPreferences.normalizeInterfaceScale(preferences.interfaceScaleFactor),
       'fontScaleFactor': AppDisplayPreferences.normalizeFontScale(preferences.fontScaleFactor),
       'enableDebugMode': preferences.enableDebugMode,
+      'customThemeColors': preferences.customThemeColors.toJson(),
     });
     return _storage.write(key: _key, value: raw);
   }
