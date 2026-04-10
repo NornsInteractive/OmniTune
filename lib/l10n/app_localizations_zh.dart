@@ -585,4 +585,64 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get debugModeDescription => '异常发生时显示错误对话框';
+
+  @override
+  String get themeCustomizationTitle => '主题定制';
+
+  @override
+  String get darkModeSettingTitle => '深色模式';
+
+  @override
+  String get darkModeSettingDescription => '启用深色主题';
+
+  @override
+  String get seedColorSettingTitle => '强调色';
+
+  @override
+  String get seedColorSettingDescription => '选择主要强调色';
+
+  @override
+  String get colorPresetPurple => '紫色（默认）';
+
+  @override
+  String get colorPresetBlue => '蓝色';
+
+  @override
+  String get colorPresetTeal => '青色';
+
+  @override
+  String get colorPresetGreen => '绿色';
+
+  @override
+  String get colorPresetYellow => '黄色';
+
+  @override
+  String get colorPresetOrange => '橙色';
+
+  @override
+  String get colorPresetRed => '红色';
+
+  @override
+  String get colorPresetPink => '粉红色';
+
+  @override
+  String get colorCustomHexLabel => '自定义（十六进制）';
+
+  @override
+  String get colorCustomHexHint => '#RRGGBB 或 0xRRGGBB';
+
+  @override
+  String get navigationHome => '首页';
+
+  @override
+  String get navigationSearch => '搜索';
+
+  @override
+  String get navigationLibrary => '音乐库';
+
+  @override
+  String get navigationPlayer => '正在播放';
+
+  @override
+  String get navigationSettings => '设置';
 }

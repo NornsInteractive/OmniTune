@@ -221,9 +221,7 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
             decoration: BoxDecoration(
               color: colorScheme.surfaceContainerHigh,
               borderRadius: BorderRadius.circular(borderRadius),
-              boxShadow: [
-                BoxShadow(color: colorScheme.scrim.withValues(alpha: 0.08), blurRadius: 20, offset: const Offset(0, 8)),
-              ],
+              border: Border.all(color: colorScheme.outlineVariant, width: 0.5),
             ),
             child: Stack(
               alignment: Alignment.center,
@@ -422,9 +420,7 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
           decoration: BoxDecoration(
             color: colorScheme.primary,
             borderRadius: BorderRadius.circular(borderRadius),
-            boxShadow: [
-              BoxShadow(color: colorScheme.primary.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4)),
-            ],
+            border: Border.all(color: colorScheme.primary, width: 0.5),
           ),
           child: Icon(icon, color: colorScheme.onPrimary, size: iconSize),
         ),
@@ -441,6 +437,10 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
           decoration: BoxDecoration(
             color: isFilled ? colorScheme.primaryContainer : colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(borderRadius),
+            border: Border.all(
+              color: isFilled ? colorScheme.primaryContainer : colorScheme.outlineVariant,
+              width: 0.5,
+            ),
           ),
           child: Icon(
             icon,

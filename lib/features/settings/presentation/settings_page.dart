@@ -15,6 +15,8 @@ import '../../sources/application/sources_controller.dart';
 import '../../sources/data/webdav/webdav_playback_cache_base.dart';
 import '../../sources/data/webdav/webdav_playback_cache_provider.dart';
 import '../application/app_settings_controller.dart';
+import '../../../core/settings/settings_provider.dart';
+import '../../../core/settings/app_settings.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -41,33 +43,25 @@ class SettingsPage extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
               children: [
                 Container(
-                  padding: const EdgeInsets.all(28),
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        colorScheme.primaryContainer,
-                        colorScheme.surfaceContainerHigh,
-                        colorScheme.secondaryContainer,
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(36),
-                    border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                    color: colorScheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: colorScheme.outlineVariant, width: 0.5),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(l10n.settingsCenterHeadline, style: theme.textTheme.headlineMedium),
-                      const SizedBox(height: 12),
+                      Text(l10n.settingsCenterHeadline, style: theme.textTheme.titleLarge),
+                      const SizedBox(height: 10),
                       Text(
                         l10n.settingsCenterDescription,
-                        style: theme.textTheme.bodyLarge?.copyWith(color: colorScheme.onSurfaceVariant),
+                        style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
                       Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
+                        spacing: 10,
+                        runSpacing: 10,
                         children: [
                           _MetaPill(
                             icon: Icons.language_rounded,
@@ -159,8 +153,15 @@ class SettingsPage extends ConsumerWidget {
                         max: AppDisplayPreferences.maxInterfaceScale,
                         divisions: 50,
                         initialValue: preferences.interfaceScaleFactor,
-                        onSaved: (value) {
-                          return ref.read(appSettingsControllerProvider.notifier).setInterfaceScale(value);
+                        onSaved: (value) async {
+                          // 旧的偏好控制器仍保留（持久化到 LibraryPreferences）
+                          await ref.read(appSettingsControllerProvider.notifier).setInterfaceScale(value);
+
+                          // 同步到新的全局 AppSettings（密度枚举），以便新 UI token 生效
+                          final density = value < 0.92
+                              ? LayoutDensity.compact
+                              : (value <= 1.12 ? LayoutDensity.standard : LayoutDensity.comfortable);
+                          await ref.read(appSettingsProvider.notifier).setDensity(density);
                         },
                       ),
                     ),
@@ -176,49 +177,42 @@ class SettingsPage extends ConsumerWidget {
                         max: AppDisplayPreferences.maxFontScale,
                         divisions: 57,
                         initialValue: preferences.fontScaleFactor,
-                        onSaved: (value) {
-                          return ref.read(appSettingsControllerProvider.notifier).setFontScale(value);
+                        onSaved: (value) async {
+                          await ref.read(appSettingsControllerProvider.notifier).setFontScale(value);
+
+                          // 将连续字体缩放同步为离散的 FontScale 枚举
+                          final fontScale = value < 0.9
+                              ? FontScale.small
+                              : (value <= 1.05
+                                    ? FontScale.medium
+                                    : (value <= 1.25 ? FontScale.large : FontScale.extraLarge));
+                          await ref.read(appSettingsProvider.notifier).setFontScale(fontScale);
                         },
                       ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                _SettingsSection(
+                  title: l10n.themeCustomizationTitle,
+                  children: [
                     _SettingTile(
-                      icon: Icons.palette_rounded,
-                      title: '主题颜色',
-                      subtitle: preferences.customThemeColors.primaryColorSeed ?? '使用默认颜色',
+                      icon: Icons.dark_mode_outlined,
+                      title: l10n.darkModeSettingTitle,
+                      subtitle: l10n.darkModeSettingDescription,
+                      onTap: () async {
+                        final currentSettings = ref.read(appSettingsProvider);
+                        await ref.read(appSettingsProvider.notifier).setDarkMode(!currentSettings.isDarkMode);
+                      },
+                    ),
+                    _SettingTile(
+                      icon: Icons.palette_outlined,
+                      title: l10n.seedColorSettingTitle,
+                      subtitle: l10n.seedColorSettingDescription,
                       onTap: () => _showColorPickerDialog(
                         context: context,
                         ref: ref,
-                        currentColor: preferences.customThemeColors.primaryColorSeed ?? '',
-                        onSelected: (colorHex) {
-                          final updated = preferences.customThemeColors.copyWith(primaryColorSeed: colorHex);
-                          ref.read(appSettingsControllerProvider.notifier).setCustomThemeColors(updated);
-                        },
-                      ),
-                    ),
-                    _SettingTile(
-                      icon: Icons.rounded_corner,
-                      title: '边框圆角',
-                      subtitle: '${preferences.customThemeColors.borderRadius.toStringAsFixed(1)}px',
-                      onTap: () => _showBorderRadiusSlider(
-                        context: context,
-                        initialValue: preferences.customThemeColors.borderRadius,
-                        onSaved: (value) {
-                          final updated = preferences.customThemeColors.copyWith(borderRadius: value);
-                          ref.read(appSettingsControllerProvider.notifier).setCustomThemeColors(updated);
-                        },
-                      ),
-                    ),
-                    _SettingTile(
-                      icon: Icons.density_medium_rounded,
-                      title: '界面紧凑度',
-                      subtitle: '${(preferences.customThemeColors.interfaceCompactness * 100).toStringAsFixed(0)}%',
-                      onTap: () => _showCompactnessSlider(
-                        context: context,
-                        initialValue: preferences.customThemeColors.interfaceCompactness,
-                        onSaved: (value) {
-                          final updated = preferences.customThemeColors.copyWith(interfaceCompactness: value);
-                          ref.read(appSettingsControllerProvider.notifier).setCustomThemeColors(updated);
-                        },
+                        currentColor: ref.read(appSettingsProvider).seedColor,
                       ),
                     ),
                   ],
@@ -263,24 +257,6 @@ class SettingsPage extends ConsumerWidget {
                       onTap: () => _showCacheManagementDialog(
                         context: context,
                         sourceNames: {for (final source in sources) source.id: source.name},
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                _SettingsSection(
-                  title: l10n.debugSettingsTitle,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                      child: SwitchListTile.adaptive(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(l10n.debugModeLabel),
-                        subtitle: Text(l10n.debugModeDescription),
-                        value: preferences.enableDebugMode,
-                        onChanged: (value) {
-                          ref.read(appSettingsControllerProvider.notifier).setDebugMode(value);
-                        },
                       ),
                     ),
                   ],
@@ -448,211 +424,6 @@ class SettingsPage extends ConsumerWidget {
                     }
                   },
                   child: Text(materialL10n.okButtonLabel),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<void> _showColorPickerDialog({
-    required BuildContext context,
-    required WidgetRef ref,
-    required String currentColor,
-    required void Function(String colorHex) onSelected,
-  }) {
-    var selectedColor = currentColor;
-    final colors = ['#FF5722', '#FF9800', '#FFC107', '#8BC34A', '#4CAF50', '#00BCD4', '#2196F3', '#3F51B5'];
-
-    return showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('选择主题颜色'),
-              content: SizedBox(
-                width: 400,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('预设颜色：'),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: colors.map((color) {
-                        final isSelected = selectedColor == color;
-                        return GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              selectedColor = color;
-                            });
-                          },
-                          child: Container(
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              color: Color(int.parse(color.replaceFirst('#', '0xff'))),
-                              borderRadius: BorderRadius.circular(12),
-                              border: isSelected ? Border.all(color: Colors.black, width: 3) : null,
-                            ),
-                            child: isSelected ? const Icon(Icons.check_rounded, color: Colors.white) : null,
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 20),
-                    TextField(
-                      decoration: InputDecoration(
-                        labelText: 'Hex 颜色值（如 #FF5722）',
-                        hintText: currentColor,
-                        border: const OutlineInputBorder(),
-                      ),
-                      onChanged: (value) {
-                        if (value.isNotEmpty && RegExp(r'^#?[0-9A-Fa-f]{6}$').hasMatch(value)) {
-                          setState(() {
-                            selectedColor = value.startsWith('#') ? value : '#$value';
-                          });
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('取消')),
-                FilledButton(
-                  onPressed: () {
-                    onSelected(selectedColor);
-                    Navigator.of(dialogContext).pop();
-                  },
-                  child: const Text('确认'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<void> _showBorderRadiusSlider({
-    required BuildContext context,
-    required double initialValue,
-    required void Function(double value) onSaved,
-  }) {
-    var value = initialValue;
-
-    return showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('边框圆角'),
-              content: SizedBox(
-                width: 400,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('${value.toStringAsFixed(1)}px', style: Theme.of(context).textTheme.headlineSmall),
-                    const SizedBox(height: 20),
-                    Slider(
-                      min: 12,
-                      max: 32,
-                      divisions: 20,
-                      value: value,
-                      label: '${value.toStringAsFixed(1)}px',
-                      onChanged: (nextValue) {
-                        setState(() {
-                          value = nextValue;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      '范围：12.0 - 32.0px',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('取消')),
-                FilledButton(
-                  onPressed: () {
-                    onSaved(value);
-                    Navigator.of(dialogContext).pop();
-                  },
-                  child: const Text('确认'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<void> _showCompactnessSlider({
-    required BuildContext context,
-    required double initialValue,
-    required void Function(double value) onSaved,
-  }) {
-    var value = initialValue;
-
-    return showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('界面紧凑度'),
-              content: SizedBox(
-                width: 400,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('${(value * 100).toStringAsFixed(0)}%', style: Theme.of(context).textTheme.headlineSmall),
-                    const SizedBox(height: 20),
-                    Slider(
-                      min: 0.5,
-                      max: 1.5,
-                      divisions: 10,
-                      value: value,
-                      label: '${(value * 100).toStringAsFixed(0)}%',
-                      onChanged: (nextValue) {
-                        setState(() {
-                          value = nextValue;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      '50% (紧凑) - 150% (宽松)',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('取消')),
-                FilledButton(
-                  onPressed: () {
-                    onSaved(value);
-                    Navigator.of(dialogContext).pop();
-                  },
-                  child: const Text('确认'),
                 ),
               ],
             );
@@ -844,6 +615,164 @@ class SettingsPage extends ConsumerWidget {
       SourceProtocol.sftp => l10n.sftpProtocol,
       SourceProtocol.cloudDrive => l10n.cloudDriveProtocol,
     };
+  }
+
+  Future<void> _showColorPickerDialog({
+    required BuildContext context,
+    required WidgetRef ref,
+    required Color currentColor,
+  }) {
+    final l10n = AppLocalizations.of(context)!;
+    final materialL10n = MaterialLocalizations.of(context);
+
+    // 预设颜色
+    final colorPresets = [
+      ('purple', const Color(0xFF6750A4), l10n.colorPresetPurple),
+      ('blue', const Color(0xFF0066CC), l10n.colorPresetBlue),
+      ('teal', const Color(0xFF0A9B8E), l10n.colorPresetTeal),
+      ('green', const Color(0xFF2E7D32), l10n.colorPresetGreen),
+      ('yellow', const Color(0xFFFBC02D), l10n.colorPresetYellow),
+      ('orange', const Color(0xFFF57C00), l10n.colorPresetOrange),
+      ('red', const Color(0xFFC62828), l10n.colorPresetRed),
+      ('pink', const Color(0xFFAD1457), l10n.colorPresetPink),
+    ];
+
+    var selectedColor = currentColor;
+
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text(l10n.seedColorSettingTitle),
+              content: SizedBox(
+                width: 460,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 颜色预设网格
+                      Text(l10n.seedColorSettingDescription, style: Theme.of(context).textTheme.bodyMedium),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: [
+                          for (final (_, color, _) in colorPresets)
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  selectedColor = color;
+                                });
+                              },
+                              child: Container(
+                                width: 56,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  color: color,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: selectedColor == color ? Colors.white : Colors.transparent,
+                                    width: 3,
+                                  ),
+                                  boxShadow: selectedColor == color
+                                      ? [
+                                          BoxShadow(
+                                            color: color.withValues(alpha: 0.4),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ]
+                                      : null,
+                                ),
+                                child: selectedColor == color
+                                    ? Icon(
+                                        Icons.check_rounded,
+                                        color: color.computeLuminance() > 0.5 ? Colors.black : Colors.white,
+                                      )
+                                    : null,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+
+                      // 自定义十六进制输入
+                      Text(l10n.colorCustomHexLabel, style: Theme.of(context).textTheme.titleSmall),
+                      const SizedBox(height: 8),
+                      TextField(
+                        decoration: InputDecoration(
+                          hintText: l10n.colorCustomHexHint,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                        onChanged: (value) {
+                          // 尝试解析颜色
+                          try {
+                            Color parsedColor;
+                            if (value.startsWith('#')) {
+                              parsedColor = Color(int.parse(value.substring(1), radix: 16) | 0xFF000000);
+                            } else if (value.startsWith('0x') || value.startsWith('0X')) {
+                              parsedColor = Color(int.parse(value, radix: 16) | 0xFF000000);
+                            } else {
+                              return;
+                            }
+                            setState(() {
+                              selectedColor = parsedColor;
+                            });
+                          } catch (e) {
+                            // 忽略解析错误
+                          }
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // 预览当前选中色
+                      Container(
+                        width: double.infinity,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: selectedColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                        ),
+                        child: Center(
+                          child: Text(
+                            '#${(selectedColor.toARGB32() & 0xFFFFFF).toRadixString(16).toUpperCase().padLeft(6, '0')}',
+                            style: TextStyle(
+                              color: selectedColor.computeLuminance() > 0.5 ? Colors.black : Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: Text(materialL10n.cancelButtonLabel),
+                ),
+                FilledButton(
+                  onPressed: () async {
+                    await ref.read(appSettingsProvider.notifier).setSeedColor(selectedColor);
+                    if (dialogContext.mounted) {
+                      Navigator.of(dialogContext).pop();
+                    }
+                  },
+                  child: Text(materialL10n.okButtonLabel),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 }
 

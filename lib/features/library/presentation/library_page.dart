@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:music/l10n/app_localizations.dart';
+import 'package:music/shared/widgets/modern_ui/modern_ui.dart';
 
 import '../../../core/models/library_song.dart';
 import '../../../core/models/remote_entry.dart';
@@ -315,21 +316,9 @@ class _CollectionHomeBody extends ConsumerWidget {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
-                      colorScheme.surface.withValues(alpha: 0.6),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
-                ),
+              padding: const EdgeInsets.all(16),
+              child: ModernCard(
+                padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -340,80 +329,63 @@ class _CollectionHomeBody extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                l10n.collectionHeadline,
-                                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                                'My Library',
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 2),
                               Text(
-                                browser.sources.length > 1
-                                    ? l10n.collectionDescriptionAllSources(
-                                        browser.selectedSource?.name ?? '',
-                                        browser.sources.length,
-                                      )
-                                    : l10n.collectionDescription(browser.selectedSource?.name ?? ''),
-                                style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
+                                browser.sources.isNotEmpty
+                                    ? '${browser.sources.length} source${browser.sources.length > 1 ? 's' : ''}'
+                                    : 'Add a source to get started',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    ),
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: FilledButton.icon(
-                            onPressed: () {
-                              ref.read(libraryCatalogControllerProvider.notifier).scanAllSources();
-                            },
-                            icon: Icon(
-                              catalog?.isScanning == true ? Icons.sync_rounded : Icons.radar_rounded,
-                              size: 18,
-                            ),
-                            label: Text(
-                              catalog?.isScanning == true ? l10n.scanningAction : l10n.scanLibraryAction,
-                              style: const TextStyle(fontSize: 12),
-                            ),
+                        FilledButton.icon(
+                          onPressed: () {
+                            ref.read(libraryCatalogControllerProvider.notifier).scanAllSources();
+                          },
+                          icon: Icon(
+                            catalog?.isScanning == true ? Icons.sync : Icons.search,
+                            size: 16,
+                          ),
+                          label: Text(
+                            catalog?.isScanning == true ? 'Scanning' : 'Scan',
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      height: 56,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: browser.sources.length + 1,
-                        separatorBuilder: (_, _) => const SizedBox(width: 8),
-                        itemBuilder: (context, index) {
-                          if (index == browser.sources.length) {
-                            return _AddSourceCardCompact(onTap: () => context.push('/settings/add-source'));
-                          }
-
-                          final source = browser.sources[index];
-                          return _SourceCardCompact(
-                            source: source,
-                            isSelected: source.id == browser.selectedSource?.id,
-                            onTap: () {
-                              ref.read(libraryControllerProvider.notifier).selectSource(source.id);
-                            },
-                          );
-                        },
+                    if (browser.sources.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        height: 40,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: browser.sources.length,
+                          separatorBuilder: (_, _) => const SizedBox(width: 6),
+                          itemBuilder: (context, index) {
+                            final source = browser.sources[index];
+                            return _buildSourceBadge(
+                              context,
+                              source.name,
+                              source.id == browser.selectedSource?.id,
+                              () {
+                                ref.read(libraryControllerProvider.notifier).selectSource(source.id);
+                              },
+                            );
+                          },
+                        ),
                       ),
-                    ),
+                    ],
                     if (catalog?.isScanning == true) ...[
                       const SizedBox(height: 8),
-                      LinearProgressIndicator(minHeight: 4, borderRadius: BorderRadius.circular(999)),
-                      const SizedBox(height: 6),
-                      Text(
-                        l10n.scanningProgress(catalog!.scannedDirectoryCount, catalog!.discoveredTrackCount),
-                        style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                      LinearProgressIndicator(
+                        minHeight: 3,
+                        borderRadius: BorderRadius.circular(2),
                       ),
-                      if ((catalog!.lastScanSourceName ?? '').isNotEmpty) ...[
-                        const SizedBox(height: 3),
-                        Text(
-                          l10n.currentScanSourceLabel(catalog!.lastScanSourceName!),
-                          style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                        ),
-                      ],
                     ],
                   ],
                 ),
@@ -466,6 +438,40 @@ class _CollectionHomeBody extends ConsumerWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSourceBadge(
+    BuildContext context,
+    String name,
+    bool isSelected,
+    VoidCallback onTap,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final borderColor = isSelected
+        ? colorScheme.primary
+        : colorScheme.outlineVariant.withOpacity(0.5);
+    final backgroundColor = isSelected ? colorScheme.primary.withOpacity(0.1) : null;
+    final textColor = isSelected ? colorScheme.primary : colorScheme.onSurface;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          border: Border.all(color: borderColor, width: 0.5),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          name,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w500,
+            color: textColor,
+          ),
         ),
       ),
     );
@@ -973,119 +979,6 @@ class _LibraryEmptyState extends StatelessWidget {
       description: l10n.libraryEmptyDescription,
       actionLabel: l10n.addSourceAction,
       onPressed: onAddSource,
-    );
-  }
-}
-
-class _SourceCardCompact extends StatelessWidget {
-  const _SourceCardCompact({required this.source, required this.isSelected, required this.onTap});
-
-  final SourceProfile source;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Material(
-      color: isSelected ? colorScheme.primaryContainer : colorScheme.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: SizedBox(
-          width: 140,
-          child: Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: colorScheme.surface,
-                      foregroundColor: colorScheme.primary,
-                      radius: 14,
-                      child: const Icon(Icons.cloud_circle_rounded, size: 18),
-                    ),
-                    const Spacer(),
-                    if (isSelected) Icon(Icons.check_circle_rounded, size: 16, color: colorScheme.primary),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Flexible(
-                  child: Text(
-                    source.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Flexible(
-                  child: Text(
-                    source.hostLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AddSourceCardCompact extends StatelessWidget {
-  const _AddSourceCardCompact({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Material(
-      color: colorScheme.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: SizedBox(
-          width: 140,
-          child: Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircleAvatar(
-                  backgroundColor: colorScheme.primaryContainer,
-                  foregroundColor: colorScheme.primary,
-                  radius: 14,
-                  child: const Icon(Icons.add_rounded, size: 18),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  l10n.addSourceAction,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelSmall?.copyWith(color: colorScheme.primary, fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

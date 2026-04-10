@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:music/l10n/app_localizations.dart';
+import 'package:music/shared/widgets/modern_ui/modern_ui.dart';
 
 import '../../../core/models/library_album.dart';
 import '../../../core/models/source_profile.dart';
@@ -10,6 +11,8 @@ import '../../player/presentation/widgets/generated_cover_art.dart';
 import '../application/library_catalog_controller.dart';
 import '../application/library_controller.dart';
 
+/// 现代化相册页面 - 按照 example.html 设计
+/// 结构: 标题 + 源切换 + 响应式网格 (2/3/4 列)
 class AlbumsPage extends ConsumerStatefulWidget {
   const AlbumsPage({super.key});
 
@@ -21,6 +24,7 @@ class _AlbumsPageState extends ConsumerState<AlbumsPage> {
   String? _selectedSourceId;
   final Map<String, LibraryAlbumGroupingMode> _groupingBySourceId = {};
 
+  @override
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -34,15 +38,7 @@ class _AlbumsPageState extends ConsumerState<AlbumsPage> {
           error: (error, _) => Center(child: Text(error.toString())),
           data: (browser) {
             if (!browser.hasSources) {
-              return Padding(
-                padding: const EdgeInsets.all(20),
-                child: _AlbumsEmptyCard(
-                  title: l10n.libraryEmptyTitle,
-                  description: l10n.libraryEmptyDescription,
-                  actionLabel: l10n.addSourceAction,
-                  onPressed: () => context.push('/settings/add-source'),
-                ),
-              );
+              return _buildEmptyState(context, l10n);
             }
 
             final sources = browser.sources;
@@ -50,30 +46,31 @@ class _AlbumsPageState extends ConsumerState<AlbumsPage> {
             final groupingMode = _groupingBySourceId[selectedSource.id] ?? LibraryAlbumGroupingMode.folder;
 
             return catalogAsync.when(
-              loading: () =>
-                  _AlbumsScaffold(sources: sources, selectedSource: selectedSource, groupingMode: groupingMode),
-              error: (error, _) => Center(child: Text(error.toString())),
+              loading: () => _buildLoading(sources, selectedSource),
+              error: (error, _) => _buildError(error),
               data: (catalog) {
                 final albums = catalog.albumsForSource(selectedSource.id, groupingMode);
-                final sourceTracks = catalog.tracks.where((track) => track.sourceId == selectedSource.id).length;
 
-                return _AlbumsScaffold(
-                  sources: sources,
-                  selectedSource: selectedSource,
-                  groupingMode: groupingMode,
-                  catalog: catalog,
-                  albums: albums,
-                  sourceTracks: sourceTracks,
-                  onSourceSelected: (sourceId) {
-                    setState(() {
-                      _selectedSourceId = sourceId;
-                    });
-                  },
-                  onGroupingChanged: (value) {
-                    setState(() {
-                      _groupingBySourceId[selectedSource.id] = value;
-                    });
-                  },
+                return Column(
+                  children: [
+                    // Header with title and source switcher
+                    _buildHeader(
+                      context,
+                      l10n,
+                      sources,
+                      selectedSource,
+                      onSourceChanged: (sourceId) {
+                        setState(() => _selectedSourceId = sourceId);
+                      },
+                    ),
+
+                    // Album Grid
+                    Expanded(
+                      child: albums.isEmpty
+                          ? _buildNoAlbums(context, l10n)
+                          : _buildAlbumGrid(context, albums),
+                    ),
+                  ],
                 );
               },
             );
@@ -83,196 +80,47 @@ class _AlbumsPageState extends ConsumerState<AlbumsPage> {
     );
   }
 
-  SourceProfile _resolveSelectedSource(List<SourceProfile> sources, LibraryViewState browser) {
-    for (final source in sources) {
-      if (source.id == _selectedSourceId) {
-        return source;
-      }
-    }
-    if (browser.selectedSource != null) {
-      return browser.selectedSource!;
-    }
-    return sources.first;
-  }
-}
-
-class _AlbumsScaffold extends ConsumerWidget {
-  const _AlbumsScaffold({
-    required this.sources,
-    required this.selectedSource,
-    required this.groupingMode,
-    this.catalog,
-    this.albums = const [],
-    this.sourceTracks = 0,
-    this.onSourceSelected,
-    this.onGroupingChanged,
-  });
-
-  final List<SourceProfile> sources;
-  final SourceProfile selectedSource;
-  final LibraryAlbumGroupingMode groupingMode;
-  final LibraryCatalogState? catalog;
-  final List<LibraryAlbum> albums;
-  final int sourceTracks;
-  final ValueChanged<String>? onSourceSelected;
-  final ValueChanged<LibraryAlbumGroupingMode>? onGroupingChanged;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return SingleChildScrollView(
+  /// Header with title and source switcher
+  Widget _buildHeader(
+    BuildContext context,
+    AppLocalizations l10n,
+    List<SourceProfile> sources,
+    SourceProfile selectedSource, {
+    required ValueChanged<String> onSourceChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-            child: Container(
-              padding: const EdgeInsets.all(28),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    colorScheme.primaryContainer,
-                    colorScheme.surfaceContainerHighest,
-                    colorScheme.secondaryContainer,
-                  ],
+          // Title
+          Text(
+            l10n.albumsTabLabel,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
                 ),
-                borderRadius: BorderRadius.circular(36),
-                border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.45)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(l10n.albumsHeadline, style: theme.textTheme.headlineMedium),
-                  const SizedBox(height: 12),
-                  Text(
-                    l10n.albumsDescriptionWithSource(selectedSource.name),
-                    style: theme.textTheme.bodyLarge?.copyWith(color: colorScheme.onSurfaceVariant),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    height: 92,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: sources.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 10),
-                      itemBuilder: (context, index) {
-                        final source = sources[index];
-                        final isSelected = source.id == selectedSource.id;
-                        final albumCount = catalog?.albumCountForSource(source.id, _groupingModeFor(source.id)) ?? 0;
-
-                        return _SourceFilterChip(
-                          source: source,
-                          albumCount: albumCount,
-                          isSelected: isSelected,
-                          onTap: onSourceSelected == null ? null : () => onSourceSelected!(source.id),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      FilledButton.icon(
-                        onPressed: () {
-                          final controller = ref.read(libraryCatalogControllerProvider.notifier);
-                          if (catalog == null ||
-                              catalog!.scannedSources.where((source) => source.id == selectedSource.id).isEmpty) {
-                            controller.scanAllSources();
-                          } else {
-                            controller.rescanSource(selectedSource.id);
-                          }
-                        },
-                        icon: Icon(catalog?.isScanning == true ? Icons.sync_rounded : Icons.radar_rounded),
-                        label: Text(catalog?.isScanning == true ? l10n.scanningAction : l10n.scanLibraryAction),
-                      ),
-                      SegmentedButton<LibraryAlbumGroupingMode>(
-                        segments: [
-                          ButtonSegment(
-                            value: LibraryAlbumGroupingMode.folder,
-                            label: Text(l10n.folderAlbumsModeLabel),
-                            icon: const Icon(Icons.folder_copy_rounded),
-                          ),
-                          ButtonSegment(
-                            value: LibraryAlbumGroupingMode.scraped,
-                            label: Text(l10n.scrapedAlbumsModeLabel),
-                            icon: const Icon(Icons.auto_awesome_rounded),
-                          ),
-                        ],
-                        selected: {groupingMode},
-                        onSelectionChanged: onGroupingChanged == null
-                            ? null
-                            : (selection) => onGroupingChanged!(selection.first),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      _AlbumMetaPill(icon: Icons.album_rounded, label: '${albums.length} ${l10n.albumsTabLabel}'),
-                      _AlbumMetaPill(
-                        icon: Icons.music_note_rounded,
-                        label: '$sourceTracks ${l10n.allSongsCollectionTitle}',
-                      ),
-                    ],
-                  ),
-                  if (catalog?.isScanning == true) ...[
-                    const SizedBox(height: 22),
-                    LinearProgressIndicator(minHeight: 6, borderRadius: BorderRadius.circular(999)),
-                    const SizedBox(height: 12),
-                    Text(
-                      l10n.scanningProgress(catalog!.scannedDirectoryCount, catalog!.discoveredTrackCount),
-                      style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-                    ),
-                    if ((catalog!.lastScanSourceName ?? '').isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        l10n.currentScanSourceLabel(catalog!.lastScanSourceName!),
-                        style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-                      ),
-                    ],
-                  ],
-                ],
-              ),
-            ),
           ),
-          if (albums.isEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-              child: _AlbumsEmptyCard(
-                title: l10n.albumsEmptyTitle,
-                description: l10n.albumsEmptyDescription,
-                actionLabel: l10n.scanLibraryAction,
-                onPressed: () {
-                  ref.read(libraryCatalogControllerProvider.notifier).scanAllSources();
-                },
-              ),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-              child: GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 280,
-                  mainAxisExtent: 280,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                ),
-                itemCount: albums.length,
-                itemBuilder: (context, index) {
-                  final album = albums[index];
-                  return _AlbumCard(album: album, onTap: () => _openAlbumSheet(context, ref, album));
-                },
+          const SizedBox(height: 10),
+
+          // Source switcher (if multiple sources)
+          if (sources.length > 1)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: sources
+                    .map(
+                      (source) => Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: _buildSourceButton(
+                          context,
+                          source.name,
+                          source.id == selectedSource.id,
+                          () => onSourceChanged(source.id),
+                        ),
+                      ),
+                    )
+                    .toList(),
               ),
             ),
         ],
@@ -280,50 +128,238 @@ class _AlbumsScaffold extends ConsumerWidget {
     );
   }
 
-  LibraryAlbumGroupingMode _groupingModeFor(String sourceId) {
-    if (sourceId == selectedSource.id) {
-      return groupingMode;
-    }
-    return LibraryAlbumGroupingMode.folder;
+  /// Source button in header
+  Widget _buildSourceButton(
+    BuildContext context,
+    String label,
+    bool isSelected,
+    VoidCallback onTap,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final borderColor = isSelected
+        ? colorScheme.primary
+        : colorScheme.outlineVariant.withOpacity(0.5);
+    final backgroundColor = isSelected ? colorScheme.primary.withOpacity(0.1) : null;
+    final textColor = isSelected ? colorScheme.primary : colorScheme.onSurface;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          border: Border.all(color: borderColor, width: 0.5),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            color: textColor,
+          ),
+        ),
+      ),
+    );
   }
 
-  Future<void> _openAlbumSheet(BuildContext context, WidgetRef ref, LibraryAlbum album) {
-    final l10n = AppLocalizations.of(context)!;
-    final catalogState = ref.read(libraryCatalogControllerProvider).valueOrNull;
+  /// Album grid - responsive (2/3/4 columns)
+  Widget _buildAlbumGrid(BuildContext context, List<LibraryAlbum> albums) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        int columns;
+        if (constraints.maxWidth < 600) {
+          columns = 2; // Mobile
+        } else if (constraints.maxWidth < 900) {
+          columns = 3; // Tablet
+        } else {
+          columns = 4; // Desktop
+        }
 
+        return GridView.builder(
+          padding: const EdgeInsets.all(16),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 0.85,
+          ),
+          itemCount: albums.length,
+          itemBuilder: (context, index) {
+            final album = albums[index];
+            return ModernAlbumCard(
+              thumbnail: GeneratedCoverArt(
+                title: album.title,
+                subtitle: album.artistName,
+              ),
+              title: album.title,
+              artist: album.artistName,
+              onTap: () => _showAlbumDetails(context, ref, album),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// Empty state
+  Widget _buildEmptyState(BuildContext context, AppLocalizations l10n) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.music_note,
+              size: 48,
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              l10n.libraryEmptyTitle,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              l10n.libraryEmptyDescription,
+              style: Theme.of(context).textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: () => context.push('/settings/add-source'),
+              child: Text(l10n.addSourceAction),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// No albums state
+  Widget _buildNoAlbums(BuildContext context, AppLocalizations l10n) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.album,
+            size: 48,
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No albums',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Scan your library to find albums',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Loading state
+  Widget _buildLoading(List<SourceProfile> sources, SourceProfile selectedSource) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Albums',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 10),
+              if (sources.length > 1)
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: sources
+                        .map((source) => Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: _buildSourceButton(
+                                context,
+                                source.name,
+                                source.id == selectedSource.id,
+                                () {},
+                              ),
+                            ))
+                        .toList(),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const Expanded(child: Center(child: CircularProgressIndicator())),
+      ],
+    );
+  }
+
+  /// Error state
+  Widget _buildError(Object error) {
+    return Center(
+      child: Text(error.toString()),
+    );
+  }
+
+  /// Show album details in bottom sheet
+  Future<void> _showAlbumDetails(
+    BuildContext context,
+    WidgetRef ref,
+    LibraryAlbum album,
+  ) {
     return showModalBottomSheet<void>(
       context: context,
-      showDragHandle: true,
       isScrollControlled: true,
       builder: (context) {
-        final theme = Theme.of(context);
-        final colorScheme = theme.colorScheme;
-
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.6,
+          maxChildSize: 0.9,
+          builder: (context, scrollController) {
+            return ListView(
+              controller: scrollController,
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 20),
               children: [
+                // Album header
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    GeneratedCoverArt(title: album.title, subtitle: album.artistName, size: 108, borderRadius: 26),
-                    const SizedBox(width: 18),
+                    GeneratedCoverArt(
+                      title: album.title,
+                      subtitle: album.artistName,
+                      size: 90,
+                    ),
+                    const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(album.title, style: theme.textTheme.headlineSmall),
+                          Text(
+                            album.title,
+                            style: Theme.of(context).textTheme.titleMedium,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                           const SizedBox(height: 8),
                           Text(
-                            '${album.artistName} · ${album.sourceName}',
-                            style: theme.textTheme.bodyLarge?.copyWith(color: colorScheme.onSurfaceVariant),
+                            album.artistName,
+                            style: Theme.of(context).textTheme.bodyMedium,
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 4),
                           Text(
-                            '${album.trackCount} ${l10n.tracksLabel}',
-                            style: theme.textTheme.labelLarge?.copyWith(color: colorScheme.primary),
+                            '${album.trackCount} tracks',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: Theme.of(context).colorScheme.primary),
                           ),
                         ],
                       ),
@@ -331,213 +367,39 @@ class _AlbumsScaffold extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 20),
-                SizedBox(
-                  height: MediaQuery.of(context).size.height * 0.5,
-                  child: ListView.separated(
-                    itemCount: album.tracks.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final track = album.tracks[index];
-                      final isFavorite = catalogState?.favoriteTrackIds.contains(track.id) ?? false;
-                      final isLiked = catalogState?.likedTrackIds.contains(track.id) ?? false;
-                      return Material(
-                        color: colorScheme.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(22),
-                        child: ListTile(
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-                          title: Text(track.title),
-                          subtitle: Text(track.artistName),
-                          trailing: Wrap(
-                            spacing: 4,
-                            children: [
-                              IconButton(
-                                onPressed: () {
-                                  ref.read(libraryCatalogControllerProvider.notifier).toggleFavorite(track.id);
-                                },
-                                icon: Icon(isFavorite ? Icons.bookmark_rounded : Icons.bookmark_border_rounded),
-                              ),
-                              IconButton(
-                                onPressed: () {
-                                  ref.read(libraryCatalogControllerProvider.notifier).toggleLiked(track.id);
-                                },
-                                icon: Icon(isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded),
-                              ),
-                              IconButton.filledTonal(
-                                onPressed: () {
-                                  ref.read(playerControllerProvider.notifier).playLibrarySong(track);
-                                  Navigator.of(context).pop();
-                                },
-                                icon: const Icon(Icons.play_arrow_rounded),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
+
+                // Track list
+                ...album.tracks.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final track = entry.value;
+                  return ModernTrackRow(
+                    number: '${index + 1}',
+                    title: track.title,
+                    artist: track.artistName,
+                    onTap: () {
+                      ref.read(playerControllerProvider.notifier).playLibrarySong(track);
+                      Navigator.pop(context);
                     },
-                  ),
-                ),
+                  );
+                }).toList(),
               ],
-            ),
-          ),
+            );
+          },
         );
       },
     );
   }
-}
 
-class _SourceFilterChip extends StatelessWidget {
-  const _SourceFilterChip({required this.source, required this.albumCount, required this.isSelected, this.onTap});
-
-  final SourceProfile source;
-  final int albumCount;
-  final bool isSelected;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Material(
-      color: isSelected ? colorScheme.secondaryContainer : colorScheme.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(24),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(24),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(source.name, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 6),
-              Text('$albumCount', style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AlbumCard extends StatelessWidget {
-  const _AlbumCard({required this.album, required this.onTap});
-
-  final LibraryAlbum album;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Material(
-      color: colorScheme.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(30),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(30),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: GeneratedCoverArt(title: album.title, subtitle: album.artistName, size: 168, borderRadius: 28),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                album.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '${album.artistName} · ${album.sourceName}',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-              ),
-              const Spacer(),
-              Text(
-                '${album.trackCount} ${l10n.tracksLabel}',
-                style: theme.textTheme.labelLarge?.copyWith(color: colorScheme.primary),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AlbumMetaPill extends StatelessWidget {
-  const _AlbumMetaPill({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18, color: colorScheme.primary),
-          const SizedBox(width: 8),
-          Text(label),
-        ],
-      ),
-    );
-  }
-}
-
-class _AlbumsEmptyCard extends StatelessWidget {
-  const _AlbumsEmptyCard({
-    required this.title,
-    required this.description,
-    required this.actionLabel,
-    required this.onPressed,
-  });
-
-  final String title;
-  final String description;
-  final String actionLabel;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: theme.textTheme.headlineSmall),
-          const SizedBox(height: 12),
-          Text(description, style: theme.textTheme.bodyLarge?.copyWith(color: colorScheme.onSurfaceVariant)),
-          const SizedBox(height: 20),
-          FilledButton(onPressed: onPressed, child: Text(actionLabel)),
-        ],
-      ),
-    );
+  SourceProfile _resolveSelectedSource(
+    List<SourceProfile> sources,
+    LibraryViewState browser,
+  ) {
+    if (_selectedSourceId != null) {
+      return sources.firstWhere(
+        (s) => s.id == _selectedSourceId,
+        orElse: () => sources.first,
+      );
+    }
+    return browser.selectedSource ?? sources.first;
   }
 }

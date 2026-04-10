@@ -610,4 +610,64 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get debugModeDescription => 'Show error dialogs when exceptions occur';
+
+  @override
+  String get themeCustomizationTitle => 'Theme customization';
+
+  @override
+  String get darkModeSettingTitle => 'Dark mode';
+
+  @override
+  String get darkModeSettingDescription => 'Enable dark theme';
+
+  @override
+  String get seedColorSettingTitle => 'Accent color';
+
+  @override
+  String get seedColorSettingDescription => 'Choose the primary accent color';
+
+  @override
+  String get colorPresetPurple => 'Purple (default)';
+
+  @override
+  String get colorPresetBlue => 'Blue';
+
+  @override
+  String get colorPresetTeal => 'Teal';
+
+  @override
+  String get colorPresetGreen => 'Green';
+
+  @override
+  String get colorPresetYellow => 'Yellow';
+
+  @override
+  String get colorPresetOrange => 'Orange';
+
+  @override
+  String get colorPresetRed => 'Red';
+
+  @override
+  String get colorPresetPink => 'Pink';
+
+  @override
+  String get colorCustomHexLabel => 'Custom (hex)';
+
+  @override
+  String get colorCustomHexHint => '#RRGGBB or 0xRRGGBB';
+
+  @override
+  String get navigationHome => 'Home';
+
+  @override
+  String get navigationSearch => 'Search';
+
+  @override
+  String get navigationLibrary => 'Library';
+
+  @override
+  String get navigationPlayer => 'Now Playing';
+
+  @override
+  String get navigationSettings => 'Settings';
 }

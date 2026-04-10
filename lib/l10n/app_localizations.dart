@@ -1162,6 +1162,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show error dialogs when exceptions occur'**
   String get debugModeDescription;
+
+  /// No description provided for @themeCustomizationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme customization'**
+  String get themeCustomizationTitle;
+
+  /// No description provided for @darkModeSettingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark mode'**
+  String get darkModeSettingTitle;
+
+  /// No description provided for @darkModeSettingDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable dark theme'**
+  String get darkModeSettingDescription;
+
+  /// No description provided for @seedColorSettingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Accent color'**
+  String get seedColorSettingTitle;
+
+  /// No description provided for @seedColorSettingDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the primary accent color'**
+  String get seedColorSettingDescription;
+
+  /// No description provided for @colorPresetPurple.
+  ///
+  /// In en, this message translates to:
+  /// **'Purple (default)'**
+  String get colorPresetPurple;
+
+  /// No description provided for @colorPresetBlue.
+  ///
+  /// In en, this message translates to:
+  /// **'Blue'**
+  String get colorPresetBlue;
+
+  /// No description provided for @colorPresetTeal.
+  ///
+  /// In en, this message translates to:
+  /// **'Teal'**
+  String get colorPresetTeal;
+
+  /// No description provided for @colorPresetGreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Green'**
+  String get colorPresetGreen;
+
+  /// No description provided for @colorPresetYellow.
+  ///
+  /// In en, this message translates to:
+  /// **'Yellow'**
+  String get colorPresetYellow;
+
+  /// No description provided for @colorPresetOrange.
+  ///
+  /// In en, this message translates to:
+  /// **'Orange'**
+  String get colorPresetOrange;
+
+  /// No description provided for @colorPresetRed.
+  ///
+  /// In en, this message translates to:
+  /// **'Red'**
+  String get colorPresetRed;
+
+  /// No description provided for @colorPresetPink.
+  ///
+  /// In en, this message translates to:
+  /// **'Pink'**
+  String get colorPresetPink;
+
+  /// No description provided for @colorCustomHexLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom (hex)'**
+  String get colorCustomHexLabel;
+
+  /// No description provided for @colorCustomHexHint.
+  ///
+  /// In en, this message translates to:
+  /// **'#RRGGBB or 0xRRGGBB'**
+  String get colorCustomHexHint;
+
+  /// No description provided for @navigationHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get navigationHome;
+
+  /// No description provided for @navigationSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get navigationSearch;
+
+  /// No description provided for @navigationLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Library'**
+  String get navigationLibrary;
+
+  /// No description provided for @navigationPlayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Now Playing'**
+  String get navigationPlayer;
+
+  /// No description provided for @navigationSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get navigationSettings;
 }
 
 class _AppLocalizationsDelegate
