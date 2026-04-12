@@ -7,7 +7,8 @@ extension SourceProtocolX on SourceProtocol {
     SourceProtocol.cloudDrive => 'cloudDrive',
   };
 
-  bool get isImplemented => this == SourceProtocol.webdav;
+  bool get isImplemented =>
+      this == SourceProtocol.webdav || this == SourceProtocol.cloudDrive;
 
   String get label => switch (this) {
     SourceProtocol.webdav => 'WebDAV',

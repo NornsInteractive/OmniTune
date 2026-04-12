@@ -48,4 +48,30 @@ void main() {
       ]);
     });
   });
+
+  group('SourceProfile metadata', () {
+    test('persists source-specific metadata through json', () {
+      const profile = SourceProfile(
+        id: 'cloud189',
+        name: '189 Cloud',
+        protocol: SourceProtocol.cloudDrive,
+        baseUrl: 'https://api.cloud.189.cn',
+        username: 'cloud189',
+        password: 'refresh-token',
+        rootPath: '/',
+        metadata: {
+          'cloud189.authMode': 'appAuthorization',
+          'cloud189.appKey': 'app-key',
+        },
+      );
+
+      final restored = SourceProfile.fromJson(profile.toJson());
+
+      expect(restored.metadata, {
+        'cloud189.authMode': 'appAuthorization',
+        'cloud189.appKey': 'app-key',
+      });
+      expect(restored, profile);
+    });
+  });
 }

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 class GeneratedCoverArt extends StatelessWidget {
@@ -19,6 +21,8 @@ class GeneratedCoverArt extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final initials = _initials(title);
+    final compact = size < 150;
+    final micro = size < 110;
 
     return Container(
       width: size,
@@ -30,77 +34,112 @@ class GeneratedCoverArt extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [
             colorScheme.primaryContainer,
-            colorScheme.tertiaryContainer,
             colorScheme.secondaryContainer,
+            colorScheme.surfaceContainerHighest,
           ],
+        ),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.18),
         ),
         boxShadow: [
           BoxShadow(
-            color: colorScheme.shadow.withValues(alpha: 0.14),
-            blurRadius: 28,
-            offset: const Offset(0, 18),
+            color: colorScheme.shadow.withValues(alpha: 0.08),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(borderRadius),
-                border: Border.all(
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.45),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
+        child: Stack(
+          children: [
+            Positioned(
+              right: -size * 0.12,
+              top: -size * 0.06,
+              child: Container(
+                width: size * 0.52,
+                height: size * 0.52,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: colorScheme.surface.withValues(alpha: 0.2),
                 ),
               ),
             ),
-          ),
-          Positioned(
-            right: 18,
-            top: 18,
-            child: Icon(
-              Icons.graphic_eq_rounded,
-              color: colorScheme.onPrimaryContainer.withValues(alpha: 0.72),
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _StripePainter(
+                  color: colorScheme.onPrimaryContainer.withValues(alpha: 0.08),
+                ),
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Spacer(),
-                Text(
-                  initials,
-                  style: theme.textTheme.displayMedium?.copyWith(
-                    color: colorScheme.onPrimaryContainer,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -2,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    color: colorScheme.onPrimaryContainer,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onPrimaryContainer.withValues(
-                      alpha: 0.8,
+            Padding(
+              padding: EdgeInsets.all(size * 0.1),
+              child: micro
+                  ? Center(
+                      child: Text(
+                        initials,
+                        style: theme.textTheme.displaySmall?.copyWith(
+                          fontSize: size * 0.28,
+                          color: colorScheme.onPrimaryContainer.withValues(
+                            alpha: 0.34,
+                          ),
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Align(
+                          alignment: Alignment.topRight,
+                          child: Icon(
+                            Icons.graphic_eq_rounded,
+                            size: compact ? size * 0.14 : size * 0.1,
+                            color: colorScheme.onPrimaryContainer.withValues(
+                              alpha: 0.68,
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          initials,
+                          style: theme.textTheme.displaySmall?.copyWith(
+                            fontSize: compact ? size * 0.2 : size * 0.18,
+                            color: colorScheme.onPrimaryContainer.withValues(
+                              alpha: 0.24,
+                            ),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        SizedBox(height: compact ? size * 0.01 : size * 0.02),
+                        Text(
+                          title,
+                          maxLines: compact ? 1 : 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontSize: compact ? size * 0.12 : null,
+                            color: colorScheme.onPrimaryContainer,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        if (!compact) ...[
+                          SizedBox(height: size * 0.02),
+                          Text(
+                            subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onPrimaryContainer.withValues(
+                                alpha: 0.82,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                  ),
-                ),
-              ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -119,5 +158,32 @@ class GeneratedCoverArt extends StatelessWidget {
     }
     return '${parts.first.characters.first}${parts.last.characters.first}'
         .toUpperCase();
+  }
+}
+
+class _StripePainter extends CustomPainter {
+  const _StripePainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1;
+
+    final spacing = math.max(20, size.width * 0.12);
+    for (double x = -size.height; x < size.width + size.height; x += spacing) {
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x + size.height, size.height),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _StripePainter oldDelegate) {
+    return oldDelegate.color != color;
   }
 }

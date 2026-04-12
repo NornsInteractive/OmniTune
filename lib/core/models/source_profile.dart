@@ -11,6 +11,7 @@ class SourceProfile {
     required this.rootPath,
     this.scanDirectories = const [],
     this.excludedScanDirectories = const [],
+    this.metadata = const {},
   });
 
   final String id;
@@ -22,6 +23,7 @@ class SourceProfile {
   final String rootPath;
   final List<String> scanDirectories;
   final List<String> excludedScanDirectories;
+  final Map<String, String> metadata;
 
   String get normalizedBaseUrl => baseUrl.endsWith('/') ? baseUrl : '$baseUrl/';
 
@@ -132,6 +134,7 @@ class SourceProfile {
     String? rootPath,
     List<String>? scanDirectories,
     List<String>? excludedScanDirectories,
+    Map<String, String>? metadata,
   }) {
     return SourceProfile(
       id: id ?? this.id,
@@ -144,6 +147,7 @@ class SourceProfile {
       scanDirectories: scanDirectories ?? this.scanDirectories,
       excludedScanDirectories:
           excludedScanDirectories ?? this.excludedScanDirectories,
+      metadata: metadata ?? this.metadata,
     );
   }
 
@@ -158,6 +162,7 @@ class SourceProfile {
       'rootPath': rootPath,
       'scanDirectories': normalizedScanDirectories,
       'excludedScanDirectories': normalizedExcludedScanDirectories,
+      'metadata': Map<String, String>.from(metadata),
     };
   }
 
@@ -174,6 +179,7 @@ class SourceProfile {
       excludedScanDirectories: _directoriesFromJson(
         json['excludedScanDirectories'],
       ),
+      metadata: _metadataFromJson(json['metadata']),
     );
   }
 
@@ -190,7 +196,11 @@ class SourceProfile {
             password == other.password &&
             rootPath == other.rootPath &&
             _listEquals(scanDirectories, other.scanDirectories) &&
-            _listEquals(excludedScanDirectories, other.excludedScanDirectories);
+            _listEquals(
+              excludedScanDirectories,
+              other.excludedScanDirectories,
+            ) &&
+            _mapEquals(metadata, other.metadata);
   }
 
   @override
@@ -204,6 +214,11 @@ class SourceProfile {
     rootPath,
     Object.hashAll(scanDirectories),
     Object.hashAll(excludedScanDirectories),
+    Object.hashAllUnordered(
+      metadata.entries.map((entry) {
+        return Object.hash(entry.key, entry.value);
+      }),
+    ),
   );
 
   static List<String> _directoriesFromJson(Object? jsonValue) {
@@ -212,6 +227,16 @@ class SourceProfile {
       _ => const <String>[],
     };
     return _normalizeDirectories(values);
+  }
+
+  static Map<String, String> _metadataFromJson(Object? jsonValue) {
+    if (jsonValue is! Map) {
+      return const {};
+    }
+
+    return jsonValue.map(
+      (key, value) => MapEntry(key.toString(), value?.toString() ?? ''),
+    );
   }
 
   List<String> _normalizeConfiguredDirectories(List<String> directories) {
@@ -290,6 +315,20 @@ class SourceProfile {
 
     for (var index = 0; index < left.length; index++) {
       if (left[index] != right[index]) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  bool _mapEquals(Map<String, String> left, Map<String, String> right) {
+    if (left.length != right.length) {
+      return false;
+    }
+
+    for (final entry in left.entries) {
+      if (right[entry.key] != entry.value) {
         return false;
       }
     }

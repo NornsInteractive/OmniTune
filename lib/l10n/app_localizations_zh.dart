@@ -45,6 +45,42 @@ class AppLocalizationsZh extends AppLocalizations {
   String get themeSettingTitle => '主题设置';
 
   @override
+  String get themeAccentColorSettingTitle => '主题强调色';
+
+  @override
+  String get themeAccentColorDefaultLabel => '使用系统默认';
+
+  @override
+  String get themeBorderRadiusSettingTitle => '圆角大小';
+
+  @override
+  String get themeCompactnessSettingTitle => '界面紧凑度';
+
+  @override
+  String get themeColorDialogTitle => '选择主题强调色';
+
+  @override
+  String get themeColorPresetLabel => '预设颜色';
+
+  @override
+  String get themeColorHexFieldLabel => 'Hex 颜色值';
+
+  @override
+  String get themeColorHexFieldHint => '输入类似 #FF5722 的值';
+
+  @override
+  String get themeBorderRadiusDialogTitle => '圆角大小';
+
+  @override
+  String get themeBorderRadiusRangeLabel => '可调范围：12.0 - 32.0px';
+
+  @override
+  String get themeCompactnessDialogTitle => '界面紧凑度';
+
+  @override
+  String get themeCompactnessRangeLabel => '50%（紧凑）- 150%（宽松）';
+
+  @override
   String get interfaceSizeSettingTitle => '界面大小';
 
   @override
@@ -263,7 +299,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get architectureReadyDescription =>
-      '当前已完成 WebDAV 接入，同时保留了统一音源注册、播放管线和刮削链路，后续可以继续扩展 SFTP、网盘和元数据刮削能力。';
+      '当前已完成 WebDAV 与天翼网盘接入，同时保留了统一音源注册、播放管线和刮削链路，后续可以继续扩展更多协议和元数据刮削能力。';
 
   @override
   String get webdavProtocol => 'WebDAV';
@@ -273,6 +309,171 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cloudDriveProtocol => '网盘';
+
+  @override
+  String get cloud189Protocol => '天翼网盘';
+
+  @override
+  String get sourceProtocolLabel => '音源类型';
+
+  @override
+  String get webdavSourceTypeTitle => 'WebDAV 音源';
+
+  @override
+  String get webdavSourceDescription => '连接通过 WebDAV 暴露音乐目录的 NAS 或服务器。';
+
+  @override
+  String get cloud189SourceTypeTitle => '天翼网盘音源';
+
+  @override
+  String get cloud189SourceDescription =>
+      '可选择 OpenList 兼容挂载方式，也可以使用你申请到的天翼网盘应用凭证进行 OAuth 授权。';
+
+  @override
+  String get cloud189DefaultSourceName => '天翼网盘';
+
+  @override
+  String get cloud189OpenListModeLabel => 'OpenList 挂载';
+
+  @override
+  String get cloud189AppAuthorizationModeLabel => '应用授权';
+
+  @override
+  String get cloud189OpenListModeDescription =>
+      '与 OpenList 的 189Cloud 驱动一致：填写用于登录天翼网盘的手机号和密码，然后应用保持会话来浏览文件。';
+
+  @override
+  String get cloud189AppAuthorizationModeDescription =>
+      '使用天翼网盘分配的 appKey/appSecret。用户在天翼网盘中授权该应用后，把返回的 code 或 refreshToken 粘贴到这里。';
+
+  @override
+  String get cloud189OpenAuthorizationAction => '打开天翼网盘应用授权';
+
+  @override
+  String get cloud189AuthorizationOpenedMessage =>
+      '已打开授权入口。请在天翼网盘中授权该应用后，把返回的 code 或 refreshToken 粘贴到这里。';
+
+  @override
+  String get cloud189AuthorizationOpenFailedMessage => '无法在当前设备打开天翼网盘授权页面。';
+
+  @override
+  String get cloud189AppAuthorizationConfigRequired =>
+      '请先填写 appKey 和回调地址，再打开授权。';
+
+  @override
+  String get cloud189RefreshTokenLabel => '天翼网盘 refreshToken';
+
+  @override
+  String get cloud189RefreshTokenHint => '粘贴天翼网盘授权得到的 refreshToken';
+
+  @override
+  String get cloud189RefreshTokenHelpText => 'Token 会安全保存，仅用于刷新天翼网盘会话。';
+
+  @override
+  String get cloud189OpenListRefreshTokenLabel => 'OpenList refreshToken';
+
+  @override
+  String get cloud189OpenListRefreshTokenHint =>
+      '粘贴 OpenList 189CloudPC 使用的 refreshToken';
+
+  @override
+  String get cloud189OpenListRefreshTokenHelpText =>
+      '该方式沿用 OpenList 兼容的 PC 会话流程，不需要你自己的 appKey。';
+
+  @override
+  String get cloud189OpenListUsernameLabel => '天翼网盘用户名';
+
+  @override
+  String get cloud189OpenListUsernameHint => '用于登录的手机号';
+
+  @override
+  String get cloud189OpenListUsernameHelpText =>
+      '对应 OpenList 189Cloud 的 Username 字段。';
+
+  @override
+  String get cloud189OpenListPasswordLabel => '天翼网盘密码';
+
+  @override
+  String get cloud189OpenListPasswordHint => '用于登录的密码';
+
+  @override
+  String get cloud189OpenListPasswordHelpText =>
+      '对应 OpenList 189Cloud 的 Password 字段。';
+
+  @override
+  String get cloud189AppKeyLabel => '天翼网盘 appKey';
+
+  @override
+  String get cloud189AppKeyHint => '天翼网盘分配的应用 Key';
+
+  @override
+  String get cloud189AppKeyHelpText => '使用应用授权前，需要先在天翼网盘开放平台申请 appKey。';
+
+  @override
+  String get cloud189AppSecretLabel => '天翼网盘 appSecret';
+
+  @override
+  String get cloud189AppSecretHint => '与 appKey 配套的应用密钥';
+
+  @override
+  String get cloud189RedirectUriLabel => '回调地址';
+
+  @override
+  String get cloud189RedirectUriHint => 'music://cloud189/callback';
+
+  @override
+  String get cloud189RedirectUriHelpText => '填写你在天翼网盘应用配置中的回调地址。';
+
+  @override
+  String get cloud189AuthorizationCodeLabel => '授权 code';
+
+  @override
+  String get cloud189AuthorizationCodeHint => '粘贴应用授权返回的 code';
+
+  @override
+  String get cloud189AuthorizationCodeHelpText =>
+      '如果你已经有同一 appKey 对应的 refreshToken，可以留空。';
+
+  @override
+  String get cloud189AppRefreshTokenLabel => '应用 refreshToken';
+
+  @override
+  String get cloud189AppRefreshTokenHint => '可选，填写该 appKey 对应的 refreshToken';
+
+  @override
+  String get cloud189AppRefreshTokenHelpText => '填写后会直接使用它刷新会话，不再交换授权 code。';
+
+  @override
+  String get cloud189AuthorizationCredentialRequiredError =>
+      '请填写授权 code 或 refreshToken。';
+
+  @override
+  String get cloud189RootPathHint => '/音乐/';
+
+  @override
+  String get cloud189RootPathHelpText => '填写天翼网盘中的目录路径；保留 \'/\' 表示从网盘根目录开始。';
+
+  @override
+  String get cloud189ConnectionFailedMessage =>
+      '天翼网盘连接失败。请检查凭据；开启调试模式后可查看请求日志。';
+
+  @override
+  String get cloud189DebugLogDialogTitle => '天翼网盘调试日志';
+
+  @override
+  String get cloud189DebugLogDialogDescription => '已脱敏显示本次添加音源时的请求地址、参数和响应摘要。';
+
+  @override
+  String get cloud189CaptchaDialogTitle => '输入天翼网盘验证码';
+
+  @override
+  String get cloud189CaptchaDialogDescription => '自动识别服务暂时不可用，请输入图片中的验证码后继续登录。';
+
+  @override
+  String get cloud189CaptchaCodeLabel => '验证码';
+
+  @override
+  String get cloud189CaptchaCodeHint => '输入图片中的字符';
 
   @override
   String get scraperPipelineLabel => '刮削管线';
@@ -411,6 +612,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lyricsEmptyLabel => '当前还没有找到这首歌对应的同步歌词。';
 
   @override
+  String get showLyricsAction => '显示歌词';
+
+  @override
+  String get hideLyricsAction => '收起歌词';
+
+  @override
   String get playAction => '播放';
 
   @override
@@ -418,6 +625,49 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get stopAction => '停止';
+
+  @override
+  String get closeAction => '关闭';
+
+  @override
+  String get previousTrackAction => '上一首';
+
+  @override
+  String get nextTrackAction => '下一首';
+
+  @override
+  String get playNextAction => '下一首播放';
+
+  @override
+  String get playlistTitle => '播放列表';
+
+  @override
+  String get playlistEmptyTitle => '播放列表为空。';
+
+  @override
+  String get removeFromPlaylistAction => '从播放列表移除';
+
+  @override
+  String get currentTrackLabel => '正在播放';
+
+  @override
+  String get playbackModeList => '列表播放';
+
+  @override
+  String get playbackModeRepeatOne => '单曲循环';
+
+  @override
+  String get playbackModeShuffle => '随机播放';
+
+  @override
+  String playlistCountLabel(int count) {
+    return '播放列表 $count 首';
+  }
+
+  @override
+  String addedToPlayNextMessage(Object title) {
+    return '已添加到下一首播放：$title';
+  }
 
   @override
   String get openPlayerAction => '打开播放器';

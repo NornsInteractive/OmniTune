@@ -5,9 +5,10 @@ import 'package:music/l10n/app_localizations.dart';
 
 import '../core/models/app_preferences.dart';
 import '../core/models/custom_theme_colors.dart';
-import '../core/storage/library_preferences_repository.dart';
 import '../core/router/app_router.dart';
+import '../core/storage/library_preferences_repository.dart';
 import '../core/widgets/exception_handler_widget.dart';
+import '../core/widgets/studio_chrome.dart';
 import '../features/settings/application/app_settings_controller.dart';
 
 class MusicApp extends ConsumerWidget {
@@ -16,22 +17,45 @@ class MusicApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
-    final preferences = ref.watch(appSettingsControllerProvider).valueOrNull ?? const LibraryPreferences();
+    final preferences =
+        ref.watch(appSettingsControllerProvider).valueOrNull ??
+        const LibraryPreferences();
 
-    // 获取自定义主题颜色或使用默认
     final customColors = preferences.customThemeColors;
-    final seedColor = customColors.getSeedColor() ?? Colors.blue;
+    final seedColor =
+        customColors.getSeedColor() ??
+        ThemeData(useMaterial3: true).colorScheme.primary;
 
-    final lightScheme = ColorScheme.fromSeed(seedColor: seedColor, brightness: Brightness.light);
-    final darkScheme = ColorScheme.fromSeed(seedColor: seedColor, brightness: Brightness.dark);
+    final lightScheme = ColorScheme.fromSeed(
+      seedColor: seedColor,
+      brightness: Brightness.light,
+      contrastLevel: 0.08,
+    );
+    final darkScheme = ColorScheme.fromSeed(
+      seedColor: seedColor,
+      brightness: Brightness.dark,
+      contrastLevel: 0.14,
+    );
 
     return MaterialApp.router(
       onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
-      themeMode: AppDisplayPreferences.themeModeFor(preferences.themePreference),
-      theme: _buildTheme(lightScheme, Brightness.light, preferences.interfaceScaleFactor, customColors),
-      darkTheme: _buildTheme(darkScheme, Brightness.dark, preferences.interfaceScaleFactor, customColors),
+      themeMode: AppDisplayPreferences.themeModeFor(
+        preferences.themePreference,
+      ),
+      theme: _buildTheme(
+        colorScheme: lightScheme,
+        brightness: Brightness.light,
+        interfaceScaleFactor: preferences.interfaceScaleFactor,
+        customColors: customColors,
+      ),
+      darkTheme: _buildTheme(
+        colorScheme: darkScheme,
+        brightness: Brightness.dark,
+        interfaceScaleFactor: preferences.interfaceScaleFactor,
+        customColors: customColors,
+      ),
       locale: AppDisplayPreferences.localeFor(preferences.localePreference),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
@@ -39,7 +63,9 @@ class MusicApp extends ConsumerWidget {
         final mediaQuery = MediaQuery.of(context);
         return ExceptionHandlerWidget(
           child: MediaQuery(
-            data: mediaQuery.copyWith(textScaler: TextScaler.linear(preferences.fontScaleFactor)),
+            data: mediaQuery.copyWith(
+              textScaler: TextScaler.linear(preferences.fontScaleFactor),
+            ),
             child: child ?? const SizedBox.shrink(),
           ),
         );
@@ -47,165 +73,252 @@ class MusicApp extends ConsumerWidget {
     );
   }
 
-  ThemeData _buildTheme(
-    ColorScheme colorScheme,
-    Brightness brightness,
-    double interfaceScaleFactor,
-    CustomThemeColors customColors,
-  ) {
-    final br = customColors.borderRadius;
-    final scaleFactor = interfaceScaleFactor; // 字体缩放因子: 0.5-1.5
+  ThemeData _buildTheme({
+    required ColorScheme colorScheme,
+    required Brightness brightness,
+    required double interfaceScaleFactor,
+    required CustomThemeColors customColors,
+  }) {
+    final scaleFactor = interfaceScaleFactor.clamp(0.5, 2).toDouble();
+    final compactness = customColors.interfaceCompactness
+        .clamp(0.5, 1.5)
+        .toDouble();
+    final layoutScale = (interfaceScaleFactor * compactness)
+        .clamp(0.5, 2)
+        .toDouble();
+    final radius = customColors.borderRadius;
 
     final baseTheme = ThemeData(
       useMaterial3: true,
       brightness: brightness,
       colorScheme: colorScheme,
-      visualDensity: AppDisplayPreferences.visualDensityFor(interfaceScaleFactor),
-      textTheme: GoogleFonts.spaceGroteskTextTheme(),
+      visualDensity: AppDisplayPreferences.visualDensityFor(layoutScale),
     );
-    final titleTheme = GoogleFonts.outfitTextTheme(baseTheme.textTheme);
+    final textTheme = GoogleFonts.notoSansTextTheme(baseTheme.textTheme);
+
+    TextStyle appTextStyle(
+      TextStyle? style,
+      double fallbackSize,
+      FontWeight fontWeight, {
+      double? letterSpacing,
+      double? height,
+    }) {
+      return GoogleFonts.notoSans(
+        textStyle: style,
+        color: style?.color ?? colorScheme.onSurface,
+        fontSize: (style?.fontSize ?? fallbackSize) * scaleFactor,
+        fontWeight: fontWeight,
+        letterSpacing: letterSpacing,
+        height: height,
+      );
+    }
 
     return baseTheme.copyWith(
-      textTheme: titleTheme.copyWith(
-        // 显示文本 (Display: 用于大标题)
-        displayLarge: GoogleFonts.outfit(
-          fontSize: (titleTheme.displayLarge?.fontSize ?? 32) * scaleFactor,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -1.5,
-        ),
-        displayMedium: GoogleFonts.outfit(
-          fontSize: (titleTheme.displayMedium?.fontSize ?? 28) * scaleFactor,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -1.2,
-        ),
-        displaySmall: GoogleFonts.outfit(
-          fontSize: (titleTheme.displaySmall?.fontSize ?? 24) * scaleFactor,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -1.0,
-        ),
-
-        // 标题文本 (Headline)
-        headlineLarge: GoogleFonts.outfit(
-          fontSize: (titleTheme.headlineLarge?.fontSize ?? 22) * scaleFactor,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.9,
-        ),
-        headlineMedium: GoogleFonts.outfit(
-          fontSize: (titleTheme.headlineMedium?.fontSize ?? 20) * scaleFactor,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -1.1,
-        ),
-        headlineSmall: GoogleFonts.outfit(
-          fontSize: (titleTheme.headlineSmall?.fontSize ?? 18) * scaleFactor,
-          fontWeight: FontWeight.w700,
+      scaffoldBackgroundColor: colorScheme.surface,
+      textTheme: textTheme.copyWith(
+        displayLarge: appTextStyle(
+          textTheme.displayLarge,
+          34,
+          FontWeight.w800,
           letterSpacing: -0.8,
         ),
-
-        // 标题 (Title)
-        titleLarge: GoogleFonts.outfit(
-          fontSize: (titleTheme.titleLarge?.fontSize ?? 16) * scaleFactor,
-          fontWeight: FontWeight.w700,
+        displayMedium: appTextStyle(
+          textTheme.displayMedium,
+          30,
+          FontWeight.w800,
+          letterSpacing: -0.7,
         ),
-        titleMedium: GoogleFonts.outfit(
-          fontSize: (titleTheme.titleMedium?.fontSize ?? 14) * scaleFactor,
-          fontWeight: FontWeight.w700,
+        displaySmall: appTextStyle(
+          textTheme.displaySmall,
+          26,
+          FontWeight.w800,
+          letterSpacing: -0.6,
         ),
-        titleSmall: GoogleFonts.outfit(
-          fontSize: (titleTheme.titleSmall?.fontSize ?? 12) * scaleFactor,
-          fontWeight: FontWeight.w700,
+        headlineLarge: appTextStyle(
+          textTheme.headlineLarge,
+          24,
+          FontWeight.w800,
+          letterSpacing: -0.4,
         ),
-
-        // 正文 (Body)
-        bodyLarge: GoogleFonts.spaceGrotesk(
-          fontSize: (titleTheme.bodyLarge?.fontSize ?? 16) * scaleFactor,
-          fontWeight: FontWeight.w500,
+        headlineMedium: appTextStyle(
+          textTheme.headlineMedium,
+          22,
+          FontWeight.w700,
         ),
-        bodyMedium: GoogleFonts.spaceGrotesk(
-          fontSize: (titleTheme.bodyMedium?.fontSize ?? 14) * scaleFactor,
-          fontWeight: FontWeight.w500,
+        headlineSmall: appTextStyle(
+          textTheme.headlineSmall,
+          20,
+          FontWeight.w700,
         ),
-        bodySmall: GoogleFonts.spaceGrotesk(
-          fontSize: (titleTheme.bodySmall?.fontSize ?? 12) * scaleFactor,
-          fontWeight: FontWeight.w400,
+        titleLarge: appTextStyle(textTheme.titleLarge, 18, FontWeight.w700),
+        titleMedium: appTextStyle(textTheme.titleMedium, 16, FontWeight.w700),
+        titleSmall: appTextStyle(textTheme.titleSmall, 14, FontWeight.w700),
+        bodyLarge: appTextStyle(
+          textTheme.bodyLarge,
+          16,
+          FontWeight.w600,
+          height: 1.4,
         ),
-
-        // 标签 (Label)
-        labelLarge: GoogleFonts.spaceGrotesk(
-          fontSize: (titleTheme.labelLarge?.fontSize ?? 12) * scaleFactor,
-          fontWeight: FontWeight.w600,
+        bodyMedium: appTextStyle(
+          textTheme.bodyMedium,
+          14,
+          FontWeight.w500,
+          height: 1.38,
         ),
-        labelMedium: GoogleFonts.spaceGrotesk(
-          fontSize: (titleTheme.labelMedium?.fontSize ?? 11) * scaleFactor,
-          fontWeight: FontWeight.w600,
+        bodySmall: appTextStyle(
+          textTheme.bodySmall,
+          12,
+          FontWeight.w500,
+          height: 1.36,
         ),
-        labelSmall: GoogleFonts.spaceGrotesk(
-          fontSize: (titleTheme.labelSmall?.fontSize ?? 10) * scaleFactor,
-          fontWeight: FontWeight.w600,
-        ),
+        labelLarge: appTextStyle(textTheme.labelLarge, 12, FontWeight.w700),
+        labelMedium: appTextStyle(textTheme.labelMedium, 11, FontWeight.w700),
+        labelSmall: appTextStyle(textTheme.labelSmall, 10, FontWeight.w700),
       ),
-      scaffoldBackgroundColor: colorScheme.surface,
       appBarTheme: AppBarTheme(
-        backgroundColor: colorScheme.surface.withValues(alpha: 0.88),
+        backgroundColor: colorScheme.surface.withValues(alpha: 0),
         foregroundColor: colorScheme.onSurface,
         elevation: 0,
-        centerTitle: false,
-        toolbarHeight: AppDisplayPreferences.toolbarHeightFor(interfaceScaleFactor),
+        scrolledUnderElevation: 0,
+        surfaceTintColor: colorScheme.surface.withValues(alpha: 0),
+        toolbarHeight: AppDisplayPreferences.toolbarHeightFor(layoutScale),
+        titleTextStyle: GoogleFonts.notoSans(
+          color: colorScheme.onSurface,
+          fontSize: 18 * scaleFactor,
+          fontWeight: FontWeight.w700,
+        ),
       ),
       cardTheme: CardThemeData(
         color: colorScheme.surfaceContainerLow,
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(br),
-          side: BorderSide(color: colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(radius),
+          side: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.16),
+          ),
         ),
       ),
-      chipTheme: baseTheme.chipTheme.copyWith(side: BorderSide(color: colorScheme.outlineVariant)),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: colorScheme.surfaceContainerHighest,
-        contentPadding: AppDisplayPreferences.inputContentPaddingFor(interfaceScaleFactor),
+        fillColor: colorScheme.surface,
+        hintStyle: GoogleFonts.notoSans(color: colorScheme.onSurfaceVariant),
+        helperStyle: GoogleFonts.notoSans(color: colorScheme.onSurfaceVariant),
+        contentPadding: AppDisplayPreferences.inputContentPaddingFor(
+          layoutScale,
+        ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(br - 8),
-          borderSide: BorderSide(color: colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(radius - 8),
+          borderSide: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.2),
+          ),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(br - 8),
-          borderSide: BorderSide(color: colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(radius - 8),
+          borderSide: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.2),
+          ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(br - 8),
-          borderSide: BorderSide(color: colorScheme.primary),
+          borderRadius: BorderRadius.circular(radius - 8),
+          borderSide: BorderSide(color: colorScheme.primary, width: 1.4),
         ),
       ),
+      listTileTheme: ListTileThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radius - 8),
+        ),
+        iconColor: colorScheme.primary,
+      ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: colorScheme.surface.withValues(alpha: 0.98),
-        indicatorColor: colorScheme.secondaryContainer,
-        height: AppDisplayPreferences.navigationBarHeightFor(interfaceScaleFactor),
+        backgroundColor: colorScheme.surface.withValues(alpha: 0),
+        indicatorColor: colorScheme.primaryContainer,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          return GoogleFonts.notoSans(
+            fontSize: 10 * scaleFactor,
+            fontWeight: states.contains(WidgetState.selected)
+                ? FontWeight.w700
+                : FontWeight.w600,
+          );
+        }),
+        height: (44 * scaleFactor).clamp(40, 48).toDouble(),
       ),
       segmentedButtonTheme: SegmentedButtonThemeData(
         style: ButtonStyle(
-          padding: WidgetStatePropertyAll(AppDisplayPreferences.segmentedButtonPaddingFor(interfaceScaleFactor)),
+          padding: WidgetStatePropertyAll(
+            AppDisplayPreferences.segmentedButtonPaddingFor(layoutScale),
+          ),
+          side: WidgetStatePropertyAll(
+            BorderSide(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.2),
+            ),
+          ),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(radius - 10),
+            ),
+          ),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          padding: AppDisplayPreferences.buttonPaddingFor(interfaceScaleFactor),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(br - 6)),
+          elevation: 0,
+          padding: AppDisplayPreferences.buttonPaddingFor(layoutScale),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radius - 8),
+          ),
+          textStyle: GoogleFonts.notoSans(fontWeight: FontWeight.w700),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          padding: AppDisplayPreferences.buttonPaddingFor(interfaceScaleFactor),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(br - 6)),
+          padding: AppDisplayPreferences.buttonPaddingFor(layoutScale),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radius - 8),
+          ),
+          side: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.2),
+          ),
+          textStyle: GoogleFonts.notoSans(fontWeight: FontWeight.w700),
         ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          textStyle: GoogleFonts.notoSans(fontWeight: FontWeight.w700),
+        ),
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: colorScheme.primaryContainer,
+        foregroundColor: colorScheme.onPrimaryContainer,
+        elevation: 0,
+        extendedTextStyle: GoogleFonts.notoSans(fontWeight: FontWeight.w700),
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: colorScheme.inverseSurface,
-        contentTextStyle: TextStyle(color: colorScheme.onInverseSurface),
+        contentTextStyle: GoogleFonts.notoSans(
+          color: colorScheme.onInverseSurface,
+          fontWeight: FontWeight.w600,
+        ),
       ),
-      listTileTheme: ListTileThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(br - 8))),
+      dialogTheme: DialogThemeData(
+        backgroundColor: colorScheme.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radius),
+          side: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.18),
+          ),
+        ),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: colorScheme.surfaceContainerLow,
+        modalBackgroundColor: colorScheme.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(radius + 4)),
+        ),
+      ),
+      extensions: [StudioThemeData(compactness: compactness)],
     );
   }
 }

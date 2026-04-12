@@ -170,6 +170,78 @@ abstract class AppLocalizations {
   /// **'Theme'**
   String get themeSettingTitle;
 
+  /// No description provided for @themeAccentColorSettingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Accent color'**
+  String get themeAccentColorSettingTitle;
+
+  /// No description provided for @themeAccentColorDefaultLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'System default'**
+  String get themeAccentColorDefaultLabel;
+
+  /// No description provided for @themeBorderRadiusSettingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Corner radius'**
+  String get themeBorderRadiusSettingTitle;
+
+  /// No description provided for @themeCompactnessSettingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Density'**
+  String get themeCompactnessSettingTitle;
+
+  /// No description provided for @themeColorDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose accent color'**
+  String get themeColorDialogTitle;
+
+  /// No description provided for @themeColorPresetLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Preset colors'**
+  String get themeColorPresetLabel;
+
+  /// No description provided for @themeColorHexFieldLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Hex color'**
+  String get themeColorHexFieldLabel;
+
+  /// No description provided for @themeColorHexFieldHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a value like #FF5722'**
+  String get themeColorHexFieldHint;
+
+  /// No description provided for @themeBorderRadiusDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Corner radius'**
+  String get themeBorderRadiusDialogTitle;
+
+  /// No description provided for @themeBorderRadiusRangeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Range: 12.0 - 32.0px'**
+  String get themeBorderRadiusRangeLabel;
+
+  /// No description provided for @themeCompactnessDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Density'**
+  String get themeCompactnessDialogTitle;
+
+  /// No description provided for @themeCompactnessRangeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'50% (compact) - 150% (comfortable)'**
+  String get themeCompactnessRangeLabel;
+
   /// No description provided for @interfaceSizeSettingTitle.
   ///
   /// In en, this message translates to:
@@ -557,7 +629,7 @@ abstract class AppLocalizations {
   /// No description provided for @architectureReadyDescription.
   ///
   /// In en, this message translates to:
-  /// **'The app is already structured for WebDAV today, while keeping the source registry, playback pipeline, and scraper chain ready for SFTP, cloud drives, and metadata enrichment.'**
+  /// **'The app is already structured for WebDAV and 189 Cloud today, while keeping the source registry, playback pipeline, and scraper chain ready for more protocols and metadata enrichment.'**
   String get architectureReadyDescription;
 
   /// No description provided for @webdavProtocol.
@@ -577,6 +649,312 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cloud drive'**
   String get cloudDriveProtocol;
+
+  /// No description provided for @cloud189Protocol.
+  ///
+  /// In en, this message translates to:
+  /// **'189 Cloud'**
+  String get cloud189Protocol;
+
+  /// No description provided for @sourceProtocolLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Source type'**
+  String get sourceProtocolLabel;
+
+  /// No description provided for @webdavSourceTypeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV source'**
+  String get webdavSourceTypeTitle;
+
+  /// No description provided for @webdavSourceDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to a NAS or server that exposes your music library through WebDAV.'**
+  String get webdavSourceDescription;
+
+  /// No description provided for @cloud189SourceTypeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'189 Cloud source'**
+  String get cloud189SourceTypeTitle;
+
+  /// No description provided for @cloud189SourceDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the OpenList-compatible mount flow or use your own 189 Cloud app credentials for OAuth authorization.'**
+  String get cloud189SourceDescription;
+
+  /// No description provided for @cloud189DefaultSourceName.
+  ///
+  /// In en, this message translates to:
+  /// **'189 Cloud'**
+  String get cloud189DefaultSourceName;
+
+  /// No description provided for @cloud189OpenListModeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'OpenList mount'**
+  String get cloud189OpenListModeLabel;
+
+  /// No description provided for @cloud189AppAuthorizationModeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'App authorization'**
+  String get cloud189AppAuthorizationModeLabel;
+
+  /// No description provided for @cloud189OpenListModeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches the OpenList 189Cloud driver: enter the phone number and password used for 189 Cloud login, then the app keeps the session for browsing files.'**
+  String get cloud189OpenListModeDescription;
+
+  /// No description provided for @cloud189AppAuthorizationModeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Use an appKey/appSecret issued by 189 Cloud. After the user authorizes this app, paste the returned code or refreshToken here.'**
+  String get cloud189AppAuthorizationModeDescription;
+
+  /// No description provided for @cloud189OpenAuthorizationAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open 189 Cloud app authorization'**
+  String get cloud189OpenAuthorizationAction;
+
+  /// No description provided for @cloud189AuthorizationOpenedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Authorization opened. After approving this app in 189 Cloud, paste the returned code or refreshToken here.'**
+  String get cloud189AuthorizationOpenedMessage;
+
+  /// No description provided for @cloud189AuthorizationOpenFailedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to open the 189 Cloud authorization page on this device.'**
+  String get cloud189AuthorizationOpenFailedMessage;
+
+  /// No description provided for @cloud189AppAuthorizationConfigRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter appKey and redirect URI before opening authorization.'**
+  String get cloud189AppAuthorizationConfigRequired;
+
+  /// No description provided for @cloud189RefreshTokenLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'189 Cloud refresh token'**
+  String get cloud189RefreshTokenLabel;
+
+  /// No description provided for @cloud189RefreshTokenHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste refreshToken from 189 Cloud authorization'**
+  String get cloud189RefreshTokenHint;
+
+  /// No description provided for @cloud189RefreshTokenHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'The token is stored securely and used only to refresh your 189 Cloud session.'**
+  String get cloud189RefreshTokenHelpText;
+
+  /// No description provided for @cloud189OpenListRefreshTokenLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'OpenList refreshToken'**
+  String get cloud189OpenListRefreshTokenLabel;
+
+  /// No description provided for @cloud189OpenListRefreshTokenHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the refreshToken used by OpenList 189CloudPC'**
+  String get cloud189OpenListRefreshTokenHint;
+
+  /// No description provided for @cloud189OpenListRefreshTokenHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'This follows the OpenList-compatible PC session flow and does not require your own appKey.'**
+  String get cloud189OpenListRefreshTokenHelpText;
+
+  /// No description provided for @cloud189OpenListUsernameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'189 Cloud username'**
+  String get cloud189OpenListUsernameLabel;
+
+  /// No description provided for @cloud189OpenListUsernameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone number used to log in'**
+  String get cloud189OpenListUsernameHint;
+
+  /// No description provided for @cloud189OpenListUsernameHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'Same as the Username field in OpenList 189Cloud.'**
+  String get cloud189OpenListUsernameHelpText;
+
+  /// No description provided for @cloud189OpenListPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'189 Cloud password'**
+  String get cloud189OpenListPasswordLabel;
+
+  /// No description provided for @cloud189OpenListPasswordHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Password used to log in'**
+  String get cloud189OpenListPasswordHint;
+
+  /// No description provided for @cloud189OpenListPasswordHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'Same as the Password field in OpenList 189Cloud.'**
+  String get cloud189OpenListPasswordHelpText;
+
+  /// No description provided for @cloud189AppKeyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'189 Cloud appKey'**
+  String get cloud189AppKeyLabel;
+
+  /// No description provided for @cloud189AppKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'AppKey issued by 189 Cloud'**
+  String get cloud189AppKeyHint;
+
+  /// No description provided for @cloud189AppKeyHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply for an appKey in the 189 Cloud developer platform before using app authorization.'**
+  String get cloud189AppKeyHelpText;
+
+  /// No description provided for @cloud189AppSecretLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'189 Cloud appSecret'**
+  String get cloud189AppSecretLabel;
+
+  /// No description provided for @cloud189AppSecretHint.
+  ///
+  /// In en, this message translates to:
+  /// **'AppSecret issued with your appKey'**
+  String get cloud189AppSecretHint;
+
+  /// No description provided for @cloud189RedirectUriLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Redirect URI'**
+  String get cloud189RedirectUriLabel;
+
+  /// No description provided for @cloud189RedirectUriHint.
+  ///
+  /// In en, this message translates to:
+  /// **'music://cloud189/callback'**
+  String get cloud189RedirectUriHint;
+
+  /// No description provided for @cloud189RedirectUriHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the redirect URI configured for your 189 Cloud application.'**
+  String get cloud189RedirectUriHelpText;
+
+  /// No description provided for @cloud189AuthorizationCodeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Authorization code'**
+  String get cloud189AuthorizationCodeLabel;
+
+  /// No description provided for @cloud189AuthorizationCodeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the code returned by app authorization'**
+  String get cloud189AuthorizationCodeHint;
+
+  /// No description provided for @cloud189AuthorizationCodeHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave this empty only if you already have a refreshToken for the same appKey.'**
+  String get cloud189AuthorizationCodeHelpText;
+
+  /// No description provided for @cloud189AppRefreshTokenLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'App refreshToken'**
+  String get cloud189AppRefreshTokenLabel;
+
+  /// No description provided for @cloud189AppRefreshTokenHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional refreshToken for this appKey'**
+  String get cloud189AppRefreshTokenHint;
+
+  /// No description provided for @cloud189AppRefreshTokenHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'If provided, the app uses it directly instead of exchanging an authorization code.'**
+  String get cloud189AppRefreshTokenHelpText;
+
+  /// No description provided for @cloud189AuthorizationCredentialRequiredError.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an authorization code or refreshToken.'**
+  String get cloud189AuthorizationCredentialRequiredError;
+
+  /// No description provided for @cloud189RootPathHint.
+  ///
+  /// In en, this message translates to:
+  /// **'/Music/'**
+  String get cloud189RootPathHint;
+
+  /// No description provided for @cloud189RootPathHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'Use a folder path in 189 Cloud. Leave \'/\' to start at the cloud root.'**
+  String get cloud189RootPathHelpText;
+
+  /// No description provided for @cloud189ConnectionFailedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'189 Cloud connection failed. Check the credentials; enable debug mode to view the request log.'**
+  String get cloud189ConnectionFailedMessage;
+
+  /// No description provided for @cloud189DebugLogDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'189 Cloud debug log'**
+  String get cloud189DebugLogDialogTitle;
+
+  /// No description provided for @cloud189DebugLogDialogDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Request URLs, parameters, and response summaries from this source setup are shown with sensitive values redacted.'**
+  String get cloud189DebugLogDialogDescription;
+
+  /// No description provided for @cloud189CaptchaDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter 189 Cloud captcha'**
+  String get cloud189CaptchaDialogTitle;
+
+  /// No description provided for @cloud189CaptchaDialogDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic recognition is temporarily unavailable. Enter the characters from the image to continue login.'**
+  String get cloud189CaptchaDialogDescription;
+
+  /// No description provided for @cloud189CaptchaCodeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Captcha'**
+  String get cloud189CaptchaCodeLabel;
+
+  /// No description provided for @cloud189CaptchaCodeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the characters in the image'**
+  String get cloud189CaptchaCodeHint;
 
   /// No description provided for @scraperPipelineLabel.
   ///
@@ -821,6 +1199,18 @@ abstract class AppLocalizations {
   /// **'No synced lyrics were found for this track yet.'**
   String get lyricsEmptyLabel;
 
+  /// No description provided for @showLyricsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Show lyrics'**
+  String get showLyricsAction;
+
+  /// No description provided for @hideLyricsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide lyrics'**
+  String get hideLyricsAction;
+
   /// No description provided for @playAction.
   ///
   /// In en, this message translates to:
@@ -838,6 +1228,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stop'**
   String get stopAction;
+
+  /// No description provided for @closeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get closeAction;
+
+  /// No description provided for @previousTrackAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous'**
+  String get previousTrackAction;
+
+  /// No description provided for @nextTrackAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get nextTrackAction;
+
+  /// No description provided for @playNextAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Play next'**
+  String get playNextAction;
+
+  /// No description provided for @playlistTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Playlist'**
+  String get playlistTitle;
+
+  /// No description provided for @playlistEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The playlist is empty.'**
+  String get playlistEmptyTitle;
+
+  /// No description provided for @removeFromPlaylistAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from playlist'**
+  String get removeFromPlaylistAction;
+
+  /// No description provided for @currentTrackLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Now playing'**
+  String get currentTrackLabel;
+
+  /// No description provided for @playbackModeList.
+  ///
+  /// In en, this message translates to:
+  /// **'List play'**
+  String get playbackModeList;
+
+  /// No description provided for @playbackModeRepeatOne.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat one'**
+  String get playbackModeRepeatOne;
+
+  /// No description provided for @playbackModeShuffle.
+  ///
+  /// In en, this message translates to:
+  /// **'Shuffle'**
+  String get playbackModeShuffle;
+
+  /// No description provided for @playlistCountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} in queue'**
+  String playlistCountLabel(int count);
+
+  /// No description provided for @addedToPlayNextMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to play next: {title}'**
+  String addedToPlayNextMessage(Object title);
 
   /// No description provided for @openPlayerAction.
   ///

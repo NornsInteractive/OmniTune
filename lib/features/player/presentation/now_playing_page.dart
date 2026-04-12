@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:music/l10n/app_localizations.dart';
 
+import '../../../core/widgets/studio_chrome.dart';
 import 'widgets/now_playing_panel.dart';
 
 class NowPlayingPage extends StatelessWidget {
@@ -8,11 +8,15 @@ class NowPlayingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.playerTitle)),
-      body: const NowPlayingPanel(),
+      backgroundColor: colorScheme.surface.withValues(alpha: 0),
+      body: StudioBackdrop(
+        maxContentWidth: 980,
+        padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+        child: const SafeArea(child: NowPlayingPanel()),
+      ),
     );
   }
 }

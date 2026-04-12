@@ -46,6 +46,42 @@ class AppLocalizationsEn extends AppLocalizations {
   String get themeSettingTitle => 'Theme';
 
   @override
+  String get themeAccentColorSettingTitle => 'Accent color';
+
+  @override
+  String get themeAccentColorDefaultLabel => 'System default';
+
+  @override
+  String get themeBorderRadiusSettingTitle => 'Corner radius';
+
+  @override
+  String get themeCompactnessSettingTitle => 'Density';
+
+  @override
+  String get themeColorDialogTitle => 'Choose accent color';
+
+  @override
+  String get themeColorPresetLabel => 'Preset colors';
+
+  @override
+  String get themeColorHexFieldLabel => 'Hex color';
+
+  @override
+  String get themeColorHexFieldHint => 'Enter a value like #FF5722';
+
+  @override
+  String get themeBorderRadiusDialogTitle => 'Corner radius';
+
+  @override
+  String get themeBorderRadiusRangeLabel => 'Range: 12.0 - 32.0px';
+
+  @override
+  String get themeCompactnessDialogTitle => 'Density';
+
+  @override
+  String get themeCompactnessRangeLabel => '50% (compact) - 150% (comfortable)';
+
+  @override
   String get interfaceSizeSettingTitle => 'Interface size';
 
   @override
@@ -273,7 +309,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get architectureReadyDescription =>
-      'The app is already structured for WebDAV today, while keeping the source registry, playback pipeline, and scraper chain ready for SFTP, cloud drives, and metadata enrichment.';
+      'The app is already structured for WebDAV and 189 Cloud today, while keeping the source registry, playback pipeline, and scraper chain ready for more protocols and metadata enrichment.';
 
   @override
   String get webdavProtocol => 'WebDAV';
@@ -283,6 +319,184 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cloudDriveProtocol => 'Cloud drive';
+
+  @override
+  String get cloud189Protocol => '189 Cloud';
+
+  @override
+  String get sourceProtocolLabel => 'Source type';
+
+  @override
+  String get webdavSourceTypeTitle => 'WebDAV source';
+
+  @override
+  String get webdavSourceDescription =>
+      'Connect to a NAS or server that exposes your music library through WebDAV.';
+
+  @override
+  String get cloud189SourceTypeTitle => '189 Cloud source';
+
+  @override
+  String get cloud189SourceDescription =>
+      'Choose the OpenList-compatible mount flow or use your own 189 Cloud app credentials for OAuth authorization.';
+
+  @override
+  String get cloud189DefaultSourceName => '189 Cloud';
+
+  @override
+  String get cloud189OpenListModeLabel => 'OpenList mount';
+
+  @override
+  String get cloud189AppAuthorizationModeLabel => 'App authorization';
+
+  @override
+  String get cloud189OpenListModeDescription =>
+      'Matches the OpenList 189Cloud driver: enter the phone number and password used for 189 Cloud login, then the app keeps the session for browsing files.';
+
+  @override
+  String get cloud189AppAuthorizationModeDescription =>
+      'Use an appKey/appSecret issued by 189 Cloud. After the user authorizes this app, paste the returned code or refreshToken here.';
+
+  @override
+  String get cloud189OpenAuthorizationAction =>
+      'Open 189 Cloud app authorization';
+
+  @override
+  String get cloud189AuthorizationOpenedMessage =>
+      'Authorization opened. After approving this app in 189 Cloud, paste the returned code or refreshToken here.';
+
+  @override
+  String get cloud189AuthorizationOpenFailedMessage =>
+      'Unable to open the 189 Cloud authorization page on this device.';
+
+  @override
+  String get cloud189AppAuthorizationConfigRequired =>
+      'Enter appKey and redirect URI before opening authorization.';
+
+  @override
+  String get cloud189RefreshTokenLabel => '189 Cloud refresh token';
+
+  @override
+  String get cloud189RefreshTokenHint =>
+      'Paste refreshToken from 189 Cloud authorization';
+
+  @override
+  String get cloud189RefreshTokenHelpText =>
+      'The token is stored securely and used only to refresh your 189 Cloud session.';
+
+  @override
+  String get cloud189OpenListRefreshTokenLabel => 'OpenList refreshToken';
+
+  @override
+  String get cloud189OpenListRefreshTokenHint =>
+      'Paste the refreshToken used by OpenList 189CloudPC';
+
+  @override
+  String get cloud189OpenListRefreshTokenHelpText =>
+      'This follows the OpenList-compatible PC session flow and does not require your own appKey.';
+
+  @override
+  String get cloud189OpenListUsernameLabel => '189 Cloud username';
+
+  @override
+  String get cloud189OpenListUsernameHint => 'Phone number used to log in';
+
+  @override
+  String get cloud189OpenListUsernameHelpText =>
+      'Same as the Username field in OpenList 189Cloud.';
+
+  @override
+  String get cloud189OpenListPasswordLabel => '189 Cloud password';
+
+  @override
+  String get cloud189OpenListPasswordHint => 'Password used to log in';
+
+  @override
+  String get cloud189OpenListPasswordHelpText =>
+      'Same as the Password field in OpenList 189Cloud.';
+
+  @override
+  String get cloud189AppKeyLabel => '189 Cloud appKey';
+
+  @override
+  String get cloud189AppKeyHint => 'AppKey issued by 189 Cloud';
+
+  @override
+  String get cloud189AppKeyHelpText =>
+      'Apply for an appKey in the 189 Cloud developer platform before using app authorization.';
+
+  @override
+  String get cloud189AppSecretLabel => '189 Cloud appSecret';
+
+  @override
+  String get cloud189AppSecretHint => 'AppSecret issued with your appKey';
+
+  @override
+  String get cloud189RedirectUriLabel => 'Redirect URI';
+
+  @override
+  String get cloud189RedirectUriHint => 'music://cloud189/callback';
+
+  @override
+  String get cloud189RedirectUriHelpText =>
+      'Use the redirect URI configured for your 189 Cloud application.';
+
+  @override
+  String get cloud189AuthorizationCodeLabel => 'Authorization code';
+
+  @override
+  String get cloud189AuthorizationCodeHint =>
+      'Paste the code returned by app authorization';
+
+  @override
+  String get cloud189AuthorizationCodeHelpText =>
+      'Leave this empty only if you already have a refreshToken for the same appKey.';
+
+  @override
+  String get cloud189AppRefreshTokenLabel => 'App refreshToken';
+
+  @override
+  String get cloud189AppRefreshTokenHint =>
+      'Optional refreshToken for this appKey';
+
+  @override
+  String get cloud189AppRefreshTokenHelpText =>
+      'If provided, the app uses it directly instead of exchanging an authorization code.';
+
+  @override
+  String get cloud189AuthorizationCredentialRequiredError =>
+      'Enter an authorization code or refreshToken.';
+
+  @override
+  String get cloud189RootPathHint => '/Music/';
+
+  @override
+  String get cloud189RootPathHelpText =>
+      'Use a folder path in 189 Cloud. Leave \'/\' to start at the cloud root.';
+
+  @override
+  String get cloud189ConnectionFailedMessage =>
+      '189 Cloud connection failed. Check the credentials; enable debug mode to view the request log.';
+
+  @override
+  String get cloud189DebugLogDialogTitle => '189 Cloud debug log';
+
+  @override
+  String get cloud189DebugLogDialogDescription =>
+      'Request URLs, parameters, and response summaries from this source setup are shown with sensitive values redacted.';
+
+  @override
+  String get cloud189CaptchaDialogTitle => 'Enter 189 Cloud captcha';
+
+  @override
+  String get cloud189CaptchaDialogDescription =>
+      'Automatic recognition is temporarily unavailable. Enter the characters from the image to continue login.';
+
+  @override
+  String get cloud189CaptchaCodeLabel => 'Captcha';
+
+  @override
+  String get cloud189CaptchaCodeHint => 'Enter the characters in the image';
 
   @override
   String get scraperPipelineLabel => 'Scraper pipeline';
@@ -429,6 +643,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'No synced lyrics were found for this track yet.';
 
   @override
+  String get showLyricsAction => 'Show lyrics';
+
+  @override
+  String get hideLyricsAction => 'Hide lyrics';
+
+  @override
   String get playAction => 'Play';
 
   @override
@@ -436,6 +656,49 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get stopAction => 'Stop';
+
+  @override
+  String get closeAction => 'Close';
+
+  @override
+  String get previousTrackAction => 'Previous';
+
+  @override
+  String get nextTrackAction => 'Next';
+
+  @override
+  String get playNextAction => 'Play next';
+
+  @override
+  String get playlistTitle => 'Playlist';
+
+  @override
+  String get playlistEmptyTitle => 'The playlist is empty.';
+
+  @override
+  String get removeFromPlaylistAction => 'Remove from playlist';
+
+  @override
+  String get currentTrackLabel => 'Now playing';
+
+  @override
+  String get playbackModeList => 'List play';
+
+  @override
+  String get playbackModeRepeatOne => 'Repeat one';
+
+  @override
+  String get playbackModeShuffle => 'Shuffle';
+
+  @override
+  String playlistCountLabel(int count) {
+    return '$count in queue';
+  }
+
+  @override
+  String addedToPlayNextMessage(Object title) {
+    return 'Added to play next: $title';
+  }
 
   @override
   String get openPlayerAction => 'Open player';
