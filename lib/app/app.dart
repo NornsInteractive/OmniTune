@@ -49,12 +49,22 @@ class MusicApp extends ConsumerWidget {
         brightness: Brightness.light,
         interfaceScaleFactor: preferences.interfaceScaleFactor,
         customColors: customColors,
+        backgroundImageSource: preferences.backgroundImageSource,
+        backgroundImageAlignment: Alignment(
+          preferences.backgroundImageAlignmentX,
+          preferences.backgroundImageAlignmentY,
+        ),
       ),
       darkTheme: _buildTheme(
         colorScheme: darkScheme,
         brightness: Brightness.dark,
         interfaceScaleFactor: preferences.interfaceScaleFactor,
         customColors: customColors,
+        backgroundImageSource: preferences.backgroundImageSource,
+        backgroundImageAlignment: Alignment(
+          preferences.backgroundImageAlignmentX,
+          preferences.backgroundImageAlignmentY,
+        ),
       ),
       locale: AppDisplayPreferences.localeFor(preferences.localePreference),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -78,6 +88,8 @@ class MusicApp extends ConsumerWidget {
     required Brightness brightness,
     required double interfaceScaleFactor,
     required CustomThemeColors customColors,
+    required String? backgroundImageSource,
+    required Alignment backgroundImageAlignment,
   }) {
     final scaleFactor = interfaceScaleFactor.clamp(0.5, 2).toDouble();
     final compactness = customColors.interfaceCompactness
@@ -318,7 +330,13 @@ class MusicApp extends ConsumerWidget {
           borderRadius: BorderRadius.vertical(top: Radius.circular(radius + 4)),
         ),
       ),
-      extensions: [StudioThemeData(compactness: compactness)],
+      extensions: [
+        StudioThemeData(
+          compactness: compactness,
+          backgroundImageSource: backgroundImageSource,
+          backgroundImageAlignment: backgroundImageAlignment,
+        ),
+      ],
     );
   }
 }

@@ -57,6 +57,43 @@ class AppLocalizationsZh extends AppLocalizations {
   String get themeCompactnessSettingTitle => '界面紧凑度';
 
   @override
+  String get backgroundImageSettingTitle => '背景图片';
+
+  @override
+  String get backgroundImageDefaultSummary => '使用默认渐变背景';
+
+  @override
+  String get backgroundImageConfiguredSummary => '已设置自定义背景图片';
+
+  @override
+  String get backgroundImageDialogTitle => '设置背景图片';
+
+  @override
+  String get backgroundImageDialogDescription =>
+      '选择一张图片作为所有界面的背景。播放器界面正在播放时会优先使用封面氛围，不叠加该背景。';
+
+  @override
+  String get backgroundImagePositionHelpText => '拖动预览图来选择当前屏幕比例下显示图片的哪个位置。';
+
+  @override
+  String get backgroundImageChooseAction => '选择图片';
+
+  @override
+  String get backgroundImageChangeAction => '更换图片';
+
+  @override
+  String get backgroundImageClearAction => '清除背景';
+
+  @override
+  String get backgroundImageCenterAction => '居中';
+
+  @override
+  String get backgroundImageEmptyPreview => '还没有选择背景图片';
+
+  @override
+  String get backgroundImageFileTypeLabel => '图片';
+
+  @override
   String get themeColorDialogTitle => '选择主题强调色';
 
   @override
@@ -199,7 +236,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playbackCacheDescription => '播放会先直接走远程流，后台再继续缓存，下一次播放时会优先命中缓存内容。';
 
   @override
-  String get persistentPlaybackCacheLabel => '优先使用本地文件缓存';
+  String get persistentPlaybackCacheLabel => '缓存到本地文件';
 
   @override
   String get persistentPlaybackCacheDescription =>
@@ -532,7 +569,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String collectionDescription(Object sourceName) {
-    return '浏览 $sourceName，扫描全部歌曲，并在收藏、喜欢、全部歌曲和远程目录之间快速切换。';
+    return '浏览 $sourceName，扫描全部歌曲，并在全部歌曲、我喜欢和我收藏之间快速切换。';
   }
 
   @override
@@ -540,7 +577,7 @@ class AppLocalizationsZh extends AppLocalizations {
     Object browserSourceName,
     int sourceCount,
   ) {
-    return '远程浏览当前音源 $browserSourceName，并把全部 $sourceCount 个已保存音源扫描到同一个资料库中展示。';
+    return '当前音源为 $browserSourceName，并把全部 $sourceCount 个已保存音源扫描到同一个资料库中展示。';
   }
 
   @override

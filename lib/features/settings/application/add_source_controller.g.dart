@@ -7,7 +7,7 @@ part of 'add_source_controller.dart';
 // **************************************************************************
 
 String _$addSourceControllerHash() =>
-    r'2bb1e6d4bdb569ddcaa463f03ebb0dd923f236d3';
+    r'7acae0ac57baec66139d45bfad4c22cc8ac74b1f';
 
 /// See also [AddSourceController].
 @ProviderFor(AddSourceController)

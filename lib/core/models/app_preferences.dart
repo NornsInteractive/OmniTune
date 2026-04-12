@@ -12,7 +12,7 @@ final class AppDisplayPreferences {
 
   static const double minFontScale = 0.5;
   static const double maxFontScale = 2;
-  static const double defaultFontScale = 1;
+  static const double defaultFontScale = 0.85;
 
   static ThemeMode themeModeFor(AppThemePreference value) {
     return switch (value) {
@@ -31,7 +31,10 @@ final class AppDisplayPreferences {
   }
 
   static AppThemePreference themePreferenceFromStorage(String? value) {
-    return AppThemePreference.values.firstWhere((item) => item.name == value, orElse: () => AppThemePreference.system);
+    return AppThemePreference.values.firstWhere(
+      (item) => item.name == value,
+      orElse: () => AppThemePreference.system,
+    );
   }
 
   static AppLocalePreference localePreferenceFromStorage(String? value) {
@@ -99,17 +102,26 @@ final class AppDisplayPreferences {
 
   static EdgeInsets buttonPaddingFor(double scale) {
     final normalizedScale = scale.clamp(0.5, 2).toDouble();
-    return EdgeInsets.symmetric(horizontal: 20 * normalizedScale, vertical: 16 * normalizedScale);
+    return EdgeInsets.symmetric(
+      horizontal: 20 * normalizedScale,
+      vertical: 16 * normalizedScale,
+    );
   }
 
   static EdgeInsets segmentedButtonPaddingFor(double scale) {
     final normalizedScale = scale.clamp(0.5, 2).toDouble();
-    return EdgeInsets.symmetric(horizontal: 16 * normalizedScale, vertical: 14 * normalizedScale);
+    return EdgeInsets.symmetric(
+      horizontal: 16 * normalizedScale,
+      vertical: 14 * normalizedScale,
+    );
   }
 
   static EdgeInsets inputContentPaddingFor(double scale) {
     final normalizedScale = scale.clamp(0.5, 2).toDouble();
-    return EdgeInsets.symmetric(horizontal: 18 * normalizedScale, vertical: 18 * normalizedScale);
+    return EdgeInsets.symmetric(
+      horizontal: 18 * normalizedScale,
+      vertical: 18 * normalizedScale,
+    );
   }
 
   /// 创建 SpacingTheme 实例
@@ -145,7 +157,10 @@ final class AppDisplayPreferences {
   ///   - offset: 偏移量 (可正可负)
   ///
   /// 返回: 调整后的圆角值
-  static double getResponsiveBorderRadius(double baseBorderRadius, double offset) {
+  static double getResponsiveBorderRadius(
+    double baseBorderRadius,
+    double offset,
+  ) {
     final adjusted = baseBorderRadius + offset;
     return adjusted.clamp(4, 48).toDouble();
   }

@@ -1,16 +1,35 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../storage/background_image_store.dart';
+
 @immutable
 class StudioThemeData extends ThemeExtension<StudioThemeData> {
-  const StudioThemeData({this.compactness = 1});
+  const StudioThemeData({
+    this.compactness = 1,
+    this.backgroundImageSource,
+    this.backgroundImageAlignment = Alignment.center,
+  });
 
   final double compactness;
+  final String? backgroundImageSource;
+  final Alignment backgroundImageAlignment;
 
   @override
-  StudioThemeData copyWith({double? compactness}) {
-    return StudioThemeData(compactness: compactness ?? this.compactness);
+  StudioThemeData copyWith({
+    double? compactness,
+    String? backgroundImageSource,
+    Alignment? backgroundImageAlignment,
+  }) {
+    return StudioThemeData(
+      compactness: compactness ?? this.compactness,
+      backgroundImageSource:
+          backgroundImageSource ?? this.backgroundImageSource,
+      backgroundImageAlignment:
+          backgroundImageAlignment ?? this.backgroundImageAlignment,
+    );
   }
 
   @override
@@ -21,6 +40,16 @@ class StudioThemeData extends ThemeExtension<StudioThemeData> {
 
     return StudioThemeData(
       compactness: compactness + (other.compactness - compactness) * t,
+      backgroundImageSource: t < 0.5
+          ? backgroundImageSource
+          : other.backgroundImageSource,
+      backgroundImageAlignment:
+          Alignment.lerp(
+            backgroundImageAlignment,
+            other.backgroundImageAlignment,
+            t,
+          ) ??
+          backgroundImageAlignment,
     );
   }
 }
@@ -31,11 +60,13 @@ class StudioBackdrop extends StatelessWidget {
     required this.child,
     this.padding = EdgeInsets.zero,
     this.maxContentWidth,
+    this.showBackgroundImage = true,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
   final double? maxContentWidth;
+  final bool showBackgroundImage;
 
   @override
   Widget build(BuildContext context) {
@@ -45,6 +76,8 @@ class StudioBackdrop extends StatelessWidget {
       builder: (context, constraints) {
         final width = constraints.maxWidth;
         final contentWidth = maxContentWidth ?? width;
+        final studioTheme = Theme.of(context).extension<StudioThemeData>();
+        final backgroundImageSource = studioTheme?.backgroundImageSource;
 
         return Stack(
           fit: StackFit.expand,
@@ -62,6 +95,16 @@ class StudioBackdrop extends StatelessWidget {
                 ),
               ),
             ),
+            if (showBackgroundImage &&
+                backgroundImageSource != null &&
+                backgroundImageSource.isNotEmpty)
+              Positioned.fill(
+                child: _StudioBackgroundImage(
+                  source: backgroundImageSource,
+                  alignment:
+                      studioTheme?.backgroundImageAlignment ?? Alignment.center,
+                ),
+              ),
             Positioned(
               left: -width * 0.15,
               top: -140,
@@ -172,13 +215,57 @@ EdgeInsets studioPaddingOf(BuildContext context, EdgeInsetsGeometry padding) {
 }
 
 double studioCompactnessOf(BuildContext context) {
-  return (Theme.of(context).extension<StudioThemeData>()?.compactness ?? 1)
+  return (Theme.of(context).extension<StudioThemeData>()?.compactness ?? 0.5)
       .clamp(0.5, 1.5)
       .toDouble();
 }
 
 double studioSpacingOf(BuildContext context, double value) {
   return value * studioCompactnessOf(context);
+}
+
+double studioListScaleOf(BuildContext context) {
+  final compactness = studioCompactnessOf(context);
+  return (0.7 + (compactness - 0.5) * 0.6).clamp(0.7, 1.3).toDouble();
+}
+
+double studioListSpacingOf(BuildContext context, double value) {
+  return value * studioListScaleOf(context);
+}
+
+EdgeInsets studioListPaddingOf(
+  BuildContext context,
+  EdgeInsetsGeometry padding,
+) {
+  final textDirection = Directionality.maybeOf(context) ?? TextDirection.ltr;
+  final resolved = padding.resolve(textDirection);
+  final scale = studioListScaleOf(context);
+
+  return EdgeInsets.fromLTRB(
+    resolved.left * scale,
+    resolved.top * scale,
+    resolved.right * scale,
+    resolved.bottom * scale,
+  );
+}
+
+double studioListGapOf(BuildContext context) {
+  return studioListSpacingOf(context, 10).clamp(9.0, 13.0).toDouble();
+}
+
+double studioListIconBoxSizeOf(BuildContext context) {
+  return studioListSpacingOf(context, 40).clamp(36.0, 44.0).toDouble();
+}
+
+double studioListActionSizeOf(BuildContext context) {
+  return studioListSpacingOf(context, 36).clamp(32.0, 42.0).toDouble();
+}
+
+EdgeInsets studioListItemPaddingOf(BuildContext context) {
+  return studioListPaddingOf(
+    context,
+    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+  );
 }
 
 double studioRadiusOf(BuildContext context, double radius) {
@@ -194,6 +281,74 @@ double studioRadiusOf(BuildContext context, double radius) {
   }
 
   return (configuredRadius * radius / 28).clamp(4.0, 56.0).toDouble();
+}
+
+class _StudioBackgroundImage extends StatefulWidget {
+  const _StudioBackgroundImage({required this.source, required this.alignment});
+
+  final String source;
+  final Alignment alignment;
+
+  @override
+  State<_StudioBackgroundImage> createState() => _StudioBackgroundImageState();
+}
+
+class _StudioBackgroundImageState extends State<_StudioBackgroundImage> {
+  late Future<Uint8List?> _bytesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _bytesFuture = readStudioBackgroundImage(widget.source);
+  }
+
+  @override
+  void didUpdateWidget(_StudioBackgroundImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.source != widget.source) {
+      _bytesFuture = readStudioBackgroundImage(widget.source);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return FutureBuilder<Uint8List?>(
+      future: _bytesFuture,
+      builder: (context, snapshot) {
+        final bytes = snapshot.data;
+        if (bytes == null || bytes.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.memory(
+              bytes,
+              fit: BoxFit.cover,
+              alignment: widget.alignment,
+              filterQuality: FilterQuality.medium,
+            ),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    colorScheme.surface.withValues(alpha: 0.58),
+                    colorScheme.surface.withValues(alpha: 0.72),
+                    colorScheme.surface.withValues(alpha: 0.86),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
 
 class StudioGap extends StatelessWidget {

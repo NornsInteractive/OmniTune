@@ -31,46 +31,70 @@ class MusicAppShell extends StatelessWidget {
                 StudioPanel(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 6,
-                    vertical: 8,
+                    vertical: 10,
                   ),
                   radius: 18,
                   tint: colorScheme.surfaceContainerLow,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _ShellDestination(
-                          label: l10n.albumsTabLabel,
-                          selected: navigationShell.currentIndex == 0,
-                          icon: navigationShell.currentIndex == 0
-                              ? Icons.album_rounded
-                              : Icons.album_outlined,
-                          onTap: () {
-                            navigationShell.goBranch(
-                              0,
-                              initialLocation:
-                                  navigationShell.currentIndex == 0,
-                            );
-                          },
+                  child: SizedBox(
+                    height: studioListSpacingOf(
+                      context,
+                      44,
+                    ).clamp(42.0, 56.0).toDouble(),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: _ShellDestination(
+                            label: l10n.albumsTabLabel,
+                            selected: navigationShell.currentIndex == 0,
+                            icon: navigationShell.currentIndex == 0
+                                ? Icons.album_rounded
+                                : Icons.album_outlined,
+                            onTap: () {
+                              navigationShell.goBranch(
+                                0,
+                                initialLocation:
+                                    navigationShell.currentIndex == 0,
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                      const StudioGap(width: 8),
-                      Expanded(
-                        child: _ShellDestination(
-                          label: l10n.collectionTabLabel,
-                          selected: navigationShell.currentIndex == 1,
-                          icon: navigationShell.currentIndex == 1
-                              ? Icons.library_music_rounded
-                              : Icons.library_music_outlined,
-                          onTap: () {
-                            navigationShell.goBranch(
-                              1,
-                              initialLocation:
-                                  navigationShell.currentIndex == 1,
-                            );
-                          },
+                        const StudioGap(width: 8),
+                        Expanded(
+                          child: _ShellDestination(
+                            label: l10n.collectionTabLabel,
+                            selected: navigationShell.currentIndex == 1,
+                            icon: navigationShell.currentIndex == 1
+                                ? Icons.library_music_rounded
+                                : Icons.library_music_outlined,
+                            onTap: () {
+                              navigationShell.goBranch(
+                                1,
+                                initialLocation:
+                                    navigationShell.currentIndex == 1,
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                    ],
+                        const StudioGap(width: 8),
+                        Expanded(
+                          child: _ShellDestination(
+                            label: l10n.browserTitle,
+                            selected: navigationShell.currentIndex == 2,
+                            icon: navigationShell.currentIndex == 2
+                                ? Icons.folder_rounded
+                                : Icons.folder_outlined,
+                            onTap: () {
+                              navigationShell.goBranch(
+                                2,
+                                initialLocation:
+                                    navigationShell.currentIndex == 2,
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const StudioGap(height: 4),
@@ -132,14 +156,14 @@ class _ShellDestination extends StatelessWidget {
         child: Padding(
           padding: studioPaddingOf(
             context,
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 icon,
-                size: 18,
+                size: 19,
                 color: selected
                     ? colorScheme.onPrimaryContainer
                     : colorScheme.onSurfaceVariant,

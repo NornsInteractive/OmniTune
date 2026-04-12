@@ -158,7 +158,8 @@ class LibrarySongsPage extends ConsumerWidget {
                 else
                   SliverList.separated(
                     itemCount: tracks.length,
-                    separatorBuilder: (_, _) => const StudioGap(height: 10),
+                    separatorBuilder: (context, _) =>
+                        SizedBox(height: studioListGapOf(context)),
                     itemBuilder: (context, index) {
                       final song = tracks[index];
                       final isFavorite = catalog.favoriteTrackIds.contains(
@@ -327,14 +328,6 @@ class _CollectionHome extends ConsumerWidget {
                         '${catalog?.favoriteTracks.length ?? 0} ${l10n.tracksLabel}',
                     onTap: () => context.push('/collection/list/favorites'),
                   ),
-                  _QuickCard(
-                    icon: Icons.folder_open_rounded,
-                    title: l10n.browserTitle,
-                    subtitle:
-                        browser.selectedSource?.name ??
-                        l10n.sourceManagementEmptySummary,
-                    onTap: () => context.push('/collection/browser'),
-                  ),
                 ];
 
                 return Wrap(
@@ -445,33 +438,6 @@ class _CollectionHero extends ConsumerWidget {
               ),
             ],
           ),
-          const StudioGap(height: 14),
-          SizedBox(
-            height: 70,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: browser.sources.length + 1,
-              separatorBuilder: (_, _) => const StudioGap(width: 10),
-              itemBuilder: (context, index) {
-                if (index == browser.sources.length) {
-                  return _AddSourceCard(
-                    onTap: () => context.push('/settings/add-source'),
-                  );
-                }
-
-                final source = browser.sources[index];
-                return _SourceCard(
-                  source: source,
-                  isSelected: source.id == browser.selectedSource?.id,
-                  onTap: () {
-                    ref
-                        .read(libraryControllerProvider.notifier)
-                        .selectSource(source.id);
-                  },
-                );
-              },
-            ),
-          ),
         ],
       ),
     );
@@ -552,31 +518,59 @@ class _BrowserHeader extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return StudioPanel(
-      radius: 28,
+      radius: 24,
       tint: colorScheme.primaryContainer,
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          StudioPanel(
-            padding: EdgeInsets.zero,
-            radius: 18,
-            tint: colorScheme.surfaceContainerLow,
-            child: IconButton(
-              onPressed: () => context.pop(),
-              icon: const Icon(Icons.arrow_back_rounded),
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: StudioSectionTitle(
+                  title: l10n.browserTitle,
+                  description:
+                      browser.selectedSource?.name ?? l10n.browserTitle,
+                ),
+              ),
+              SizedBox(width: studioListGapOf(context)),
+              FilledButton.tonalIcon(
+                onPressed: () => context.push('/settings/add-source'),
+                icon: const Icon(Icons.add_link_rounded),
+                label: Text(l10n.addSourceAction),
+              ),
+            ],
           ),
-          const StudioGap(width: 14),
-          Expanded(
-            child: StudioSectionTitle(
-              title: l10n.browserTitle,
-              description: browser.selectedSource?.name ?? l10n.browserTitle,
+          SizedBox(height: studioListSpacingOf(context, 14)),
+          SizedBox(
+            height: studioListSpacingOf(
+              context,
+              76,
+            ).clamp(64.0, 82.0).toDouble(),
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: browser.sources.length + 1,
+              separatorBuilder: (context, _) =>
+                  SizedBox(width: studioListGapOf(context)),
+              itemBuilder: (context, index) {
+                if (index == browser.sources.length) {
+                  return _AddSourceCard(
+                    onTap: () => context.push('/settings/add-source'),
+                  );
+                }
+
+                final source = browser.sources[index];
+                return _SourceCard(
+                  source: source,
+                  isSelected: source.id == browser.selectedSource?.id,
+                  onTap: () {
+                    ref
+                        .read(libraryControllerProvider.notifier)
+                        .selectSource(source.id);
+                  },
+                );
+              },
             ),
-          ),
-          FilledButton.tonalIcon(
-            onPressed: () => context.push('/settings/add-source'),
-            icon: const Icon(Icons.add_link_rounded),
-            label: Text(l10n.addSourceAction),
           ),
         ],
       ),
@@ -644,7 +638,8 @@ class _BrowserBody extends ConsumerWidget {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: state.entries.length,
-                  separatorBuilder: (_, _) => const StudioGap(height: 10),
+                  separatorBuilder: (context, _) =>
+                      SizedBox(height: studioListGapOf(context)),
                   itemBuilder: (context, index) {
                     final entry = state.entries[index];
                     final isCurrentTrack =
@@ -717,7 +712,7 @@ class _QuickCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final radius = studioRadiusOf(context, 22);
-    final iconSize = studioSpacingOf(context, 42).clamp(36.0, 52.0).toDouble();
+    final iconSize = studioListIconBoxSizeOf(context);
 
     return StudioPanel(
       padding: EdgeInsets.zero,
@@ -731,10 +726,7 @@ class _QuickCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(radius),
           onTap: onTap,
           child: Padding(
-            padding: studioPaddingOf(
-              context,
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-            ),
+            padding: studioListItemPaddingOf(context),
             child: Row(
               children: [
                 Container(
@@ -752,13 +744,18 @@ class _QuickCard extends StatelessWidget {
                     color: colorScheme.onPrimaryContainer,
                   ),
                 ),
-                const StudioGap(width: 12),
+                SizedBox(width: studioListGapOf(context)),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(title, style: theme.textTheme.titleMedium),
-                      const StudioGap(height: 4),
+                      SizedBox(
+                        height: studioListSpacingOf(
+                          context,
+                          4,
+                        ).clamp(3.0, 5.0).toDouble(),
+                      ),
                       Text(
                         subtitle,
                         style: theme.textTheme.bodySmall?.copyWith(
@@ -810,14 +807,8 @@ class _SongRow extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final radius = studioRadiusOf(context, 22);
-    final leadingSize = studioSpacingOf(
-      context,
-      42,
-    ).clamp(34.0, 52.0).toDouble();
-    final buttonSize = studioSpacingOf(
-      context,
-      38,
-    ).clamp(32.0, 46.0).toDouble();
+    final leadingSize = studioListIconBoxSizeOf(context);
+    final buttonSize = studioListActionSizeOf(context);
 
     return StudioPanel(
       padding: EdgeInsets.zero,
@@ -834,10 +825,7 @@ class _SongRow extends StatelessWidget {
           onTap: onTap,
           onLongPress: onPlayNext,
           child: Padding(
-            padding: studioPaddingOf(
-              context,
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-            ),
+            padding: studioListItemPaddingOf(context),
             child: Row(
               children: [
                 Container(
@@ -861,7 +849,7 @@ class _SongRow extends StatelessWidget {
                         : colorScheme.onPrimaryContainer,
                   ),
                 ),
-                const StudioGap(width: 12),
+                SizedBox(width: studioListGapOf(context)),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -876,7 +864,12 @@ class _SongRow extends StatelessWidget {
                               : colorScheme.onSurface,
                         ),
                       ),
-                      const StudioGap(height: 4),
+                      SizedBox(
+                        height: studioListSpacingOf(
+                          context,
+                          4,
+                        ).clamp(3.0, 5.0).toDouble(),
+                      ),
                       Text(
                         '${song.artistName} · ${song.albumTitle}',
                         maxLines: 1,
@@ -896,7 +889,10 @@ class _SongRow extends StatelessWidget {
                   onPressed: onFavorite,
                   iconSize: 22,
                   visualDensity: VisualDensity.compact,
-                  padding: studioPaddingOf(context, const EdgeInsets.all(6)),
+                  padding: studioListPaddingOf(
+                    context,
+                    const EdgeInsets.all(6),
+                  ),
                   constraints: BoxConstraints(
                     minWidth: buttonSize,
                     minHeight: buttonSize,
@@ -911,7 +907,10 @@ class _SongRow extends StatelessWidget {
                   onPressed: onLiked,
                   iconSize: 22,
                   visualDensity: VisualDensity.compact,
-                  padding: studioPaddingOf(context, const EdgeInsets.all(6)),
+                  padding: studioListPaddingOf(
+                    context,
+                    const EdgeInsets.all(6),
+                  ),
                   constraints: BoxConstraints(
                     minWidth: buttonSize,
                     minHeight: buttonSize,
@@ -927,7 +926,10 @@ class _SongRow extends StatelessWidget {
                   onPressed: onShowDetails,
                   iconSize: 22,
                   visualDensity: VisualDensity.compact,
-                  padding: studioPaddingOf(context, const EdgeInsets.all(6)),
+                  padding: studioListPaddingOf(
+                    context,
+                    const EdgeInsets.all(6),
+                  ),
                   constraints: BoxConstraints(
                     minWidth: buttonSize,
                     minHeight: buttonSize,
@@ -958,10 +960,7 @@ class _EntryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final radius = studioRadiusOf(context, 18);
-    final leadingSize = studioSpacingOf(
-      context,
-      34,
-    ).clamp(30.0, 44.0).toDouble();
+    final leadingSize = studioListIconBoxSizeOf(context);
 
     final icon = switch (entry.kind) {
       RemoteEntryKind.directory => Icons.folder_rounded,
@@ -985,10 +984,7 @@ class _EntryRow extends StatelessWidget {
           dense: true,
           visualDensity: VisualDensity.compact,
           minLeadingWidth: leadingSize,
-          contentPadding: studioPaddingOf(
-            context,
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          ),
+          contentPadding: studioListItemPaddingOf(context),
           leading: Container(
             width: leadingSize,
             height: leadingSize,
@@ -998,8 +994,12 @@ class _EntryRow extends StatelessWidget {
             ),
             child: Icon(icon, size: 18, color: colorScheme.onPrimaryContainer),
           ),
-          title: Text(entry.name),
-          subtitle: Text(entry.path),
+          title: Text(entry.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text(
+            entry.path,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
           trailing: Icon(
             entry.isDirectory
                 ? Icons.chevron_right_rounded
@@ -1082,9 +1082,12 @@ class _SourceCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(radius),
         onTap: onTap,
         child: SizedBox(
-          width: studioSpacingOf(context, 160).clamp(132.0, 190.0).toDouble(),
+          width: studioListSpacingOf(
+            context,
+            168,
+          ).clamp(142.0, 196.0).toDouble(),
           child: Padding(
-            padding: studioPaddingOf(context, const EdgeInsets.all(14)),
+            padding: studioListPaddingOf(context, const EdgeInsets.all(14)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1136,9 +1139,12 @@ class _AddSourceCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(radius),
         onTap: onTap,
         child: SizedBox(
-          width: studioSpacingOf(context, 160).clamp(132.0, 190.0).toDouble(),
+          width: studioListSpacingOf(
+            context,
+            168,
+          ).clamp(142.0, 196.0).toDouble(),
           child: Padding(
-            padding: studioPaddingOf(context, const EdgeInsets.all(14)),
+            padding: studioListPaddingOf(context, const EdgeInsets.all(14)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

@@ -58,6 +58,46 @@ class AppLocalizationsEn extends AppLocalizations {
   String get themeCompactnessSettingTitle => 'Density';
 
   @override
+  String get backgroundImageSettingTitle => 'Background image';
+
+  @override
+  String get backgroundImageDefaultSummary =>
+      'Using the default gradient background';
+
+  @override
+  String get backgroundImageConfiguredSummary =>
+      'Custom background image configured';
+
+  @override
+  String get backgroundImageDialogTitle => 'Set background image';
+
+  @override
+  String get backgroundImageDialogDescription =>
+      'Choose an image as the background for every page. The player keeps its cover-focused atmosphere while a track is playing.';
+
+  @override
+  String get backgroundImagePositionHelpText =>
+      'Drag the preview to choose which part of the image appears at the current screen ratio.';
+
+  @override
+  String get backgroundImageChooseAction => 'Choose image';
+
+  @override
+  String get backgroundImageChangeAction => 'Change image';
+
+  @override
+  String get backgroundImageClearAction => 'Clear background';
+
+  @override
+  String get backgroundImageCenterAction => 'Center';
+
+  @override
+  String get backgroundImageEmptyPreview => 'No background image selected yet';
+
+  @override
+  String get backgroundImageFileTypeLabel => 'Images';
+
+  @override
   String get themeColorDialogTitle => 'Choose accent color';
 
   @override
@@ -205,7 +245,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Start playback immediately from the remote stream, then keep caching in the background for future replays.';
 
   @override
-  String get persistentPlaybackCacheLabel => 'Prefer local file cache';
+  String get persistentPlaybackCacheLabel => 'Cache to local files';
 
   @override
   String get persistentPlaybackCacheDescription =>
@@ -557,7 +597,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String collectionDescription(Object sourceName) {
-    return 'Browse $sourceName, scan all songs, and jump between favorites, liked songs, and the raw remote folders.';
+    return 'Browse $sourceName, scan all songs, and jump between all songs, liked songs, and favorites.';
   }
 
   @override

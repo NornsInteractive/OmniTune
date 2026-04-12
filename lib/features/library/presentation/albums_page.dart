@@ -317,8 +317,8 @@ class _AlbumsContent extends ConsumerWidget {
                         child: ListView.separated(
                           shrinkWrap: true,
                           itemCount: album.tracks.length,
-                          separatorBuilder: (_, _) =>
-                              const StudioGap(height: 8),
+                          separatorBuilder: (context, _) =>
+                              SizedBox(height: studioListGapOf(context)),
                           itemBuilder: (context, index) {
                             final track = album.tracks[index];
                             final isFavorite =
@@ -419,10 +419,7 @@ class _AlbumTrackRow extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final radius = studioRadiusOf(context, 18);
-    final leadingSize = studioSpacingOf(
-      context,
-      36,
-    ).clamp(30.0, 44.0).toDouble();
+    final leadingSize = studioListIconBoxSizeOf(context);
 
     return StudioPanel(
       padding: EdgeInsets.zero,
@@ -437,10 +434,7 @@ class _AlbumTrackRow extends StatelessWidget {
           onTap: onTap,
           onLongPress: onPlayNext,
           child: Padding(
-            padding: studioPaddingOf(
-              context,
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-            ),
+            padding: studioListItemPaddingOf(context),
             child: Row(
               children: [
                 Container(
@@ -456,7 +450,7 @@ class _AlbumTrackRow extends StatelessWidget {
                     color: colorScheme.onPrimaryContainer,
                   ),
                 ),
-                const StudioGap(width: 12),
+                SizedBox(width: studioListGapOf(context)),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -531,10 +525,10 @@ class _CompactTrackButton extends StatelessWidget {
       icon: Icon(icon),
       iconSize: 20,
       visualDensity: VisualDensity.compact,
-      padding: studioPaddingOf(context, const EdgeInsets.all(4)),
+      padding: studioListPaddingOf(context, const EdgeInsets.all(4)),
       constraints: BoxConstraints(
-        minWidth: studioSpacingOf(context, 32).clamp(28.0, 40.0).toDouble(),
-        minHeight: studioSpacingOf(context, 32).clamp(28.0, 40.0).toDouble(),
+        minWidth: studioListActionSizeOf(context),
+        minHeight: studioListActionSizeOf(context),
       ),
     );
   }

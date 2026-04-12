@@ -16,6 +16,18 @@
   "themeAccentColorDefaultLabel": "使用系统默认",
   "themeBorderRadiusSettingTitle": "圆角大小",
   "themeCompactnessSettingTitle": "界面紧凑度",
+  "backgroundImageSettingTitle": "背景图片",
+  "backgroundImageDefaultSummary": "使用默认渐变背景",
+  "backgroundImageConfiguredSummary": "已设置自定义背景图片",
+  "backgroundImageDialogTitle": "设置背景图片",
+  "backgroundImageDialogDescription": "选择一张图片作为所有界面的背景。播放器界面正在播放时会优先使用封面氛围，不叠加该背景。",
+  "backgroundImagePositionHelpText": "拖动预览图来选择当前屏幕比例下显示图片的哪个位置。",
+  "backgroundImageChooseAction": "选择图片",
+  "backgroundImageChangeAction": "更换图片",
+  "backgroundImageClearAction": "清除背景",
+  "backgroundImageCenterAction": "居中",
+  "backgroundImageEmptyPreview": "还没有选择背景图片",
+  "backgroundImageFileTypeLabel": "图片",
   "themeColorDialogTitle": "选择主题强调色",
   "themeColorPresetLabel": "预设颜色",
   "themeColorHexFieldLabel": "Hex 颜色值",
@@ -105,7 +117,7 @@
   "settingsDescription": "在这里添加远程音乐源、切换当前音源，并发起新的全库扫描来生成专辑和歌曲视图。",
   "playbackCacheTitle": "播放缓存",
   "playbackCacheDescription": "播放会先直接走远程流，后台再继续缓存，下一次播放时会优先命中缓存内容。",
-  "persistentPlaybackCacheLabel": "优先使用本地文件缓存",
+  "persistentPlaybackCacheLabel": "缓存到本地文件",
   "persistentPlaybackCacheDescription": "开启后，已经完整缓存好的歌曲也会保存到本地，下次优先从本地缓存播放。",
   "memoryCacheTrackLimitLabel": "内存缓存歌曲数量",
   "memoryCacheTrackLimitDescription": "应用会把最近播放过的歌曲和已经缓存到的字节范围保留在内存中，重复播放时会优先复用这些缓存，再对缺失部分继续走网络。",
@@ -263,13 +275,13 @@
   "albumsEmptyDescription": "先执行一次扫描，把远程音乐库整理成专辑视图。",
   "tracksLabel": "首",
   "collectionHeadline": "我的音乐资料库",
-  "collectionDescription": "浏览 {sourceName}，扫描全部歌曲，并在收藏、喜欢、全部歌曲和远程目录之间快速切换。",
+  "collectionDescription": "浏览 {sourceName}，扫描全部歌曲，并在全部歌曲、我喜欢和我收藏之间快速切换。",
   "@collectionDescription": {
     "placeholders": {
       "sourceName": {}
     }
   },
-  "collectionDescriptionAllSources": "远程浏览当前音源 {browserSourceName}，并把全部 {sourceCount} 个已保存音源扫描到同一个资料库中展示。",
+  "collectionDescriptionAllSources": "当前音源为 {browserSourceName}，并把全部 {sourceCount} 个已保存音源扫描到同一个资料库中展示。",
   "@collectionDescriptionAllSources": {
     "placeholders": {
       "browserSourceName": {},

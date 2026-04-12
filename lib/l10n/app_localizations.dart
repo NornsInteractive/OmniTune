@@ -194,6 +194,78 @@ abstract class AppLocalizations {
   /// **'Density'**
   String get themeCompactnessSettingTitle;
 
+  /// No description provided for @backgroundImageSettingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Background image'**
+  String get backgroundImageSettingTitle;
+
+  /// No description provided for @backgroundImageDefaultSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Using the default gradient background'**
+  String get backgroundImageDefaultSummary;
+
+  /// No description provided for @backgroundImageConfiguredSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom background image configured'**
+  String get backgroundImageConfiguredSummary;
+
+  /// No description provided for @backgroundImageDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set background image'**
+  String get backgroundImageDialogTitle;
+
+  /// No description provided for @backgroundImageDialogDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an image as the background for every page. The player keeps its cover-focused atmosphere while a track is playing.'**
+  String get backgroundImageDialogDescription;
+
+  /// No description provided for @backgroundImagePositionHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag the preview to choose which part of the image appears at the current screen ratio.'**
+  String get backgroundImagePositionHelpText;
+
+  /// No description provided for @backgroundImageChooseAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose image'**
+  String get backgroundImageChooseAction;
+
+  /// No description provided for @backgroundImageChangeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Change image'**
+  String get backgroundImageChangeAction;
+
+  /// No description provided for @backgroundImageClearAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear background'**
+  String get backgroundImageClearAction;
+
+  /// No description provided for @backgroundImageCenterAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Center'**
+  String get backgroundImageCenterAction;
+
+  /// No description provided for @backgroundImageEmptyPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'No background image selected yet'**
+  String get backgroundImageEmptyPreview;
+
+  /// No description provided for @backgroundImageFileTypeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Images'**
+  String get backgroundImageFileTypeLabel;
+
   /// No description provided for @themeColorDialogTitle.
   ///
   /// In en, this message translates to:
@@ -455,7 +527,7 @@ abstract class AppLocalizations {
   /// No description provided for @persistentPlaybackCacheLabel.
   ///
   /// In en, this message translates to:
-  /// **'Prefer local file cache'**
+  /// **'Cache to local files'**
   String get persistentPlaybackCacheLabel;
 
   /// No description provided for @persistentPlaybackCacheDescription.
@@ -1055,7 +1127,7 @@ abstract class AppLocalizations {
   /// No description provided for @collectionDescription.
   ///
   /// In en, this message translates to:
-  /// **'Browse {sourceName}, scan all songs, and jump between favorites, liked songs, and the raw remote folders.'**
+  /// **'Browse {sourceName}, scan all songs, and jump between all songs, liked songs, and favorites.'**
   String collectionDescription(Object sourceName);
 
   /// No description provided for @collectionDescriptionAllSources.

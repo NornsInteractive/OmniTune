@@ -1,5 +1,7 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +12,7 @@ import '../../../core/models/app_preferences.dart';
 import '../../../core/models/playback_cache_settings.dart';
 import '../../../core/models/source_profile.dart';
 import '../../../core/models/source_protocol.dart';
+import '../../../core/storage/background_image_store.dart';
 import '../../../core/storage/library_preferences_repository.dart';
 import '../../../core/widgets/studio_chrome.dart';
 import '../../library/application/library_catalog_controller.dart';
@@ -44,25 +47,35 @@ class SettingsPage extends ConsumerWidget {
         ref.watch(sourcesControllerProvider).valueOrNull ??
         const <SourceProfile>[];
     final browser = ref.watch(libraryControllerProvider).valueOrNull;
+    final appBarBackground = colorScheme.surfaceContainerLowest;
+    final settingsToolbarHeight =
+        ((theme.appBarTheme.toolbarHeight ?? kToolbarHeight) * 0.82)
+            .clamp(40.0, 48.0)
+            .toDouble();
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
+      backgroundColor: appBarBackground,
       appBar: AppBar(
         title: Text(l10n.settingsPageTitle),
-        backgroundColor: colorScheme.surface,
+        toolbarHeight: settingsToolbarHeight,
+        backgroundColor: appBarBackground,
         foregroundColor: colorScheme.onSurface,
-        surfaceTintColor: colorScheme.surface,
+        surfaceTintColor: appBarBackground,
       ),
       body: StudioBackdrop(
         maxContentWidth: 1280,
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
         child: SafeArea(
+          top: false,
           child: Align(
             alignment: Alignment.topCenter,
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 1180),
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(4, 12, 4, 32),
+                padding: studioListPaddingOf(
+                  context,
+                  const EdgeInsets.fromLTRB(4, 12, 4, 32),
+                ),
                 children: [
                   DefaultTextStyle.merge(
                     style: TextStyle(color: colorScheme.onPrimaryContainer),
@@ -77,8 +90,8 @@ class SettingsPage extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Wrap(
-                              spacing: 10,
-                              runSpacing: 10,
+                              spacing: studioListGapOf(context),
+                              runSpacing: studioListGapOf(context),
                               children: [
                                 StudioPill(
                                   icon: Icons.tune_rounded,
@@ -100,14 +113,14 @@ class SettingsPage extends ConsumerWidget {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 20),
+                            StudioGap(height: 20),
                             Text(
                               l10n.settingsCenterHeadline,
                               style: theme.textTheme.headlineMedium?.copyWith(
                                 color: colorScheme.onPrimaryContainer,
                               ),
                             ),
-                            const SizedBox(height: 12),
+                            StudioGap(height: 12),
                             Text(
                               l10n.settingsCenterDescription,
                               style: theme.textTheme.bodyLarge?.copyWith(
@@ -115,10 +128,10 @@ class SettingsPage extends ConsumerWidget {
                                     .withValues(alpha: 0.76),
                               ),
                             ),
-                            const SizedBox(height: 20),
+                            StudioGap(height: 20),
                             Wrap(
-                              spacing: 12,
-                              runSpacing: 12,
+                              spacing: studioListGapOf(context),
+                              runSpacing: studioListGapOf(context),
                               children: [
                                 _MetaPill(
                                   icon: Icons.language_rounded,
@@ -145,7 +158,7 @@ class SettingsPage extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: studioListSpacingOf(context, 16)),
                   _SettingsSection(
                     title: l10n.appearanceSettingsTitle,
                     children: [
@@ -330,9 +343,21 @@ class SettingsPage extends ConsumerWidget {
                           },
                         ),
                       ),
+                      _SettingTile(
+                        icon: Icons.wallpaper_rounded,
+                        title: l10n.backgroundImageSettingTitle,
+                        subtitle: preferences.backgroundImageSource == null
+                            ? l10n.backgroundImageDefaultSummary
+                            : l10n.backgroundImageConfiguredSummary,
+                        onTap: () => _showBackgroundImageDialog(
+                          context: context,
+                          ref: ref,
+                          preferences: preferences,
+                        ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: studioListSpacingOf(context, 16)),
                   _SettingsSection(
                     title: l10n.librarySettingsTitle,
                     children: [
@@ -354,7 +379,7 @@ class SettingsPage extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: studioListSpacingOf(context, 16)),
                   _SettingsSection(
                     title: l10n.playbackCacheTitle,
                     children: [
@@ -388,14 +413,17 @@ class SettingsPage extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: studioListSpacingOf(context, 16)),
                   _SettingsSection(
                     title: l10n.debugSettingsTitle,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16.0,
-                          vertical: 8.0,
+                        padding: studioListPaddingOf(
+                          context,
+                          const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 8.0,
+                          ),
                         ),
                         child: SwitchListTile.adaptive(
                           contentPadding: EdgeInsets.zero,
@@ -519,6 +547,178 @@ class SettingsPage extends ConsumerWidget {
         );
       },
     );
+  }
+
+  Future<void> _showBackgroundImageDialog({
+    required BuildContext context,
+    required WidgetRef ref,
+    required LibraryPreferences preferences,
+  }) async {
+    final l10n = AppLocalizations.of(context)!;
+    final materialL10n = MaterialLocalizations.of(context);
+    final controller = ref.read(appSettingsControllerProvider.notifier);
+    final originalSource = preferences.backgroundImageSource;
+    final stagedSources = <String>[];
+    var didSave = false;
+    var source = preferences.backgroundImageSource;
+    var alignment = Alignment(
+      preferences.backgroundImageAlignmentX,
+      preferences.backgroundImageAlignmentY,
+    );
+    var previewFuture = source == null
+        ? Future<Uint8List?>.value()
+        : readStudioBackgroundImage(source);
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            Future<void> chooseImage() async {
+              final file = await openFile(
+                acceptedTypeGroups: [
+                  XTypeGroup(
+                    label: l10n.backgroundImageFileTypeLabel,
+                    extensions: const ['jpg', 'jpeg', 'png', 'webp'],
+                    mimeTypes: const ['image/jpeg', 'image/png', 'image/webp'],
+                  ),
+                ],
+              );
+              if (file == null) {
+                return;
+              }
+
+              final bytes = await file.readAsBytes();
+              final nextSource = await saveStudioBackgroundImage(
+                bytes,
+                fileName: file.name,
+                mimeType: file.mimeType,
+              );
+              stagedSources.add(nextSource);
+              setState(() {
+                source = nextSource;
+                alignment = Alignment.center;
+                previewFuture = Future<Uint8List?>.value(bytes);
+              });
+            }
+
+            return AlertDialog(
+              title: Text(l10n.backgroundImageDialogTitle),
+              content: SizedBox(
+                width: 560,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(l10n.backgroundImageDialogDescription),
+                      const SizedBox(height: 16),
+                      _BackgroundImagePositionPreview(
+                        previewFuture: previewFuture,
+                        alignment: alignment,
+                        emptyLabel: l10n.backgroundImageEmptyPreview,
+                        onAlignmentChanged: (value) {
+                          setState(() => alignment = value);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        l10n.backgroundImagePositionHelpText,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: [
+                          FilledButton.tonalIcon(
+                            onPressed: chooseImage,
+                            icon: const Icon(Icons.image_search_rounded),
+                            label: Text(
+                              source == null
+                                  ? l10n.backgroundImageChooseAction
+                                  : l10n.backgroundImageChangeAction,
+                            ),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: source == null
+                                ? null
+                                : () {
+                                    setState(
+                                      () => alignment = Alignment.center,
+                                    );
+                                  },
+                            icon: const Icon(Icons.center_focus_strong_rounded),
+                            label: Text(l10n.backgroundImageCenterAction),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: source == null
+                                ? null
+                                : () async {
+                                    setState(() {
+                                      source = null;
+                                      alignment = Alignment.center;
+                                      previewFuture =
+                                          Future<Uint8List?>.value();
+                                    });
+                                  },
+                            icon: const Icon(Icons.delete_outline_rounded),
+                            label: Text(l10n.backgroundImageClearAction),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: Text(materialL10n.cancelButtonLabel),
+                ),
+                FilledButton(
+                  onPressed: () async {
+                    final nextSource = source;
+                    if (nextSource == null) {
+                      await controller.clearBackgroundImage();
+                    } else {
+                      await controller.setBackgroundImage(
+                        source: nextSource,
+                        alignmentX: alignment.x,
+                        alignmentY: alignment.y,
+                      );
+                    }
+                    didSave = true;
+                    if (dialogContext.mounted) {
+                      Navigator.of(dialogContext).pop();
+                    }
+                  },
+                  child: Text(materialL10n.okButtonLabel),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (didSave) {
+      if (originalSource != source) {
+        await deleteStudioBackgroundImage(originalSource);
+      }
+      for (final stagedSource in stagedSources) {
+        if (stagedSource != source) {
+          await deleteStudioBackgroundImage(stagedSource);
+        }
+      }
+      return;
+    }
+
+    for (final stagedSource in stagedSources) {
+      await deleteStudioBackgroundImage(stagedSource);
+    }
   }
 
   Future<void> _showScaleDialog({
@@ -955,7 +1155,7 @@ class SettingsPage extends ConsumerWidget {
                           ref.invalidate(libraryCatalogControllerProvider);
                         },
                       ),
-                      const SizedBox(height: 10),
+                      SizedBox(height: studioListGapOf(dialogContext)),
                     ],
                 ],
               ),
@@ -1078,10 +1278,11 @@ class _SettingsSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title, style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 12),
+          SizedBox(height: studioListSpacingOf(context, 12)),
           for (var index = 0; index < children.length; index++) ...[
             children[index],
-            if (index != children.length - 1) const SizedBox(height: 12),
+            if (index != children.length - 1)
+              SizedBox(height: studioListGapOf(context)),
           ],
         ],
       ),
@@ -1113,6 +1314,7 @@ class _SettingTile extends StatelessWidget {
         ? colorScheme.error
         : colorScheme.onSurfaceVariant;
     final radius = studioRadiusOf(context, 24);
+    final iconBoxSize = studioListIconBoxSizeOf(context);
 
     return StudioPanel(
       padding: EdgeInsets.zero,
@@ -1126,12 +1328,12 @@ class _SettingTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(radius),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: studioListItemPaddingOf(context),
             child: Row(
               children: [
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: iconBoxSize,
+                  height: iconBoxSize,
                   decoration: BoxDecoration(
                     color: destructive
                         ? colorScheme.errorContainer
@@ -1142,13 +1344,16 @@ class _SettingTile extends StatelessWidget {
                   ),
                   child: Icon(
                     icon,
-                    size: 21,
+                    size: studioListSpacingOf(
+                      context,
+                      20,
+                    ).clamp(18.0, 23.0).toDouble(),
                     color: destructive
                         ? colorScheme.onErrorContainer
                         : colorScheme.onPrimaryContainer,
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: studioListGapOf(context)),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1160,7 +1365,7 @@ class _SettingTile extends StatelessWidget {
                               color: destructive ? colorScheme.error : null,
                             ),
                       ),
-                      const SizedBox(height: 3),
+                      SizedBox(height: studioListSpacingOf(context, 3)),
                       Text(
                         subtitle,
                         style: Theme.of(
@@ -1170,11 +1375,135 @@ class _SettingTile extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                if (trailing != null) ...[trailing!, const SizedBox(width: 8)],
+                SizedBox(width: studioListGapOf(context)),
+                if (trailing != null) ...[
+                  trailing!,
+                  SizedBox(width: studioListGapOf(context)),
+                ],
                 Icon(Icons.chevron_right_rounded, color: accentColor),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BackgroundImagePositionPreview extends StatelessWidget {
+  const _BackgroundImagePositionPreview({
+    required this.previewFuture,
+    required this.alignment,
+    required this.emptyLabel,
+    required this.onAlignmentChanged,
+  });
+
+  final Future<Uint8List?> previewFuture;
+  final Alignment alignment;
+  final String emptyLabel;
+  final ValueChanged<Alignment> onAlignmentChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final screenSize = MediaQuery.sizeOf(context);
+    final aspectRatio = screenSize.width / screenSize.height;
+
+    return AspectRatio(
+      aspectRatio: aspectRatio.clamp(0.56, 1.9).toDouble(),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(studioRadiusOf(context, 24)),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHighest,
+            border: Border.all(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.22),
+            ),
+          ),
+          child: FutureBuilder<Uint8List?>(
+            future: previewFuture,
+            builder: (context, snapshot) {
+              final bytes = snapshot.data;
+              if (bytes == null || bytes.isEmpty) {
+                return Center(
+                  child: Text(
+                    emptyLabel,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                );
+              }
+
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  Alignment draggedAlignment(Offset delta) {
+                    final nextX =
+                        (alignment.x - delta.dx / constraints.maxWidth * 2)
+                            .clamp(-1.0, 1.0)
+                            .toDouble();
+                    final nextY =
+                        (alignment.y - delta.dy / constraints.maxHeight * 2)
+                            .clamp(-1.0, 1.0)
+                            .toDouble();
+                    return Alignment(nextX, nextY);
+                  }
+
+                  return GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onPanUpdate: (details) {
+                      onAlignmentChanged(draggedAlignment(details.delta));
+                    },
+                    onDoubleTap: () => onAlignmentChanged(Alignment.center),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.memory(
+                          bytes,
+                          fit: BoxFit.cover,
+                          alignment: alignment,
+                          filterQuality: FilterQuality.medium,
+                        ),
+                        DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                colorScheme.surface.withValues(alpha: 0.08),
+                                colorScheme.surface.withValues(alpha: 0.22),
+                              ],
+                            ),
+                          ),
+                        ),
+                        IgnorePointer(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.16,
+                                ),
+                                width: 2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: colorScheme.shadow.withValues(
+                                    alpha: 0.18,
+                                  ),
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
           ),
         ),
       ),
@@ -1225,7 +1554,7 @@ class _SourceManagementCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(radius),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: studioListItemPaddingOf(context),
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final compact = constraints.maxWidth < 430;
@@ -1239,8 +1568,8 @@ class _SourceManagementCard extends StatelessWidget {
                 return Row(
                   children: [
                     Container(
-                      width: 40,
-                      height: 40,
+                      width: studioListIconBoxSizeOf(context),
+                      height: studioListIconBoxSizeOf(context),
                       decoration: BoxDecoration(
                         color: selected
                             ? colorScheme.surface.withValues(alpha: 0.72)
@@ -1256,7 +1585,7 @@ class _SourceManagementCard extends StatelessWidget {
                             : colorScheme.onPrimaryContainer,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: studioListGapOf(context)),
                     Expanded(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -1284,7 +1613,7 @@ class _SourceManagementCard extends StatelessWidget {
                               ],
                             ],
                           ),
-                          const SizedBox(height: 3),
+                          SizedBox(height: studioListSpacingOf(context, 3)),
                           Text(
                             '$protocolLabel · ${source.hostLabel}',
                             maxLines: 1,
@@ -1304,7 +1633,7 @@ class _SourceManagementCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: studioListGapOf(context)),
                     if (compact)
                       PopupMenuButton<_SourceManagementAction>(
                         tooltip: editLabel,
@@ -1747,8 +2076,8 @@ class _CacheManagementDialogState
                               child: ListView.separated(
                                 shrinkWrap: true,
                                 itemCount: items.length,
-                                separatorBuilder: (_, _) =>
-                                    const SizedBox(height: 8),
+                                separatorBuilder: (context, _) =>
+                                    SizedBox(height: studioListGapOf(context)),
                                 itemBuilder: (context, index) {
                                   final item = items[index];
                                   final selected = selectedIds.contains(
@@ -1776,6 +2105,11 @@ class _CacheManagementDialogState
                                     borderRadius: BorderRadius.circular(22),
                                     child: CheckboxListTile(
                                       value: selected,
+                                      dense: true,
+                                      visualDensity: VisualDensity.compact,
+                                      contentPadding: studioListItemPaddingOf(
+                                        context,
+                                      ),
                                       controlAffinity:
                                           ListTileControlAffinity.leading,
                                       shape: RoundedRectangleBorder(

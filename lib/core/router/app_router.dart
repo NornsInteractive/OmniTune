@@ -47,9 +47,17 @@ GoRouter appRouter(Ref ref) {
                   ),
                   GoRoute(
                     path: 'browser',
-                    builder: (context, state) => const LibraryBrowserPage(),
+                    redirect: (context, state) => '/browser',
                   ),
                 ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/browser',
+                builder: (context, state) => const LibraryBrowserPage(),
               ),
             ],
           ),
