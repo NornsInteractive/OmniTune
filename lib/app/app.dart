@@ -25,16 +25,20 @@ class MusicApp extends ConsumerWidget {
     final seedColor =
         customColors.getSeedColor() ??
         ThemeData(useMaterial3: true).colorScheme.primary;
+    
+    debugPrint('🎨 [App] Current theme seed color: ${customColors.primaryColorSeed}');
+    debugPrint('🎨 [App] Parsed seed color from getSeedColor(): ${seedColor.toString()}');
 
-    final lightScheme = ColorScheme.fromSeed(
+    // 构建亮色方案
+    final lightScheme = _buildColorScheme(
       seedColor: seedColor,
       brightness: Brightness.light,
-      contrastLevel: 0.08,
     );
-    final darkScheme = ColorScheme.fromSeed(
+    
+    // 构建深色方案
+    final darkScheme = _buildColorScheme(
       seedColor: seedColor,
       brightness: Brightness.dark,
-      contrastLevel: 0.14,
     );
 
     return MaterialApp.router(
@@ -337,6 +341,34 @@ class MusicApp extends ConsumerWidget {
           backgroundImageAlignment: backgroundImageAlignment,
         ),
       ],
+    );
+  }
+
+  ColorScheme _buildColorScheme({
+    required Color seedColor,
+    required Brightness brightness,
+  }) {
+    // 首先使用 fromSeed 获得一个协调的基础色系统
+    final baseScheme = ColorScheme.fromSeed(
+      seedColor: seedColor,
+      brightness: brightness,
+      contrastLevel: brightness == Brightness.light ? 0.08 : 0.14,
+    );
+
+    // 计算文本颜色（基于种子色的亮度）
+    final luminance = seedColor.computeLuminance();
+    final onColor = luminance > 0.5 ? Colors.black : Colors.white;
+    
+    // 直接使用 primary 作为 primaryContainer
+    // 这样按钮和容器会显示用户选择的真实颜色（就像添加音源按钮一样）
+    return baseScheme.copyWith(
+      primary: seedColor,
+      primaryContainer: seedColor,  // 直接使用，不混合
+      onPrimary: onColor,
+      onPrimaryContainer: onColor,
+      // 同样对待其他容器颜色
+      secondaryContainer: baseScheme.secondary,
+      tertiaryContainer: baseScheme.tertiary,
     );
   }
 }

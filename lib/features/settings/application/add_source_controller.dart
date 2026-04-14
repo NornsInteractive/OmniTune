@@ -18,6 +18,7 @@ part 'add_source_controller.g.dart';
 class WebDavSourceDraft {
   const WebDavSourceDraft({
     this.sourceId,
+    this.protocol = SourceProtocol.webdav,
     required this.name,
     required this.baseUrl,
     required this.username,
@@ -28,6 +29,7 @@ class WebDavSourceDraft {
   });
 
   final String? sourceId;
+  final SourceProtocol protocol;
   final String name;
   final String baseUrl;
   final String username;
@@ -39,6 +41,7 @@ class WebDavSourceDraft {
   factory WebDavSourceDraft.fromProfile(SourceProfile profile) {
     return WebDavSourceDraft(
       sourceId: profile.id,
+      protocol: profile.protocol,
       name: profile.name,
       baseUrl: profile.baseUrl,
       username: profile.username,
@@ -54,9 +57,13 @@ class WebDavSourceDraft {
     final generatedName = Uri.tryParse(trimmedUrl)?.host;
 
     return SourceProfile(
-      id: sourceId ?? 'webdav_${DateTime.now().microsecondsSinceEpoch}',
-      name: name.trim().isEmpty ? (generatedName ?? 'WebDAV') : name.trim(),
-      protocol: SourceProtocol.webdav,
+      id:
+          sourceId ??
+          '${protocol.storageValue}_${DateTime.now().microsecondsSinceEpoch}',
+      name: name.trim().isEmpty
+          ? (generatedName ?? protocol.label)
+          : name.trim(),
+      protocol: protocol,
       baseUrl: trimmedUrl,
       username: username.trim(),
       password: password,
@@ -105,14 +112,19 @@ class Cloud189SourceDraft {
     return Cloud189SourceDraft(
       sourceId: profile.id,
       name: profile.name,
-      authMode: Cloud189AuthMode.fromStorageValue(metadata[Cloud189Constants.authModeMetadataKey]),
+      authMode: Cloud189AuthMode.fromStorageValue(
+        metadata[Cloud189Constants.authModeMetadataKey],
+      ),
       username: profile.username,
       refreshToken: profile.password,
       appKey: metadata[Cloud189Constants.appKeyMetadataKey] ?? '',
       appSecret: metadata[Cloud189Constants.appSecretMetadataKey] ?? '',
       redirectUri: metadata[Cloud189Constants.redirectUriMetadataKey] ?? '',
-      authorizationCode: metadata[Cloud189Constants.authorizationCodeMetadataKey] ?? '',
-      tvLoginMode: Cloud189TVLoginMode.fromValue(metadata[Cloud189Constants.tvLoginModeMetadataKey]),
+      authorizationCode:
+          metadata[Cloud189Constants.authorizationCodeMetadataKey] ?? '',
+      tvLoginMode: Cloud189TVLoginMode.fromValue(
+        metadata[Cloud189Constants.tvLoginModeMetadataKey],
+      ),
       deviceId: metadata['cloud189.deviceId'] ?? '',
       rootPath: profile.rootPath,
       scanDirectories: profile.scanDirectories,
@@ -124,16 +136,23 @@ class Cloud189SourceDraft {
     final trimmedAppKey = appKey.trim();
     final metadata = <String, String>{
       Cloud189Constants.authModeMetadataKey: authMode.storageValue,
-      if (authMode == Cloud189AuthMode.cloudTV) Cloud189Constants.tvLoginModeMetadataKey: tvLoginMode.value,
-      if (authMode == Cloud189AuthMode.cloudTV && deviceId.trim().isNotEmpty) 'cloud189.deviceId': deviceId.trim(),
-      if (authMode == Cloud189AuthMode.appAuthorization && trimmedAppKey.isNotEmpty)
+      if (authMode == Cloud189AuthMode.cloudTV)
+        Cloud189Constants.tvLoginModeMetadataKey: tvLoginMode.value,
+      if (authMode == Cloud189AuthMode.cloudTV && deviceId.trim().isNotEmpty)
+        'cloud189.deviceId': deviceId.trim(),
+      if (authMode == Cloud189AuthMode.appAuthorization &&
+          trimmedAppKey.isNotEmpty)
         Cloud189Constants.appKeyMetadataKey: trimmedAppKey,
-      if (authMode == Cloud189AuthMode.appAuthorization && appSecret.trim().isNotEmpty)
+      if (authMode == Cloud189AuthMode.appAuthorization &&
+          appSecret.trim().isNotEmpty)
         Cloud189Constants.appSecretMetadataKey: appSecret.trim(),
-      if (authMode == Cloud189AuthMode.appAuthorization && redirectUri.trim().isNotEmpty)
+      if (authMode == Cloud189AuthMode.appAuthorization &&
+          redirectUri.trim().isNotEmpty)
         Cloud189Constants.redirectUriMetadataKey: redirectUri.trim(),
-      if (authMode == Cloud189AuthMode.appAuthorization && authorizationCode.trim().isNotEmpty)
-        Cloud189Constants.authorizationCodeMetadataKey: authorizationCode.trim(),
+      if (authMode == Cloud189AuthMode.appAuthorization &&
+          authorizationCode.trim().isNotEmpty)
+        Cloud189Constants.authorizationCodeMetadataKey: authorizationCode
+            .trim(),
     };
 
     return SourceProfile(
@@ -145,8 +164,12 @@ class Cloud189SourceDraft {
           : authMode == Cloud189AuthMode.cloudTV
           ? Cloud189Constants.tvApiBaseUrl
           : Cloud189Constants.apiBaseUrl,
-      username: authMode == Cloud189AuthMode.openListPassword ? username.trim() : Cloud189Constants.providerId,
-      password: authMode == Cloud189AuthMode.openListPassword ? refreshToken : refreshToken.trim(),
+      username: authMode == Cloud189AuthMode.openListPassword
+          ? username.trim()
+          : Cloud189Constants.providerId,
+      password: authMode == Cloud189AuthMode.openListPassword
+          ? refreshToken
+          : refreshToken.trim(),
       rootPath: rootPath.trim().isEmpty ? '/' : rootPath.trim(),
       scanDirectories: scanDirectories,
       excludedScanDirectories: excludedScanDirectories,
@@ -247,16 +270,25 @@ class AddSourceController extends _$AddSourceController {
       await source.connect();
       await source.listFiles(connectionProfile.effectiveRootPath);
 
-      final nextRefreshToken = source is Cloud189MusicSource ? source.currentRefreshToken : null;
+      final nextRefreshToken = source is Cloud189MusicSource
+          ? source.currentRefreshToken
+          : null;
       final profile = source is Cloud189MusicSource
           ? initialProfile.copyWith(
-              password: nextRefreshToken?.isNotEmpty == true ? nextRefreshToken : initialProfile.password,
-              metadata: _metadataAfterCloud189Save(initialProfile, nextRefreshToken),
+              password: nextRefreshToken?.isNotEmpty == true
+                  ? nextRefreshToken
+                  : initialProfile.password,
+              metadata: _metadataAfterCloud189Save(
+                initialProfile,
+                nextRefreshToken,
+              ),
             )
           : initialProfile;
 
       await ref.read(sourcesControllerProvider.notifier).saveProfile(profile);
-      await ref.read(sourceProfileRepositoryProvider).saveActiveSourceId(profile.id);
+      await ref
+          .read(sourceProfileRepositoryProvider)
+          .saveActiveSourceId(profile.id);
       ref.invalidate(libraryControllerProvider);
 
       state = const AsyncData(null);
@@ -292,13 +324,16 @@ class AddSourceController extends _$AddSourceController {
       return profile;
     }
 
-    final enableDebugMode = (await ref.read(libraryPreferencesRepositoryProvider).load()).enableDebugMode;
+    final enableDebugMode =
+        (await ref.read(libraryPreferencesRepositoryProvider).load())
+            .enableDebugMode;
     Cloud189DebugLogBuffer.begin(enabled: enableDebugMode);
     if (!enableDebugMode) {
       return profile;
     }
 
-    final metadata = Map<String, String>.from(profile.metadata)..[Cloud189Constants.debugLoggingMetadataKey] = 'true';
+    final metadata = Map<String, String>.from(profile.metadata)
+      ..[Cloud189Constants.debugLoggingMetadataKey] = 'true';
     Cloud189DebugLogBuffer.add(
       '[Cloud189][add-source] mode=${metadata[Cloud189Constants.authModeMetadataKey]} '
       'baseUrl=${profile.baseUrl} rootPath=${profile.rootPath} '
@@ -313,10 +348,15 @@ class AddSourceController extends _$AddSourceController {
     if (profile.protocol != SourceProtocol.cloudDrive) {
       return;
     }
-    Cloud189DebugLogBuffer.add('[Cloud189][add-source:error] ${error.runtimeType}: $error');
+    Cloud189DebugLogBuffer.add(
+      '[Cloud189][add-source:error] ${error.runtimeType}: $error',
+    );
   }
 
-  Map<String, String> _metadataAfterCloud189Save(SourceProfile profile, String? refreshToken) {
+  Map<String, String> _metadataAfterCloud189Save(
+    SourceProfile profile,
+    String? refreshToken,
+  ) {
     final metadata = Map<String, String>.from(profile.metadata);
     if (refreshToken?.isNotEmpty == true) {
       metadata.remove(Cloud189Constants.authorizationCodeMetadataKey);
@@ -334,7 +374,10 @@ class AddSourceController extends _$AddSourceController {
   Map<String, String> _debugMetadata(Map<String, String> metadata) {
     return metadata.map((key, value) {
       final normalized = key.toLowerCase();
-      final shouldRedact = normalized.contains('secret') || normalized.contains('token') || normalized.contains('code');
+      final shouldRedact =
+          normalized.contains('secret') ||
+          normalized.contains('token') ||
+          normalized.contains('code');
       return MapEntry(key, shouldRedact ? _debugRedact(value) : value);
     });
   }

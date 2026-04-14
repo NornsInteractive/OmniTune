@@ -1,18 +1,21 @@
-enum SourceProtocol { webdav, sftp, cloudDrive }
+enum SourceProtocol { webdav, sftp, ftp, samba, cloudDrive }
 
 extension SourceProtocolX on SourceProtocol {
   String get storageValue => switch (this) {
     SourceProtocol.webdav => 'webdav',
     SourceProtocol.sftp => 'sftp',
+    SourceProtocol.ftp => 'ftp',
+    SourceProtocol.samba => 'samba',
     SourceProtocol.cloudDrive => 'cloudDrive',
   };
 
-  bool get isImplemented =>
-      this == SourceProtocol.webdav || this == SourceProtocol.cloudDrive;
+  bool get isImplemented => true;
 
   String get label => switch (this) {
     SourceProtocol.webdav => 'WebDAV',
     SourceProtocol.sftp => 'SFTP',
+    SourceProtocol.ftp => 'FTP',
+    SourceProtocol.samba => 'Samba',
     SourceProtocol.cloudDrive => 'Cloud drive',
   };
 

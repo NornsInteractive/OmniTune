@@ -7,7 +7,7 @@ part of 'music_source_registry.dart';
 // **************************************************************************
 
 String _$musicSourceRegistryHash() =>
-    r'cd581a2e26a8bf70406dec661a989f10bafe74b2';
+    r'7b5e59dd16a769996a34cb758b10b6327c8f45a8';
 
 /// See also [musicSourceRegistry].
 @ProviderFor(musicSourceRegistry)

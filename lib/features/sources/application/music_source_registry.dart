@@ -4,6 +4,9 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../core/models/source_profile.dart';
 import '../../../core/models/source_protocol.dart';
 import '../data/cloud189/cloud189_music_source.dart';
+import '../data/ftp/ftp_music_source.dart';
+import '../data/samba/samba_music_source.dart';
+import '../data/sftp/sftp_music_source.dart';
 import '../data/webdav/webdav_music_source.dart';
 import '../data/webdav/webdav_playback_cache_provider.dart';
 import '../domain/music_source.dart';
@@ -32,6 +35,9 @@ MusicSourceRegistry musicSourceRegistry(Ref ref) {
   final playbackCache = ref.watch(webDavPlaybackCacheProvider);
   return MusicSourceRegistry([
     WebDavMusicSourceFactory(playbackCacheFactory: () => playbackCache),
+    const SftpMusicSourceFactory(),
+    const FtpMusicSourceFactory(),
+    const SambaMusicSourceFactory(),
     const Cloud189MusicSourceFactory(),
   ]);
 }

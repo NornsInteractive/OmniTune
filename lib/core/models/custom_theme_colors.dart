@@ -51,18 +51,62 @@ class CustomThemeColors {
     };
   }
 
+  /// 规范化hex颜色值格式，确保一致的格式存储
+  static String? normalizeHexColor(String? hex) {
+    if (hex == null || hex.isEmpty) {
+      return null;
+    }
+    
+    try {
+      var cleanHex = hex.trim();
+      if (cleanHex.startsWith('#')) {
+        cleanHex = cleanHex.substring(1);
+      }
+      cleanHex = cleanHex.toUpperCase();
+      
+      // 验证格式
+      if (!RegExp(r'^[0-9A-F]{6}([0-9A-F]{2})?$').hasMatch(cleanHex)) {
+        return null;
+      }
+      
+      // 只保留6位RGB格式（去掉alpha通道）
+      if (cleanHex.length == 8) {
+        cleanHex = cleanHex.substring(2);
+      }
+      
+      return '#$cleanHex';
+    } catch (e) {
+      return null;
+    }
+  }
+
   /// 获取主题种子颜色
   Color? getSeedColor() {
     if (primaryColorSeed == null || primaryColorSeed!.isEmpty) {
       return null;
     }
     try {
-      // 支持 #RRGGBB 和 #AARRGGBB 格式
-      final hex = primaryColorSeed!.replaceFirst('#', '');
-      final value = int.parse(hex, radix: 16);
-      if (hex.length == 6) {
-        return Color(value | 0xFF000000);
+      // 标准化hex值：去掉 # 前缀并转换为大写
+      var hex = primaryColorSeed!.trim();
+      if (hex.startsWith('#')) {
+        hex = hex.substring(1);
       }
+      hex = hex.toUpperCase();
+      
+      // 验证hex格式
+      if (!RegExp(r'^[0-9A-F]{6}([0-9A-F]{2})?$').hasMatch(hex)) {
+        return null;
+      }
+      
+      // 解析hex值
+      final value = int.parse(hex, radix: 16);
+      
+      // 如果只有6位（RGB），添加完全不透明的alpha
+      if (hex.length == 6) {
+        return Color((value & 0xFFFFFF) | 0xFF000000);
+      }
+      
+      // 8位（ARGB），直接使用
       return Color(value);
     } catch (e) {
       return null;

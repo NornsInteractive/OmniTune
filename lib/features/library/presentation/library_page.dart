@@ -9,6 +9,7 @@ import '../../../core/models/source_profile.dart';
 import '../../../core/widgets/studio_chrome.dart';
 import '../../player/application/player_controller.dart';
 import '../../player/presentation/widgets/generated_cover_art.dart';
+import '../../settings/presentation/add_source_page.dart';
 import '../application/library_catalog_controller.dart';
 import '../application/library_controller.dart';
 
@@ -76,7 +77,9 @@ class LibraryPage extends ConsumerWidget {
       floatingActionButton: libraryAsync.valueOrNull?.hasSources == true
           ? null
           : FloatingActionButton.extended(
-              onPressed: () => context.push('/settings/add-source'),
+              onPressed: () {
+                showSourceTypePicker(context);
+              },
               icon: const Icon(Icons.add_link_rounded),
               label: Text(l10n.addSourceAction),
             ),
@@ -133,7 +136,9 @@ class LibrarySongsPage extends ConsumerWidget {
                       actionLabel: AppLocalizations.of(
                         context,
                       )!.addSourceAction,
-                      onPressed: () => context.push('/settings/add-source'),
+                      onPressed: () {
+                        showSourceTypePicker(context);
+                      },
                     ),
                   )
                 else if (tracks.isEmpty)
@@ -244,7 +249,9 @@ class LibraryBrowserPage extends ConsumerWidget {
               title: l10n.libraryEmptyTitle,
               description: l10n.libraryEmptyDescription,
               actionLabel: l10n.addSourceAction,
-              onPressed: () => context.push('/settings/add-source'),
+              onPressed: () {
+                showSourceTypePicker(context);
+              },
             );
           }
 
@@ -282,7 +289,9 @@ class _CollectionHome extends ConsumerWidget {
         title: l10n.libraryEmptyTitle,
         description: l10n.libraryEmptyDescription,
         actionLabel: l10n.addSourceAction,
-        onPressed: () => context.push('/settings/add-source'),
+        onPressed: () {
+          showSourceTypePicker(context);
+        },
       );
     }
 
@@ -535,7 +544,9 @@ class _BrowserHeader extends ConsumerWidget {
               ),
               SizedBox(width: studioListGapOf(context)),
               FilledButton.tonalIcon(
-                onPressed: () => context.push('/settings/add-source'),
+                onPressed: () {
+                  showSourceTypePicker(context);
+                },
                 icon: const Icon(Icons.add_link_rounded),
                 label: Text(l10n.addSourceAction),
               ),
@@ -555,7 +566,9 @@ class _BrowserHeader extends ConsumerWidget {
               itemBuilder: (context, index) {
                 if (index == browser.sources.length) {
                   return _AddSourceCard(
-                    onTap: () => context.push('/settings/add-source'),
+                    onTap: () {
+                      showSourceTypePicker(context);
+                    },
                   );
                 }
 

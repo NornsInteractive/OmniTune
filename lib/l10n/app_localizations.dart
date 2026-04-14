@@ -701,7 +701,7 @@ abstract class AppLocalizations {
   /// No description provided for @architectureReadyDescription.
   ///
   /// In en, this message translates to:
-  /// **'The app is already structured for WebDAV and 189 Cloud today, while keeping the source registry, playback pipeline, and scraper chain ready for more protocols and metadata enrichment.'**
+  /// **'The app is structured around a unified source registry, playback pipeline, and scraper chain for WebDAV, SFTP, FTP, Samba, and cloud sources.'**
   String get architectureReadyDescription;
 
   /// No description provided for @webdavProtocol.
@@ -715,6 +715,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'SFTP'**
   String get sftpProtocol;
+
+  /// No description provided for @ftpProtocol.
+  ///
+  /// In en, this message translates to:
+  /// **'FTP'**
+  String get ftpProtocol;
+
+  /// No description provided for @sambaProtocol.
+  ///
+  /// In en, this message translates to:
+  /// **'Samba'**
+  String get sambaProtocol;
 
   /// No description provided for @cloudDriveProtocol.
   ///
@@ -734,6 +746,18 @@ abstract class AppLocalizations {
   /// **'Source type'**
   String get sourceProtocolLabel;
 
+  /// No description provided for @sourceTypeSelectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a source type'**
+  String get sourceTypeSelectionTitle;
+
+  /// No description provided for @sourceTypeSelectionDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Select the protocol first, then enter the connection details for that source.'**
+  String get sourceTypeSelectionDescription;
+
   /// No description provided for @webdavSourceTypeTitle.
   ///
   /// In en, this message translates to:
@@ -745,6 +769,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Connect to a NAS or server that exposes your music library through WebDAV.'**
   String get webdavSourceDescription;
+
+  /// No description provided for @sftpSourceTypeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'SFTP source'**
+  String get sftpSourceTypeTitle;
+
+  /// No description provided for @sftpSourceDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to an SSH/SFTP server and browse music files from a remote directory.'**
+  String get sftpSourceDescription;
+
+  /// No description provided for @ftpSourceTypeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'FTP source'**
+  String get ftpSourceTypeTitle;
+
+  /// No description provided for @ftpSourceDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to FTP, FTPS, or FTPES servers. Playback downloads the file to temporary local cache first.'**
+  String get ftpSourceDescription;
+
+  /// No description provided for @sambaSourceTypeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Samba source'**
+  String get sambaSourceTypeTitle;
+
+  /// No description provided for @sambaSourceDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to SMB/Samba shares such as a NAS shared folder.'**
+  String get sambaSourceDescription;
 
   /// No description provided for @cloud189SourceTypeTitle.
   ///
@@ -1073,7 +1133,7 @@ abstract class AppLocalizations {
   /// No description provided for @libraryEmptyDescription.
   ///
   /// In en, this message translates to:
-  /// **'Add a WebDAV source to browse remote folders, list music files, and start playback from the same library interface.'**
+  /// **'Add a music source to browse remote folders, list music files, and start playback from the same library interface.'**
   String get libraryEmptyDescription;
 
   /// No description provided for @albumsHeadline.
@@ -1421,6 +1481,24 @@ abstract class AppLocalizations {
   /// **'https://dav.example.com/remote.php/dav/files/user/'**
   String get serverUrlHint;
 
+  /// No description provided for @sftpServerUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'sftp://server.example.com:22/home/user'**
+  String get sftpServerUrlHint;
+
+  /// No description provided for @ftpServerUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'ftp://server.example.com/Music'**
+  String get ftpServerUrlHint;
+
+  /// No description provided for @sambaServerUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'smb://server.example.com/share'**
+  String get sambaServerUrlHint;
+
   /// No description provided for @usernameLabel.
   ///
   /// In en, this message translates to:
@@ -1432,6 +1510,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Password or app token'**
   String get passwordLabel;
+
+  /// No description provided for @sambaPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get sambaPasswordLabel;
 
   /// No description provided for @rootPathLabel.
   ///
@@ -1445,11 +1529,35 @@ abstract class AppLocalizations {
   /// **'/Music/'**
   String get rootPathHint;
 
+  /// No description provided for @sambaRootPathHint.
+  ///
+  /// In en, this message translates to:
+  /// **'/Music/'**
+  String get sambaRootPathHint;
+
   /// No description provided for @rootPathHelpText.
   ///
   /// In en, this message translates to:
   /// **'If the server URL already points to the target folder, keep this as \'/\'.'**
   String get rootPathHelpText;
+
+  /// No description provided for @sftpRootPathHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'The path is relative to the SFTP URL path. Use \'/\' to start at that base directory.'**
+  String get sftpRootPathHelpText;
+
+  /// No description provided for @ftpRootPathHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'The path is relative to the FTP URL path. Use \'/\' to start at that base directory.'**
+  String get ftpRootPathHelpText;
+
+  /// No description provided for @sambaRootPathHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'The path is relative to the SMB share in the server URL. Use \'/\' to start at the share root.'**
+  String get sambaRootPathHelpText;
 
   /// No description provided for @scanDirectoriesTitle.
   ///
@@ -1604,7 +1712,7 @@ abstract class AppLocalizations {
   /// No description provided for @connectionFailedMessage.
   ///
   /// In en, this message translates to:
-  /// **'Connection failed. Check your WebDAV address and credentials.'**
+  /// **'Connection failed. Check the server address, root path, and credentials.'**
   String get connectionFailedMessage;
 
   /// No description provided for @playbackFailedMessage.

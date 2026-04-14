@@ -336,13 +336,19 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get architectureReadyDescription =>
-      '当前已完成 WebDAV 与天翼网盘接入，同时保留了统一音源注册、播放管线和刮削链路，后续可以继续扩展更多协议和元数据刮削能力。';
+      '当前通过统一音源注册、播放管线和刮削链路接入 WebDAV、SFTP、FTP、Samba 与网盘音源。';
 
   @override
   String get webdavProtocol => 'WebDAV';
 
   @override
   String get sftpProtocol => 'SFTP';
+
+  @override
+  String get ftpProtocol => 'FTP';
+
+  @override
+  String get sambaProtocol => 'Samba';
 
   @override
   String get cloudDriveProtocol => '网盘';
@@ -354,10 +360,35 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sourceProtocolLabel => '音源类型';
 
   @override
+  String get sourceTypeSelectionTitle => '选择音源类型';
+
+  @override
+  String get sourceTypeSelectionDescription => '先选择要添加的协议，再进入对应的连接配置页面。';
+
+  @override
   String get webdavSourceTypeTitle => 'WebDAV 音源';
 
   @override
   String get webdavSourceDescription => '连接通过 WebDAV 暴露音乐目录的 NAS 或服务器。';
+
+  @override
+  String get sftpSourceTypeTitle => 'SFTP 音源';
+
+  @override
+  String get sftpSourceDescription => '连接 SSH/SFTP 服务器，从远程目录中浏览和播放音乐文件。';
+
+  @override
+  String get ftpSourceTypeTitle => 'FTP 音源';
+
+  @override
+  String get ftpSourceDescription =>
+      '连接 FTP、FTPS 或 FTPES 服务器。播放时会先把文件下载到临时本地缓存。';
+
+  @override
+  String get sambaSourceTypeTitle => 'Samba 音源';
+
+  @override
+  String get sambaSourceDescription => '连接 NAS 共享文件夹等 SMB/Samba 音源。';
 
   @override
   String get cloud189SourceTypeTitle => '天翼网盘音源';
@@ -537,7 +568,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get libraryEmptyDescription =>
-      '添加一个 WebDAV 音源后，就可以在同一套界面中浏览远程目录、展示音乐文件并直接播放。';
+      '添加一个音乐音源后，就可以在同一套界面中浏览远程目录、展示音乐文件并直接播放。';
 
   @override
   String get albumsHeadline => '专辑';
@@ -729,10 +760,22 @@ class AppLocalizationsZh extends AppLocalizations {
       'https://dav.example.com/remote.php/dav/files/user/';
 
   @override
+  String get sftpServerUrlHint => 'sftp://server.example.com:22/home/user';
+
+  @override
+  String get ftpServerUrlHint => 'ftp://server.example.com/Music';
+
+  @override
+  String get sambaServerUrlHint => 'smb://server.example.com/share';
+
+  @override
   String get usernameLabel => '用户名';
 
   @override
   String get passwordLabel => '密码或应用令牌';
+
+  @override
+  String get sambaPasswordLabel => '密码';
 
   @override
   String get rootPathLabel => '根路径';
@@ -741,7 +784,20 @@ class AppLocalizationsZh extends AppLocalizations {
   String get rootPathHint => '/Music/';
 
   @override
+  String get sambaRootPathHint => '/Music/';
+
+  @override
   String get rootPathHelpText => '如果服务器地址已经直接指向目标目录，这里保持为 “/” 即可。';
+
+  @override
+  String get sftpRootPathHelpText => '该路径相对于 SFTP 地址中的路径生效；填写 “/” 表示从该基准目录开始。';
+
+  @override
+  String get ftpRootPathHelpText => '该路径相对于 FTP 地址中的路径生效；填写 “/” 表示从该基准目录开始。';
+
+  @override
+  String get sambaRootPathHelpText =>
+      '该路径相对于服务器地址中的 SMB 共享目录生效；填写 “/” 表示从共享根目录开始。';
 
   @override
   String get scanDirectoriesTitle => '扫描目录';
@@ -823,7 +879,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sourceNotFoundMessage => '没有找到要编辑的音源，可能已经被删除。';
 
   @override
-  String get connectionFailedMessage => '连接失败，请检查 WebDAV 地址和凭证。';
+  String get connectionFailedMessage => '连接失败，请检查服务器地址、根路径和凭证。';
 
   @override
   String get playbackFailedMessage => '当前文件无法启动播放。';

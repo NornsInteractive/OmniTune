@@ -349,13 +349,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get architectureReadyDescription =>
-      'The app is already structured for WebDAV and 189 Cloud today, while keeping the source registry, playback pipeline, and scraper chain ready for more protocols and metadata enrichment.';
+      'The app is structured around a unified source registry, playback pipeline, and scraper chain for WebDAV, SFTP, FTP, Samba, and cloud sources.';
 
   @override
   String get webdavProtocol => 'WebDAV';
 
   @override
   String get sftpProtocol => 'SFTP';
+
+  @override
+  String get ftpProtocol => 'FTP';
+
+  @override
+  String get sambaProtocol => 'Samba';
 
   @override
   String get cloudDriveProtocol => 'Cloud drive';
@@ -367,11 +373,39 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sourceProtocolLabel => 'Source type';
 
   @override
+  String get sourceTypeSelectionTitle => 'Choose a source type';
+
+  @override
+  String get sourceTypeSelectionDescription =>
+      'Select the protocol first, then enter the connection details for that source.';
+
+  @override
   String get webdavSourceTypeTitle => 'WebDAV source';
 
   @override
   String get webdavSourceDescription =>
       'Connect to a NAS or server that exposes your music library through WebDAV.';
+
+  @override
+  String get sftpSourceTypeTitle => 'SFTP source';
+
+  @override
+  String get sftpSourceDescription =>
+      'Connect to an SSH/SFTP server and browse music files from a remote directory.';
+
+  @override
+  String get ftpSourceTypeTitle => 'FTP source';
+
+  @override
+  String get ftpSourceDescription =>
+      'Connect to FTP, FTPS, or FTPES servers. Playback downloads the file to temporary local cache first.';
+
+  @override
+  String get sambaSourceTypeTitle => 'Samba source';
+
+  @override
+  String get sambaSourceDescription =>
+      'Connect to SMB/Samba shares such as a NAS shared folder.';
 
   @override
   String get cloud189SourceTypeTitle => '189 Cloud source';
@@ -563,7 +597,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get libraryEmptyDescription =>
-      'Add a WebDAV source to browse remote folders, list music files, and start playback from the same library interface.';
+      'Add a music source to browse remote folders, list music files, and start playback from the same library interface.';
 
   @override
   String get albumsHeadline => 'Albums';
@@ -763,10 +797,22 @@ class AppLocalizationsEn extends AppLocalizations {
       'https://dav.example.com/remote.php/dav/files/user/';
 
   @override
+  String get sftpServerUrlHint => 'sftp://server.example.com:22/home/user';
+
+  @override
+  String get ftpServerUrlHint => 'ftp://server.example.com/Music';
+
+  @override
+  String get sambaServerUrlHint => 'smb://server.example.com/share';
+
+  @override
   String get usernameLabel => 'Username';
 
   @override
   String get passwordLabel => 'Password or app token';
+
+  @override
+  String get sambaPasswordLabel => 'Password';
 
   @override
   String get rootPathLabel => 'Root path';
@@ -775,8 +821,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rootPathHint => '/Music/';
 
   @override
+  String get sambaRootPathHint => '/Music/';
+
+  @override
   String get rootPathHelpText =>
       'If the server URL already points to the target folder, keep this as \'/\'.';
+
+  @override
+  String get sftpRootPathHelpText =>
+      'The path is relative to the SFTP URL path. Use \'/\' to start at that base directory.';
+
+  @override
+  String get ftpRootPathHelpText =>
+      'The path is relative to the FTP URL path. Use \'/\' to start at that base directory.';
+
+  @override
+  String get sambaRootPathHelpText =>
+      'The path is relative to the SMB share in the server URL. Use \'/\' to start at the share root.';
 
   @override
   String get scanDirectoriesTitle => 'Scan directories';
@@ -863,7 +924,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get connectionFailedMessage =>
-      'Connection failed. Check your WebDAV address and credentials.';
+      'Connection failed. Check the server address, root path, and credentials.';
 
   @override
   String get playbackFailedMessage =>

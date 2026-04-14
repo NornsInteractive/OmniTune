@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:music/l10n/app_localizations.dart';
 
 import '../../../core/models/library_album.dart';
@@ -9,6 +8,7 @@ import '../../../core/models/source_profile.dart';
 import '../../../core/widgets/studio_chrome.dart';
 import '../../player/application/player_controller.dart';
 import '../../player/presentation/widgets/generated_cover_art.dart';
+import '../../settings/presentation/add_source_page.dart';
 import '../application/library_catalog_controller.dart';
 import '../application/library_controller.dart';
 
@@ -38,7 +38,9 @@ class _AlbumsPageState extends ConsumerState<AlbumsPage> {
             title: l10n.libraryEmptyTitle,
             description: l10n.libraryEmptyDescription,
             actionLabel: l10n.addSourceAction,
-            onPressed: () => context.push('/settings/add-source'),
+            onPressed: () {
+              showSourceTypePicker(context);
+            },
           );
         }
 

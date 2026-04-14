@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:music/l10n/app_localizations.dart';
 
 import '../../../core/models/app_preferences.dart';
+import '../../../core/models/custom_theme_colors.dart';
 import '../../../core/models/playback_cache_settings.dart';
 import '../../../core/models/source_profile.dart';
 import '../../../core/models/source_protocol.dart';
@@ -22,6 +23,7 @@ import '../../sources/application/sources_controller.dart';
 import '../../sources/data/webdav/webdav_playback_cache_base.dart';
 import '../../sources/data/webdav/webdav_playback_cache_provider.dart';
 import '../application/app_settings_controller.dart';
+import 'add_source_page.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -294,54 +296,59 @@ class SettingsPage extends ConsumerWidget {
                         title: l10n.themeAccentColorSettingTitle,
                         subtitle: accentSummary,
                         trailing: _ColorPreview(color: accentColor),
-                        onTap: () => _showColorPickerDialog(
-                          context: context,
-                          currentColor: accentHex ?? '',
-                          onSelected: (colorHex) {
+                        onTap: () async {
+                          final colorHex = await _showColorPickerDialog(
+                            context: context,
+                            currentColor: accentHex ?? '',
+                          );
+                          if (colorHex != null && colorHex.isNotEmpty) {
+                            debugPrint('🎨 [ColorPicker] Selected color: $colorHex');
                             final updated = preferences.customThemeColors
                                 .copyWith(primaryColorSeed: colorHex);
-                            ref
+                            debugPrint('🎨 [ColorPicker] Updated CustomThemeColors: ${updated.primaryColorSeed}');
+                            await ref
                                 .read(appSettingsControllerProvider.notifier)
                                 .setCustomThemeColors(updated);
-                          },
-                        ),
+                            debugPrint('🎨 [ColorPicker] Color saved to storage');
+                          } else {
+                            debugPrint('🎨 [ColorPicker] Cancelled or empty: ${colorHex ?? "null"}');
+                          }
+                        },
                       ),
                       _SettingTile(
                         icon: Icons.rounded_corner,
                         title: l10n.themeBorderRadiusSettingTitle,
                         subtitle:
                             '${preferences.customThemeColors.borderRadius.toStringAsFixed(1)}px',
-                        onTap: () => _showBorderRadiusSlider(
-                          context: context,
-                          initialValue:
-                              preferences.customThemeColors.borderRadius,
-                          onSaved: (value) {
-                            final updated = preferences.customThemeColors
-                                .copyWith(borderRadius: value);
-                            ref
-                                .read(appSettingsControllerProvider.notifier)
-                                .setCustomThemeColors(updated);
-                          },
-                        ),
+                        onTap: () async {
+                          final updated = preferences.customThemeColors
+                              .copyWith(borderRadius: await _showBorderRadiusSlider(
+                                context: context,
+                                initialValue:
+                                    preferences.customThemeColors.borderRadius,
+                              ) ?? preferences.customThemeColors.borderRadius);
+                          await ref
+                              .read(appSettingsControllerProvider.notifier)
+                              .setCustomThemeColors(updated);
+                        },
                       ),
                       _SettingTile(
                         icon: Icons.density_medium_rounded,
                         title: l10n.themeCompactnessSettingTitle,
                         subtitle:
                             '${(preferences.customThemeColors.interfaceCompactness * 100).toStringAsFixed(0)}%',
-                        onTap: () => _showCompactnessSlider(
-                          context: context,
-                          initialValue: preferences
-                              .customThemeColors
-                              .interfaceCompactness,
-                          onSaved: (value) {
-                            final updated = preferences.customThemeColors
-                                .copyWith(interfaceCompactness: value);
-                            ref
-                                .read(appSettingsControllerProvider.notifier)
-                                .setCustomThemeColors(updated);
-                          },
-                        ),
+                        onTap: () async {
+                          final updated = preferences.customThemeColors
+                              .copyWith(interfaceCompactness: await _showCompactnessSlider(
+                                context: context,
+                                initialValue:
+                                    preferences.customThemeColors
+                                        .interfaceCompactness,
+                              ) ?? preferences.customThemeColors.interfaceCompactness);
+                          await ref
+                              .read(appSettingsControllerProvider.notifier)
+                              .setCustomThemeColors(updated);
+                        },
                       ),
                       _SettingTile(
                         icon: Icons.wallpaper_rounded,
@@ -804,10 +811,9 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  Future<void> _showColorPickerDialog({
+  Future<String?> _showColorPickerDialog({
     required BuildContext context,
     required String currentColor,
-    required void Function(String colorHex) onSelected,
   }) {
     final l10n = AppLocalizations.of(context)!;
     final materialL10n = MaterialLocalizations.of(context);
@@ -832,7 +838,7 @@ class SettingsPage extends ConsumerWidget {
       );
     }
 
-    return showDialog<void>(
+    return showDialog<String?>(
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
@@ -846,6 +852,12 @@ class SettingsPage extends ConsumerWidget {
               syncHexField(color.toColor());
             }
 
+            // 生成实时主题预览
+            final previewScheme = ColorScheme.fromSeed(
+              seedColor: selectedColor,
+              brightness: Brightness.light,
+            );
+            
             return AlertDialog(
               title: Text(l10n.themeColorDialogTitle),
               content: SizedBox(
@@ -868,6 +880,26 @@ class SettingsPage extends ConsumerWidget {
                       },
                     ),
                     const SizedBox(height: 14),
+                    // 调试：显示实时的 ColorScheme 预览
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Row(
+                        children: [
+                          const Text('主题预览:'),
+                          const SizedBox(width: 12),
+                          Container(
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: previewScheme.primary,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.grey),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
                     StudioPanel(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 14,
@@ -888,15 +920,20 @@ class SettingsPage extends ConsumerWidget {
                               ),
                               textCapitalization: TextCapitalization.characters,
                               onChanged: (value) {
-                                final color = colorFromHex(
-                                  value,
-                                  enableAlpha: false,
-                                );
+                                // 优先使用自定义的hex解析器确保一致性
+                                Color? color = _parseHexColor(value);
+                                if (color == null) {
+                                  // 如果自定义解析失败，尝试flutter_colorpicker的函数
+                                  color = colorFromHex(
+                                    value,
+                                    enableAlpha: false,
+                                  );
+                                }
                                 if (color == null) {
                                   return;
                                 }
                                 setState(
-                                  () => selectedHsv = HSVColor.fromColor(color),
+                                  () => selectedHsv = HSVColor.fromColor(color!),
                                 );
                               },
                             ),
@@ -914,15 +951,16 @@ class SettingsPage extends ConsumerWidget {
                 ),
                 TextButton(
                   onPressed: () {
-                    onSelected('');
-                    Navigator.of(dialogContext).pop();
+                    Navigator.of(dialogContext).pop('');
                   },
                   child: Text(l10n.themeAccentColorDefaultLabel),
                 ),
                 FilledButton(
                   onPressed: () {
-                    onSelected(_hexFromColor(selectedHsv.toColor()));
-                    Navigator.of(dialogContext).pop();
+                    // 生成hex值并规范化，确保一致的存储格式
+                    final hexColor = _hexFromColor(selectedHsv.toColor());
+                    final normalized = CustomThemeColors.normalizeHexColor(hexColor) ?? hexColor;
+                    Navigator.of(dialogContext).pop(normalized);
                   },
                   child: Text(materialL10n.okButtonLabel),
                 ),
@@ -935,28 +973,59 @@ class SettingsPage extends ConsumerWidget {
   }
 
   Color _colorFromHexOrFallback(String colorHex, Color fallback) {
+    // 首先尝试使用自定义的hex解析，确保一致性
+    final parsed = _parseHexColor(colorHex);
+    if (parsed != null) {
+      return parsed;
+    }
+    // 如果自定义解析失败，尝试使用flutter_colorpicker的函数
     return colorFromHex(colorHex, enableAlpha: false) ?? fallback;
   }
 
   String _hexFromColor(Color color) {
-    return colorToHex(
-      color,
-      includeHashSign: true,
-      enableAlpha: false,
-      toUpperCase: true,
-    );
+    // 使用自定义的hex生成器确保格式一致
+    // 将Color转换为ARGB，然后提取RGB部分
+    // ignore: deprecated_member_use
+    final argb = color.value;
+    final rgb = argb & 0xFFFFFF;
+    return '#${rgb.toRadixString(16).toUpperCase().padLeft(6, '0')}';
   }
 
-  Future<void> _showBorderRadiusSlider({
+  /// 自定义的hex颜色解析器，确保一致的格式处理
+  Color? _parseHexColor(String hex) {
+    try {
+      // 清理输入：去掉 # 和空格
+      var cleanHex = hex.trim().replaceFirst('#', '').toUpperCase();
+      
+      // 验证格式（6位RGB或8位ARGB）
+      if (!RegExp(r'^[0-9A-F]{6}([0-9A-F]{2})?$').hasMatch(cleanHex)) {
+        return null;
+      }
+      
+      // 解析为整数
+      final value = int.parse(cleanHex, radix: 16);
+      
+      // 如果只有6位，添加完全不透明的alpha
+      if (cleanHex.length == 6) {
+        return Color((value & 0xFFFFFF) | 0xFF000000);
+      }
+      
+      // 8位ARGB格式，直接使用
+      return Color(value);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<double?> _showBorderRadiusSlider({
     required BuildContext context,
     required double initialValue,
-    required void Function(double value) onSaved,
   }) {
     final l10n = AppLocalizations.of(context)!;
     final materialL10n = MaterialLocalizations.of(context);
     var value = initialValue;
 
-    return showDialog<void>(
+    return showDialog<double?>(
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
@@ -1003,8 +1072,7 @@ class SettingsPage extends ConsumerWidget {
                 ),
                 FilledButton(
                   onPressed: () {
-                    onSaved(value);
-                    Navigator.of(dialogContext).pop();
+                    Navigator.of(dialogContext).pop(value);
                   },
                   child: Text(materialL10n.okButtonLabel),
                 ),
@@ -1016,16 +1084,15 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  Future<void> _showCompactnessSlider({
+  Future<double?> _showCompactnessSlider({
     required BuildContext context,
     required double initialValue,
-    required void Function(double value) onSaved,
   }) {
     final l10n = AppLocalizations.of(context)!;
     final materialL10n = MaterialLocalizations.of(context);
     var value = initialValue;
 
-    return showDialog<void>(
+    return showDialog<double?>(
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
@@ -1072,8 +1139,7 @@ class SettingsPage extends ConsumerWidget {
                 ),
                 FilledButton(
                   onPressed: () {
-                    onSaved(value);
-                    Navigator.of(dialogContext).pop();
+                    Navigator.of(dialogContext).pop(value);
                   },
                   child: Text(materialL10n.okButtonLabel),
                 ),
@@ -1180,7 +1246,7 @@ class SettingsPage extends ConsumerWidget {
             FilledButton.icon(
               onPressed: () {
                 Navigator.of(dialogContext).pop();
-                GoRouter.of(pageContext).push('/settings/add-source');
+                showSourceTypePicker(pageContext);
               },
               icon: const Icon(Icons.add_link_rounded),
               label: Text(l10n.addSourceAction),
@@ -1258,6 +1324,8 @@ class SettingsPage extends ConsumerWidget {
     return switch (value) {
       SourceProtocol.webdav => l10n.webdavProtocol,
       SourceProtocol.sftp => l10n.sftpProtocol,
+      SourceProtocol.ftp => l10n.ftpProtocol,
+      SourceProtocol.samba => l10n.sambaProtocol,
       SourceProtocol.cloudDrive => l10n.cloudDriveProtocol,
     };
   }

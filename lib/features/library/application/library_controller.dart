@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/models/remote_entry.dart';
@@ -80,8 +82,18 @@ class LibraryViewState {
 
 @riverpod
 class LibraryController extends _$LibraryController {
+  int _reloadRequestId = 0;
+  bool _isDisposed = false;
+
   @override
   Future<LibraryViewState> build() async {
+    _isDisposed = false;
+    _reloadRequestId++;
+    ref.onDispose(() {
+      _isDisposed = true;
+      _reloadRequestId++;
+    });
+
     final repository = ref.watch(sourceProfileRepositoryProvider);
     final sources = await ref.watch(sourcesControllerProvider.future);
 
@@ -98,37 +110,19 @@ class LibraryController extends _$LibraryController {
     final selectedSource = _resolveSelectedSource(sources, activeSourceId);
     await repository.saveActiveSourceId(selectedSource.id);
 
-    try {
-      final listing = await _loadEntries(
-        selectedSource,
-        selectedSource.effectiveRootPath,
-      );
+    unawaited(
+      Future<void>(
+        () => _reload(selectedSource, selectedSource.effectiveRootPath),
+      ),
+    );
 
-      return LibraryViewState(
-        sources: sources,
-        selectedSource: selectedSource,
-        currentPath: selectedSource.effectiveRootPath,
-        entries: listing.entries,
-        diagnostics: listing.diagnostics,
-      );
-    } on DirectoryReadFailure catch (error) {
-      return LibraryViewState(
-        sources: sources,
-        selectedSource: selectedSource,
-        currentPath: selectedSource.effectiveRootPath,
-        entries: const [],
-        errorMessage: error.message,
-        diagnostics: error.diagnostics,
-      );
-    } catch (error) {
-      return LibraryViewState(
-        sources: sources,
-        selectedSource: selectedSource,
-        currentPath: selectedSource.effectiveRootPath,
-        entries: const [],
-        errorMessage: error.toString(),
-      );
-    }
+    return LibraryViewState(
+      sources: sources,
+      selectedSource: selectedSource,
+      currentPath: selectedSource.effectiveRootPath,
+      entries: const [],
+      isLoading: true,
+    );
   }
 
   Future<void> selectSource(String sourceId) async {
@@ -205,10 +199,14 @@ class LibraryController extends _$LibraryController {
   }
 
   Future<void> _reload(SourceProfile profile, String path) async {
+    final requestId = ++_reloadRequestId;
     final current = state.valueOrNull;
     if (current != null) {
       state = AsyncData(
         current.copyWith(
+          selectedSource: profile,
+          currentPath: path,
+          entries: const [],
           isLoading: true,
           clearError: true,
           clearDiagnostics: true,
@@ -222,6 +220,9 @@ class LibraryController extends _$LibraryController {
 
       final sources = await ref.read(sourcesControllerProvider.future);
       final listing = await _loadEntries(profile, path);
+      if (_shouldIgnoreReloadResult(requestId)) {
+        return;
+      }
 
       state = AsyncData(
         LibraryViewState(
@@ -234,6 +235,9 @@ class LibraryController extends _$LibraryController {
       );
     } on DirectoryReadFailure catch (error) {
       final sources = await ref.read(sourcesControllerProvider.future);
+      if (_shouldIgnoreReloadResult(requestId)) {
+        return;
+      }
       state = AsyncData(
         LibraryViewState(
           sources: sources,
@@ -246,6 +250,9 @@ class LibraryController extends _$LibraryController {
       );
     } catch (error) {
       final sources = await ref.read(sourcesControllerProvider.future);
+      if (_shouldIgnoreReloadResult(requestId)) {
+        return;
+      }
       state = AsyncData(
         LibraryViewState(
           sources: sources,
@@ -256,6 +263,10 @@ class LibraryController extends _$LibraryController {
         ),
       );
     }
+  }
+
+  bool _shouldIgnoreReloadResult(int requestId) {
+    return _isDisposed || requestId != _reloadRequestId;
   }
 
   SourceProfile _resolveSelectedSource(

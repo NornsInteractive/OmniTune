@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../app/app_shell.dart';
+import '../../core/models/source_protocol.dart';
 import '../../features/library/presentation/albums_page.dart';
 import '../../features/library/presentation/library_page.dart';
 import '../../features/player/presentation/now_playing_page.dart';
@@ -93,7 +94,18 @@ GoRouter appRouter(Ref ref) {
       ),
       GoRoute(
         path: '/settings/add-source',
-        builder: (context, state) => const AddSourcePage(),
+        builder: (context, state) => const SourceTypeSelectionPage(),
+        routes: [
+          GoRoute(
+            path: ':protocol',
+            builder: (context, state) {
+              final protocol = SourceProtocolX.fromStorageValue(
+                state.pathParameters['protocol'] ?? '',
+              );
+              return AddSourcePage(initialProtocol: protocol);
+            },
+          ),
+        ],
       ),
       GoRoute(
         path: '/settings/source/:sourceId',
