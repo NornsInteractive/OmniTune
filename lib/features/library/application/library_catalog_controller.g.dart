@@ -7,7 +7,7 @@ part of 'library_catalog_controller.dart';
 // **************************************************************************
 
 String _$libraryCatalogControllerHash() =>
-    r'3367411d94253cd62db515cb35bae674b5b649e2';
+    r'd889372e06deb92c9f0dd8f0b075f2345d7ecb68';
 
 /// See also [LibraryCatalogController].
 @ProviderFor(LibraryCatalogController)

@@ -9,12 +9,17 @@ import '../models/playable_track.dart';
 part 'player_service.g.dart';
 
 class PlayerService {
-  PlayerService() : _player = AudioPlayer(userAgent: 'flutter_music_player/1.0');
+  PlayerService()
+    : _player = AudioPlayer(userAgent: 'flutter_music_player/1.0');
 
   final AudioPlayer _player;
   PlayableTrack? _currentTrack;
 
   AudioPlayer get player => _player;
+
+  bool get isPlaying => _player.playing;
+
+  Duration get position => _player.position;
 
   PlayableTrack? get currentTrack => _currentTrack;
 
@@ -27,6 +32,13 @@ class PlayerService {
   Stream<Duration> get bufferedPositionStream => _player.bufferedPositionStream;
 
   Stream<PlayerException> get errorStream => _player.errorStream;
+
+  void updateCurrentTrack(PlayableTrack track) {
+    if (_currentTrack?.id != track.id) {
+      return;
+    }
+    _currentTrack = track;
+  }
 
   Future<void> playTrack(PlayableTrack track) async {
     _currentTrack = track;
@@ -51,6 +63,22 @@ class PlayerService {
     }
   }
 
+  Future<void> loadTrack(
+    PlayableTrack track, {
+    Duration initialPosition = Duration.zero,
+  }) async {
+    _currentTrack = track;
+    try {
+      await _player.setAudioSource(
+        track.audioSource,
+        initialPosition: initialPosition,
+      );
+    } catch (_) {
+      await _player.stop();
+      rethrow;
+    }
+  }
+
   Future<void> togglePlayPause() async {
     if (_player.playing) {
       await _player.pause();
@@ -61,7 +89,15 @@ class PlayerService {
 
   Future<void> seek(Duration position) => _player.seek(position);
 
-  Future<void> stop() => _player.stop();
+  Future<void> replayCurrent() async {
+    await _player.seek(Duration.zero);
+    await _player.play();
+  }
+
+  Future<void> stop() async {
+    _currentTrack = null;
+    await _player.stop();
+  }
 
   Future<void> dispose() async {
     await _player.dispose();

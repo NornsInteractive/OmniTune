@@ -19,7 +19,9 @@ class AppSettingsController extends AsyncNotifier<LibraryPreferences> {
   }
 
   Future<void> setInterfaceScale(double value) async {
-    await _save((preferences) => preferences.copyWith(interfaceScaleFactor: value));
+    await _save(
+      (preferences) => preferences.copyWith(interfaceScaleFactor: value),
+    );
   }
 
   Future<void> setFontScale(double value) async {
@@ -31,10 +33,46 @@ class AppSettingsController extends AsyncNotifier<LibraryPreferences> {
   }
 
   Future<void> setCustomThemeColors(CustomThemeColors value) async {
-    await _save((preferences) => preferences.copyWith(customThemeColors: value));
+    await _save(
+      (preferences) => preferences.copyWith(customThemeColors: value),
+    );
   }
 
-  Future<void> _save(LibraryPreferences Function(LibraryPreferences preferences) transform) async {
+  Future<void> setBackgroundImage({
+    required String source,
+    required double alignmentX,
+    required double alignmentY,
+  }) async {
+    await _save(
+      (preferences) => preferences.copyWith(
+        backgroundImageSource: source,
+        backgroundImageAlignmentX: alignmentX,
+        backgroundImageAlignmentY: alignmentY,
+      ),
+    );
+  }
+
+  Future<void> setBackgroundImagePosition({
+    required double alignmentX,
+    required double alignmentY,
+  }) async {
+    await _save(
+      (preferences) => preferences.copyWith(
+        backgroundImageAlignmentX: alignmentX,
+        backgroundImageAlignmentY: alignmentY,
+      ),
+    );
+  }
+
+  Future<void> clearBackgroundImage() async {
+    await _save(
+      (preferences) => preferences.copyWith(clearBackgroundImageSource: true),
+    );
+  }
+
+  Future<void> _save(
+    LibraryPreferences Function(LibraryPreferences preferences) transform,
+  ) async {
     final repository = ref.read(libraryPreferencesRepositoryProvider);
     final current = state.valueOrNull ?? await repository.load();
     final next = transform(current);
@@ -43,6 +81,7 @@ class AppSettingsController extends AsyncNotifier<LibraryPreferences> {
   }
 }
 
-final appSettingsControllerProvider = AsyncNotifierProvider<AppSettingsController, LibraryPreferences>(
-  AppSettingsController.new,
-);
+final appSettingsControllerProvider =
+    AsyncNotifierProvider<AppSettingsController, LibraryPreferences>(
+      AppSettingsController.new,
+    );

@@ -20,6 +20,20 @@ class LibrarySong {
     this.mimeType,
     this.size,
     this.modifiedAt,
+    // 新字段：手动刮削
+    this.manuallyScrapedTitle,
+    this.manuallyScrapedArtist,
+    this.manuallyScrapedAlbum,
+    this.manuallyScrapedCoverUrl,
+    this.manuallyScrapedLocalCoverPath,
+    this.manuallyScrapedLyrics,
+    // 新字段：自动刮削
+    this.autoScrapedTitle,
+    this.autoScrapedArtist,
+    this.autoScrapedAlbum,
+    this.autoScrapedCoverUrl,
+    this.autoScrapedLocalCoverPath,
+    this.autoScrapedLyrics,
   });
 
   final String id;
@@ -39,11 +53,66 @@ class LibrarySong {
   final int? size;
   final DateTime? modifiedAt;
 
+  // 手动刮削字段（最高优先级）
+  final String? manuallyScrapedTitle;
+  final String? manuallyScrapedArtist;
+  final String? manuallyScrapedAlbum;
+  final String? manuallyScrapedCoverUrl;
+  final String? manuallyScrapedLocalCoverPath; // 本地缓存的手动刮削封面路径
+  final String? manuallyScrapedLyrics;
+
+  // 自动刮削字段
+  final String? autoScrapedTitle;
+  final String? autoScrapedArtist;
+  final String? autoScrapedAlbum;
+  final String? autoScrapedCoverUrl;
+  final String? autoScrapedLocalCoverPath; // 本地缓存的自动刮削封面路径
+  final String? autoScrapedLyrics;
+
   String get metadataAlbumTitle =>
-      (scrapedAlbumTitle?.trim().isNotEmpty ?? false) ? scrapedAlbumTitle!.trim() : albumTitle;
+      (scrapedAlbumTitle?.trim().isNotEmpty ?? false)
+      ? scrapedAlbumTitle!.trim()
+      : albumTitle;
 
   String get metadataArtistName =>
-      (scrapedArtistName?.trim().isNotEmpty ?? false) ? scrapedArtistName!.trim() : artistName;
+      (scrapedArtistName?.trim().isNotEmpty ?? false)
+      ? scrapedArtistName!.trim()
+      : artistName;
+
+  /// 获取显示标题（优先级：手动刮削 > 自动刮削 > 原始）
+  String get displayTitle {
+    if (manuallyScrapedTitle?.isNotEmpty == true) return manuallyScrapedTitle!;
+    if (autoScrapedTitle?.isNotEmpty == true) return autoScrapedTitle!;
+    return title;
+  }
+
+  /// 获取显示艺术家（优先级：手动刮削 > 自动刮削 > 原始）
+  String get displayArtist {
+    if (manuallyScrapedArtist?.isNotEmpty == true) {
+      return manuallyScrapedArtist!;
+    }
+    if (autoScrapedArtist?.isNotEmpty == true) return autoScrapedArtist!;
+    if (scrapedArtistName?.isNotEmpty == true) return scrapedArtistName!;
+    return artistName;
+  }
+
+  /// 获取显示专辑（优先级：手动刮削 > 自动刮削 > 原始）
+  String get displayAlbum {
+    if (manuallyScrapedAlbum?.isNotEmpty == true) return manuallyScrapedAlbum!;
+    if (autoScrapedAlbum?.isNotEmpty == true) return autoScrapedAlbum!;
+    if (scrapedAlbumTitle?.isNotEmpty == true) return scrapedAlbumTitle!;
+    return albumTitle;
+  }
+
+  /// 获取显示封面图（优先级：手动 > 自动）
+  String? get displayCoverUrl => manuallyScrapedCoverUrl ?? autoScrapedCoverUrl;
+
+  /// 获取显示封面本地缓存路径（优先级：手动 > 自动）
+  String? get displayLocalCoverPath =>
+      manuallyScrapedLocalCoverPath ?? autoScrapedLocalCoverPath;
+
+  /// 获取显示歌词（优先级：手动 > 自动）
+  String? get displayLyrics => manuallyScrapedLyrics ?? autoScrapedLyrics;
 
   String get lyricsPath {
     final withoutExtension = p.posix.withoutExtension(remotePath);
@@ -81,6 +150,20 @@ class LibrarySong {
       'mimeType': mimeType,
       'size': size,
       'modifiedAt': modifiedAt?.toIso8601String(),
+      // 手动刮削字段
+      'manuallyScrapedTitle': manuallyScrapedTitle,
+      'manuallyScrapedArtist': manuallyScrapedArtist,
+      'manuallyScrapedAlbum': manuallyScrapedAlbum,
+      'manuallyScrapedCoverUrl': manuallyScrapedCoverUrl,
+      'manuallyScrapedLocalCoverPath': manuallyScrapedLocalCoverPath,
+      'manuallyScrapedLyrics': manuallyScrapedLyrics,
+      // 自动刮削字段
+      'autoScrapedTitle': autoScrapedTitle,
+      'autoScrapedArtist': autoScrapedArtist,
+      'autoScrapedAlbum': autoScrapedAlbum,
+      'autoScrapedCoverUrl': autoScrapedCoverUrl,
+      'autoScrapedLocalCoverPath': autoScrapedLocalCoverPath,
+      'autoScrapedLyrics': autoScrapedLyrics,
     };
   }
 
@@ -102,7 +185,24 @@ class LibrarySong {
       scrapedArtistName: json['scrapedArtistName'] as String?,
       mimeType: json['mimeType'] as String?,
       size: json['size'] as int?,
-      modifiedAt: json['modifiedAt'] != null ? DateTime.parse(json['modifiedAt'] as String) : null,
+      modifiedAt: json['modifiedAt'] != null
+          ? DateTime.parse(json['modifiedAt'] as String)
+          : null,
+      // 手动刮削字段
+      manuallyScrapedTitle: json['manuallyScrapedTitle'] as String?,
+      manuallyScrapedArtist: json['manuallyScrapedArtist'] as String?,
+      manuallyScrapedAlbum: json['manuallyScrapedAlbum'] as String?,
+      manuallyScrapedCoverUrl: json['manuallyScrapedCoverUrl'] as String?,
+      manuallyScrapedLocalCoverPath:
+          json['manuallyScrapedLocalCoverPath'] as String?,
+      manuallyScrapedLyrics: json['manuallyScrapedLyrics'] as String?,
+      // 自动刮削字段
+      autoScrapedTitle: json['autoScrapedTitle'] as String?,
+      autoScrapedArtist: json['autoScrapedArtist'] as String?,
+      autoScrapedAlbum: json['autoScrapedAlbum'] as String?,
+      autoScrapedCoverUrl: json['autoScrapedCoverUrl'] as String?,
+      autoScrapedLocalCoverPath: json['autoScrapedLocalCoverPath'] as String?,
+      autoScrapedLyrics: json['autoScrapedLyrics'] as String?,
     );
   }
 }

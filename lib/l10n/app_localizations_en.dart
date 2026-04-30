@@ -46,6 +46,82 @@ class AppLocalizationsEn extends AppLocalizations {
   String get themeSettingTitle => 'Theme';
 
   @override
+  String get themeAccentColorSettingTitle => 'Accent color';
+
+  @override
+  String get themeAccentColorDefaultLabel => 'System default';
+
+  @override
+  String get themeBorderRadiusSettingTitle => 'Corner radius';
+
+  @override
+  String get themeCompactnessSettingTitle => 'Density';
+
+  @override
+  String get backgroundImageSettingTitle => 'Background image';
+
+  @override
+  String get backgroundImageDefaultSummary =>
+      'Using the default gradient background';
+
+  @override
+  String get backgroundImageConfiguredSummary =>
+      'Custom background image configured';
+
+  @override
+  String get backgroundImageDialogTitle => 'Set background image';
+
+  @override
+  String get backgroundImageDialogDescription =>
+      'Choose an image as the background for every page. The player keeps its cover-focused atmosphere while a track is playing.';
+
+  @override
+  String get backgroundImagePositionHelpText =>
+      'Drag the preview to choose which part of the image appears at the current screen ratio.';
+
+  @override
+  String get backgroundImageChooseAction => 'Choose image';
+
+  @override
+  String get backgroundImageChangeAction => 'Change image';
+
+  @override
+  String get backgroundImageClearAction => 'Clear background';
+
+  @override
+  String get backgroundImageCenterAction => 'Center';
+
+  @override
+  String get backgroundImageEmptyPreview => 'No background image selected yet';
+
+  @override
+  String get backgroundImageFileTypeLabel => 'Images';
+
+  @override
+  String get themeColorDialogTitle => 'Choose accent color';
+
+  @override
+  String get themeColorPresetLabel => 'Preset colors';
+
+  @override
+  String get themeColorHexFieldLabel => 'Hex color';
+
+  @override
+  String get themeColorHexFieldHint => 'Enter a value like #FF5722';
+
+  @override
+  String get themeBorderRadiusDialogTitle => 'Corner radius';
+
+  @override
+  String get themeBorderRadiusRangeLabel => 'Range: 12.0 - 32.0px';
+
+  @override
+  String get themeCompactnessDialogTitle => 'Density';
+
+  @override
+  String get themeCompactnessRangeLabel => '50% (compact) - 150% (comfortable)';
+
+  @override
   String get interfaceSizeSettingTitle => 'Interface size';
 
   @override
@@ -169,7 +245,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Start playback immediately from the remote stream, then keep caching in the background for future replays.';
 
   @override
-  String get persistentPlaybackCacheLabel => 'Prefer local file cache';
+  String get persistentPlaybackCacheLabel => 'Cache to local files';
 
   @override
   String get persistentPlaybackCacheDescription =>
@@ -273,7 +349,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get architectureReadyDescription =>
-      'The app is already structured for WebDAV today, while keeping the source registry, playback pipeline, and scraper chain ready for SFTP, cloud drives, and metadata enrichment.';
+      'The app is structured around a unified source registry, playback pipeline, and scraper chain for WebDAV, SFTP, FTP, Samba, and cloud sources.';
 
   @override
   String get webdavProtocol => 'WebDAV';
@@ -282,7 +358,219 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sftpProtocol => 'SFTP';
 
   @override
+  String get ftpProtocol => 'FTP';
+
+  @override
+  String get sambaProtocol => 'Samba';
+
+  @override
   String get cloudDriveProtocol => 'Cloud drive';
+
+  @override
+  String get cloud189Protocol => '189 Cloud';
+
+  @override
+  String get sourceProtocolLabel => 'Source type';
+
+  @override
+  String get sourceTypeSelectionTitle => 'Choose a source type';
+
+  @override
+  String get sourceTypeSelectionDescription =>
+      'Select the protocol first, then enter the connection details for that source.';
+
+  @override
+  String get webdavSourceTypeTitle => 'WebDAV source';
+
+  @override
+  String get webdavSourceDescription =>
+      'Connect to a NAS or server that exposes your music library through WebDAV.';
+
+  @override
+  String get sftpSourceTypeTitle => 'SFTP source';
+
+  @override
+  String get sftpSourceDescription =>
+      'Connect to an SSH/SFTP server and browse music files from a remote directory.';
+
+  @override
+  String get ftpSourceTypeTitle => 'FTP source';
+
+  @override
+  String get ftpSourceDescription =>
+      'Connect to FTP, FTPS, or FTPES servers. Playback downloads the file to temporary local cache first.';
+
+  @override
+  String get sambaSourceTypeTitle => 'Samba source';
+
+  @override
+  String get sambaSourceDescription =>
+      'Connect to SMB/Samba shares such as a NAS shared folder.';
+
+  @override
+  String get cloud189SourceTypeTitle => '189 Cloud source';
+
+  @override
+  String get cloud189SourceDescription =>
+      'Choose the OpenList-compatible mount flow or use your own 189 Cloud app credentials for OAuth authorization.';
+
+  @override
+  String get cloud189DefaultSourceName => '189 Cloud';
+
+  @override
+  String get cloud189OpenListModeLabel => 'OpenList mount';
+
+  @override
+  String get cloud189AppAuthorizationModeLabel => 'App authorization';
+
+  @override
+  String get cloud189OpenListModeDescription =>
+      'Matches the OpenList 189Cloud driver: enter the phone number and password used for 189 Cloud login, then the app keeps the session for browsing files.';
+
+  @override
+  String get cloud189AppAuthorizationModeDescription =>
+      'Use an appKey/appSecret issued by 189 Cloud. After the user authorizes this app, paste the returned code or refreshToken here.';
+
+  @override
+  String get cloud189OpenAuthorizationAction =>
+      'Open 189 Cloud app authorization';
+
+  @override
+  String get cloud189AuthorizationOpenedMessage =>
+      'Authorization opened. After approving this app in 189 Cloud, paste the returned code or refreshToken here.';
+
+  @override
+  String get cloud189AuthorizationOpenFailedMessage =>
+      'Unable to open the 189 Cloud authorization page on this device.';
+
+  @override
+  String get cloud189AppAuthorizationConfigRequired =>
+      'Enter appKey and redirect URI before opening authorization.';
+
+  @override
+  String get cloud189RefreshTokenLabel => '189 Cloud refresh token';
+
+  @override
+  String get cloud189RefreshTokenHint =>
+      'Paste refreshToken from 189 Cloud authorization';
+
+  @override
+  String get cloud189RefreshTokenHelpText =>
+      'The token is stored securely and used only to refresh your 189 Cloud session.';
+
+  @override
+  String get cloud189OpenListRefreshTokenLabel => 'OpenList refreshToken';
+
+  @override
+  String get cloud189OpenListRefreshTokenHint =>
+      'Paste the refreshToken used by OpenList 189CloudPC';
+
+  @override
+  String get cloud189OpenListRefreshTokenHelpText =>
+      'This follows the OpenList-compatible PC session flow and does not require your own appKey.';
+
+  @override
+  String get cloud189OpenListUsernameLabel => '189 Cloud username';
+
+  @override
+  String get cloud189OpenListUsernameHint => 'Phone number used to log in';
+
+  @override
+  String get cloud189OpenListUsernameHelpText =>
+      'Same as the Username field in OpenList 189Cloud.';
+
+  @override
+  String get cloud189OpenListPasswordLabel => '189 Cloud password';
+
+  @override
+  String get cloud189OpenListPasswordHint => 'Password used to log in';
+
+  @override
+  String get cloud189OpenListPasswordHelpText =>
+      'Same as the Password field in OpenList 189Cloud.';
+
+  @override
+  String get cloud189AppKeyLabel => '189 Cloud appKey';
+
+  @override
+  String get cloud189AppKeyHint => 'AppKey issued by 189 Cloud';
+
+  @override
+  String get cloud189AppKeyHelpText =>
+      'Apply for an appKey in the 189 Cloud developer platform before using app authorization.';
+
+  @override
+  String get cloud189AppSecretLabel => '189 Cloud appSecret';
+
+  @override
+  String get cloud189AppSecretHint => 'AppSecret issued with your appKey';
+
+  @override
+  String get cloud189RedirectUriLabel => 'Redirect URI';
+
+  @override
+  String get cloud189RedirectUriHint => 'music://cloud189/callback';
+
+  @override
+  String get cloud189RedirectUriHelpText =>
+      'Use the redirect URI configured for your 189 Cloud application.';
+
+  @override
+  String get cloud189AuthorizationCodeLabel => 'Authorization code';
+
+  @override
+  String get cloud189AuthorizationCodeHint =>
+      'Paste the code returned by app authorization';
+
+  @override
+  String get cloud189AuthorizationCodeHelpText =>
+      'Leave this empty only if you already have a refreshToken for the same appKey.';
+
+  @override
+  String get cloud189AppRefreshTokenLabel => 'App refreshToken';
+
+  @override
+  String get cloud189AppRefreshTokenHint =>
+      'Optional refreshToken for this appKey';
+
+  @override
+  String get cloud189AppRefreshTokenHelpText =>
+      'If provided, the app uses it directly instead of exchanging an authorization code.';
+
+  @override
+  String get cloud189AuthorizationCredentialRequiredError =>
+      'Enter an authorization code or refreshToken.';
+
+  @override
+  String get cloud189RootPathHint => '/Music/';
+
+  @override
+  String get cloud189RootPathHelpText =>
+      'Use a folder path in 189 Cloud. Leave \'/\' to start at the cloud root.';
+
+  @override
+  String get cloud189ConnectionFailedMessage =>
+      '189 Cloud connection failed. Check the credentials; enable debug mode to view the request log.';
+
+  @override
+  String get cloud189DebugLogDialogTitle => '189 Cloud debug log';
+
+  @override
+  String get cloud189DebugLogDialogDescription =>
+      'Request URLs, parameters, and response summaries from this source setup are shown with sensitive values redacted.';
+
+  @override
+  String get cloud189CaptchaDialogTitle => 'Enter 189 Cloud captcha';
+
+  @override
+  String get cloud189CaptchaDialogDescription =>
+      'Automatic recognition is temporarily unavailable. Enter the characters from the image to continue login.';
+
+  @override
+  String get cloud189CaptchaCodeLabel => 'Captcha';
+
+  @override
+  String get cloud189CaptchaCodeHint => 'Enter the characters in the image';
 
   @override
   String get scraperPipelineLabel => 'Scraper pipeline';
@@ -309,7 +597,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get libraryEmptyDescription =>
-      'Add a WebDAV source to browse remote folders, list music files, and start playback from the same library interface.';
+      'Add a music source to browse remote folders, list music files, and start playback from the same library interface.';
 
   @override
   String get albumsHeadline => 'Albums';
@@ -343,7 +631,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String collectionDescription(Object sourceName) {
-    return 'Browse $sourceName, scan all songs, and jump between favorites, liked songs, and the raw remote folders.';
+    return 'Browse $sourceName, scan all songs, and jump between all songs, liked songs, and favorites.';
   }
 
   @override
@@ -429,6 +717,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'No synced lyrics were found for this track yet.';
 
   @override
+  String get showLyricsAction => 'Show lyrics';
+
+  @override
+  String get hideLyricsAction => 'Hide lyrics';
+
+  @override
   String get playAction => 'Play';
 
   @override
@@ -436,6 +730,49 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get stopAction => 'Stop';
+
+  @override
+  String get closeAction => 'Close';
+
+  @override
+  String get previousTrackAction => 'Previous';
+
+  @override
+  String get nextTrackAction => 'Next';
+
+  @override
+  String get playNextAction => 'Play next';
+
+  @override
+  String get playlistTitle => 'Playlist';
+
+  @override
+  String get playlistEmptyTitle => 'The playlist is empty.';
+
+  @override
+  String get removeFromPlaylistAction => 'Remove from playlist';
+
+  @override
+  String get currentTrackLabel => 'Now playing';
+
+  @override
+  String get playbackModeList => 'List play';
+
+  @override
+  String get playbackModeRepeatOne => 'Repeat one';
+
+  @override
+  String get playbackModeShuffle => 'Shuffle';
+
+  @override
+  String playlistCountLabel(int count) {
+    return '$count in queue';
+  }
+
+  @override
+  String addedToPlayNextMessage(Object title) {
+    return 'Added to play next: $title';
+  }
 
   @override
   String get openPlayerAction => 'Open player';
@@ -460,10 +797,22 @@ class AppLocalizationsEn extends AppLocalizations {
       'https://dav.example.com/remote.php/dav/files/user/';
 
   @override
+  String get sftpServerUrlHint => 'sftp://server.example.com:22/home/user';
+
+  @override
+  String get ftpServerUrlHint => 'ftp://server.example.com/Music';
+
+  @override
+  String get sambaServerUrlHint => 'smb://server.example.com/share';
+
+  @override
   String get usernameLabel => 'Username';
 
   @override
   String get passwordLabel => 'Password or app token';
+
+  @override
+  String get sambaPasswordLabel => 'Password';
 
   @override
   String get rootPathLabel => 'Root path';
@@ -472,8 +821,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rootPathHint => '/Music/';
 
   @override
+  String get sambaRootPathHint => '/Music/';
+
+  @override
   String get rootPathHelpText =>
       'If the server URL already points to the target folder, keep this as \'/\'.';
+
+  @override
+  String get sftpRootPathHelpText =>
+      'The path is relative to the SFTP URL path. Use \'/\' to start at that base directory.';
+
+  @override
+  String get ftpRootPathHelpText =>
+      'The path is relative to the FTP URL path. Use \'/\' to start at that base directory.';
+
+  @override
+  String get sambaRootPathHelpText =>
+      'The path is relative to the SMB share in the server URL. Use \'/\' to start at the share root.';
 
   @override
   String get scanDirectoriesTitle => 'Scan directories';
@@ -560,7 +924,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get connectionFailedMessage =>
-      'Connection failed. Check your WebDAV address and credentials.';
+      'Connection failed. Check the server address, root path, and credentials.';
 
   @override
   String get playbackFailedMessage =>
@@ -612,62 +976,95 @@ class AppLocalizationsEn extends AppLocalizations {
   String get debugModeDescription => 'Show error dialogs when exceptions occur';
 
   @override
-  String get themeCustomizationTitle => 'Theme customization';
+  String get debugModeEnabledMessage =>
+      '🔍 Debug mode enabled - check console for detailed logs';
 
   @override
-  String get darkModeSettingTitle => 'Dark mode';
+  String get manualScrapingTitle => 'Manual Scraping';
 
   @override
-  String get darkModeSettingDescription => 'Enable dark theme';
+  String get manualScrapingActionLabel => 'Scrape metadata';
 
   @override
-  String get seedColorSettingTitle => 'Accent color';
+  String get scrapingSongName => 'Song name';
 
   @override
-  String get seedColorSettingDescription => 'Choose the primary accent color';
+  String get scrapingArtistName => 'Artist name';
 
   @override
-  String get colorPresetPurple => 'Purple (default)';
+  String get scrapingSearchButton => 'Search';
 
   @override
-  String get colorPresetBlue => 'Blue';
+  String get scrapingSearchingLabel => 'Searching...';
 
   @override
-  String get colorPresetTeal => 'Teal';
+  String get scrapingSearchResultsTitle => 'Search Results';
 
   @override
-  String get colorPresetGreen => 'Green';
+  String get scrapingNoResultsMessage => 'No results found';
 
   @override
-  String get colorPresetYellow => 'Yellow';
+  String scrapingMatchScoreLabel(int score) {
+    return 'Match: $score%';
+  }
 
   @override
-  String get colorPresetOrange => 'Orange';
+  String get scrapingSelectButtonLabel => 'Select';
 
   @override
-  String get colorPresetRed => 'Red';
+  String get scrapingCoverLabel => 'Cover';
 
   @override
-  String get colorPresetPink => 'Pink';
+  String get scrapingLyricsLabel => 'Lyrics';
 
   @override
-  String get colorCustomHexLabel => 'Custom (hex)';
+  String get scrapingUpdateCoverAction => 'Update cover';
 
   @override
-  String get colorCustomHexHint => '#RRGGBB or 0xRRGGBB';
+  String get scrapingUpdateLyricsAction => 'Get lyrics';
 
   @override
-  String get navigationHome => 'Home';
+  String get scrapingResultApplied => 'Metadata applied successfully';
 
   @override
-  String get navigationSearch => 'Search';
+  String get scrapingErrorMessage => 'Scraping failed';
 
   @override
-  String get navigationLibrary => 'Library';
+  String get scrapingRetryAction => 'Retry';
 
   @override
-  String get navigationPlayer => 'Now Playing';
+  String get automaticScrapingLabel => 'Automatic';
 
   @override
-  String get navigationSettings => 'Settings';
+  String get manualScrapingLabel => 'Manual';
+
+  @override
+  String get autoScrapedLabel => 'Auto-scraped';
+
+  @override
+  String get manuallyScrapedLabel => 'Manually scraped';
+
+  @override
+  String get debugLogsTitle => 'Debug logs';
+
+  @override
+  String get debugLogsTabLabel => 'Debug logs';
+
+  @override
+  String get clearAction => 'Clear';
+
+  @override
+  String get autoScrollLabel => 'Auto';
+
+  @override
+  String get noLogsAvailable => 'No logs';
+
+  @override
+  String get logsExportedToClipboard => 'Logs copied to clipboard';
+
+  @override
+  String get exportAction => 'Export';
+
+  @override
+  String get copyLogsAction => 'Copy logs';
 }

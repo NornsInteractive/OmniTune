@@ -45,6 +45,79 @@ class AppLocalizationsZh extends AppLocalizations {
   String get themeSettingTitle => '主题设置';
 
   @override
+  String get themeAccentColorSettingTitle => '主题强调色';
+
+  @override
+  String get themeAccentColorDefaultLabel => '使用系统默认';
+
+  @override
+  String get themeBorderRadiusSettingTitle => '圆角大小';
+
+  @override
+  String get themeCompactnessSettingTitle => '界面紧凑度';
+
+  @override
+  String get backgroundImageSettingTitle => '背景图片';
+
+  @override
+  String get backgroundImageDefaultSummary => '使用默认渐变背景';
+
+  @override
+  String get backgroundImageConfiguredSummary => '已设置自定义背景图片';
+
+  @override
+  String get backgroundImageDialogTitle => '设置背景图片';
+
+  @override
+  String get backgroundImageDialogDescription =>
+      '选择一张图片作为所有界面的背景。播放器界面正在播放时会优先使用封面氛围，不叠加该背景。';
+
+  @override
+  String get backgroundImagePositionHelpText => '拖动预览图来选择当前屏幕比例下显示图片的哪个位置。';
+
+  @override
+  String get backgroundImageChooseAction => '选择图片';
+
+  @override
+  String get backgroundImageChangeAction => '更换图片';
+
+  @override
+  String get backgroundImageClearAction => '清除背景';
+
+  @override
+  String get backgroundImageCenterAction => '居中';
+
+  @override
+  String get backgroundImageEmptyPreview => '还没有选择背景图片';
+
+  @override
+  String get backgroundImageFileTypeLabel => '图片';
+
+  @override
+  String get themeColorDialogTitle => '选择主题强调色';
+
+  @override
+  String get themeColorPresetLabel => '预设颜色';
+
+  @override
+  String get themeColorHexFieldLabel => 'Hex 颜色值';
+
+  @override
+  String get themeColorHexFieldHint => '输入类似 #FF5722 的值';
+
+  @override
+  String get themeBorderRadiusDialogTitle => '圆角大小';
+
+  @override
+  String get themeBorderRadiusRangeLabel => '可调范围：12.0 - 32.0px';
+
+  @override
+  String get themeCompactnessDialogTitle => '界面紧凑度';
+
+  @override
+  String get themeCompactnessRangeLabel => '50%（紧凑）- 150%（宽松）';
+
+  @override
   String get interfaceSizeSettingTitle => '界面大小';
 
   @override
@@ -163,7 +236,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playbackCacheDescription => '播放会先直接走远程流，后台再继续缓存，下一次播放时会优先命中缓存内容。';
 
   @override
-  String get persistentPlaybackCacheLabel => '优先使用本地文件缓存';
+  String get persistentPlaybackCacheLabel => '缓存到本地文件';
 
   @override
   String get persistentPlaybackCacheDescription =>
@@ -263,7 +336,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get architectureReadyDescription =>
-      '当前已完成 WebDAV 接入，同时保留了统一音源注册、播放管线和刮削链路，后续可以继续扩展 SFTP、网盘和元数据刮削能力。';
+      '当前通过统一音源注册、播放管线和刮削链路接入 WebDAV、SFTP、FTP、Samba 与网盘音源。';
 
   @override
   String get webdavProtocol => 'WebDAV';
@@ -272,7 +345,203 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sftpProtocol => 'SFTP';
 
   @override
+  String get ftpProtocol => 'FTP';
+
+  @override
+  String get sambaProtocol => 'Samba';
+
+  @override
   String get cloudDriveProtocol => '网盘';
+
+  @override
+  String get cloud189Protocol => '天翼网盘';
+
+  @override
+  String get sourceProtocolLabel => '音源类型';
+
+  @override
+  String get sourceTypeSelectionTitle => '选择音源类型';
+
+  @override
+  String get sourceTypeSelectionDescription => '先选择要添加的协议，再进入对应的连接配置页面。';
+
+  @override
+  String get webdavSourceTypeTitle => 'WebDAV 音源';
+
+  @override
+  String get webdavSourceDescription => '连接通过 WebDAV 暴露音乐目录的 NAS 或服务器。';
+
+  @override
+  String get sftpSourceTypeTitle => 'SFTP 音源';
+
+  @override
+  String get sftpSourceDescription => '连接 SSH/SFTP 服务器，从远程目录中浏览和播放音乐文件。';
+
+  @override
+  String get ftpSourceTypeTitle => 'FTP 音源';
+
+  @override
+  String get ftpSourceDescription =>
+      '连接 FTP、FTPS 或 FTPES 服务器。播放时会先把文件下载到临时本地缓存。';
+
+  @override
+  String get sambaSourceTypeTitle => 'Samba 音源';
+
+  @override
+  String get sambaSourceDescription => '连接 NAS 共享文件夹等 SMB/Samba 音源。';
+
+  @override
+  String get cloud189SourceTypeTitle => '天翼网盘音源';
+
+  @override
+  String get cloud189SourceDescription =>
+      '可选择 OpenList 兼容挂载方式，也可以使用你申请到的天翼网盘应用凭证进行 OAuth 授权。';
+
+  @override
+  String get cloud189DefaultSourceName => '天翼网盘';
+
+  @override
+  String get cloud189OpenListModeLabel => 'OpenList 挂载';
+
+  @override
+  String get cloud189AppAuthorizationModeLabel => '应用授权';
+
+  @override
+  String get cloud189OpenListModeDescription =>
+      '与 OpenList 的 189Cloud 驱动一致：填写用于登录天翼网盘的手机号和密码，然后应用保持会话来浏览文件。';
+
+  @override
+  String get cloud189AppAuthorizationModeDescription =>
+      '使用天翼网盘分配的 appKey/appSecret。用户在天翼网盘中授权该应用后，把返回的 code 或 refreshToken 粘贴到这里。';
+
+  @override
+  String get cloud189OpenAuthorizationAction => '打开天翼网盘应用授权';
+
+  @override
+  String get cloud189AuthorizationOpenedMessage =>
+      '已打开授权入口。请在天翼网盘中授权该应用后，把返回的 code 或 refreshToken 粘贴到这里。';
+
+  @override
+  String get cloud189AuthorizationOpenFailedMessage => '无法在当前设备打开天翼网盘授权页面。';
+
+  @override
+  String get cloud189AppAuthorizationConfigRequired =>
+      '请先填写 appKey 和回调地址，再打开授权。';
+
+  @override
+  String get cloud189RefreshTokenLabel => '天翼网盘 refreshToken';
+
+  @override
+  String get cloud189RefreshTokenHint => '粘贴天翼网盘授权得到的 refreshToken';
+
+  @override
+  String get cloud189RefreshTokenHelpText => 'Token 会安全保存，仅用于刷新天翼网盘会话。';
+
+  @override
+  String get cloud189OpenListRefreshTokenLabel => 'OpenList refreshToken';
+
+  @override
+  String get cloud189OpenListRefreshTokenHint =>
+      '粘贴 OpenList 189CloudPC 使用的 refreshToken';
+
+  @override
+  String get cloud189OpenListRefreshTokenHelpText =>
+      '该方式沿用 OpenList 兼容的 PC 会话流程，不需要你自己的 appKey。';
+
+  @override
+  String get cloud189OpenListUsernameLabel => '天翼网盘用户名';
+
+  @override
+  String get cloud189OpenListUsernameHint => '用于登录的手机号';
+
+  @override
+  String get cloud189OpenListUsernameHelpText =>
+      '对应 OpenList 189Cloud 的 Username 字段。';
+
+  @override
+  String get cloud189OpenListPasswordLabel => '天翼网盘密码';
+
+  @override
+  String get cloud189OpenListPasswordHint => '用于登录的密码';
+
+  @override
+  String get cloud189OpenListPasswordHelpText =>
+      '对应 OpenList 189Cloud 的 Password 字段。';
+
+  @override
+  String get cloud189AppKeyLabel => '天翼网盘 appKey';
+
+  @override
+  String get cloud189AppKeyHint => '天翼网盘分配的应用 Key';
+
+  @override
+  String get cloud189AppKeyHelpText => '使用应用授权前，需要先在天翼网盘开放平台申请 appKey。';
+
+  @override
+  String get cloud189AppSecretLabel => '天翼网盘 appSecret';
+
+  @override
+  String get cloud189AppSecretHint => '与 appKey 配套的应用密钥';
+
+  @override
+  String get cloud189RedirectUriLabel => '回调地址';
+
+  @override
+  String get cloud189RedirectUriHint => 'music://cloud189/callback';
+
+  @override
+  String get cloud189RedirectUriHelpText => '填写你在天翼网盘应用配置中的回调地址。';
+
+  @override
+  String get cloud189AuthorizationCodeLabel => '授权 code';
+
+  @override
+  String get cloud189AuthorizationCodeHint => '粘贴应用授权返回的 code';
+
+  @override
+  String get cloud189AuthorizationCodeHelpText =>
+      '如果你已经有同一 appKey 对应的 refreshToken，可以留空。';
+
+  @override
+  String get cloud189AppRefreshTokenLabel => '应用 refreshToken';
+
+  @override
+  String get cloud189AppRefreshTokenHint => '可选，填写该 appKey 对应的 refreshToken';
+
+  @override
+  String get cloud189AppRefreshTokenHelpText => '填写后会直接使用它刷新会话，不再交换授权 code。';
+
+  @override
+  String get cloud189AuthorizationCredentialRequiredError =>
+      '请填写授权 code 或 refreshToken。';
+
+  @override
+  String get cloud189RootPathHint => '/音乐/';
+
+  @override
+  String get cloud189RootPathHelpText => '填写天翼网盘中的目录路径；保留 \'/\' 表示从网盘根目录开始。';
+
+  @override
+  String get cloud189ConnectionFailedMessage =>
+      '天翼网盘连接失败。请检查凭据；开启调试模式后可查看请求日志。';
+
+  @override
+  String get cloud189DebugLogDialogTitle => '天翼网盘调试日志';
+
+  @override
+  String get cloud189DebugLogDialogDescription => '已脱敏显示本次添加音源时的请求地址、参数和响应摘要。';
+
+  @override
+  String get cloud189CaptchaDialogTitle => '输入天翼网盘验证码';
+
+  @override
+  String get cloud189CaptchaDialogDescription => '自动识别服务暂时不可用，请输入图片中的验证码后继续登录。';
+
+  @override
+  String get cloud189CaptchaCodeLabel => '验证码';
+
+  @override
+  String get cloud189CaptchaCodeHint => '输入图片中的字符';
 
   @override
   String get scraperPipelineLabel => '刮削管线';
@@ -299,7 +568,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get libraryEmptyDescription =>
-      '添加一个 WebDAV 音源后，就可以在同一套界面中浏览远程目录、展示音乐文件并直接播放。';
+      '添加一个音乐音源后，就可以在同一套界面中浏览远程目录、展示音乐文件并直接播放。';
 
   @override
   String get albumsHeadline => '专辑';
@@ -331,7 +600,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String collectionDescription(Object sourceName) {
-    return '浏览 $sourceName，扫描全部歌曲，并在收藏、喜欢、全部歌曲和远程目录之间快速切换。';
+    return '浏览 $sourceName，扫描全部歌曲，并在全部歌曲、我喜欢和我收藏之间快速切换。';
   }
 
   @override
@@ -339,7 +608,7 @@ class AppLocalizationsZh extends AppLocalizations {
     Object browserSourceName,
     int sourceCount,
   ) {
-    return '远程浏览当前音源 $browserSourceName，并把全部 $sourceCount 个已保存音源扫描到同一个资料库中展示。';
+    return '当前音源为 $browserSourceName，并把全部 $sourceCount 个已保存音源扫描到同一个资料库中展示。';
   }
 
   @override
@@ -411,6 +680,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lyricsEmptyLabel => '当前还没有找到这首歌对应的同步歌词。';
 
   @override
+  String get showLyricsAction => '显示歌词';
+
+  @override
+  String get hideLyricsAction => '收起歌词';
+
+  @override
   String get playAction => '播放';
 
   @override
@@ -418,6 +693,49 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get stopAction => '停止';
+
+  @override
+  String get closeAction => '关闭';
+
+  @override
+  String get previousTrackAction => '上一首';
+
+  @override
+  String get nextTrackAction => '下一首';
+
+  @override
+  String get playNextAction => '下一首播放';
+
+  @override
+  String get playlistTitle => '播放列表';
+
+  @override
+  String get playlistEmptyTitle => '播放列表为空。';
+
+  @override
+  String get removeFromPlaylistAction => '从播放列表移除';
+
+  @override
+  String get currentTrackLabel => '正在播放';
+
+  @override
+  String get playbackModeList => '列表播放';
+
+  @override
+  String get playbackModeRepeatOne => '单曲循环';
+
+  @override
+  String get playbackModeShuffle => '随机播放';
+
+  @override
+  String playlistCountLabel(int count) {
+    return '播放列表 $count 首';
+  }
+
+  @override
+  String addedToPlayNextMessage(Object title) {
+    return '已添加到下一首播放：$title';
+  }
 
   @override
   String get openPlayerAction => '打开播放器';
@@ -442,10 +760,22 @@ class AppLocalizationsZh extends AppLocalizations {
       'https://dav.example.com/remote.php/dav/files/user/';
 
   @override
+  String get sftpServerUrlHint => 'sftp://server.example.com:22/home/user';
+
+  @override
+  String get ftpServerUrlHint => 'ftp://server.example.com/Music';
+
+  @override
+  String get sambaServerUrlHint => 'smb://server.example.com/share';
+
+  @override
   String get usernameLabel => '用户名';
 
   @override
   String get passwordLabel => '密码或应用令牌';
+
+  @override
+  String get sambaPasswordLabel => '密码';
 
   @override
   String get rootPathLabel => '根路径';
@@ -454,7 +784,20 @@ class AppLocalizationsZh extends AppLocalizations {
   String get rootPathHint => '/Music/';
 
   @override
+  String get sambaRootPathHint => '/Music/';
+
+  @override
   String get rootPathHelpText => '如果服务器地址已经直接指向目标目录，这里保持为 “/” 即可。';
+
+  @override
+  String get sftpRootPathHelpText => '该路径相对于 SFTP 地址中的路径生效；填写 “/” 表示从该基准目录开始。';
+
+  @override
+  String get ftpRootPathHelpText => '该路径相对于 FTP 地址中的路径生效；填写 “/” 表示从该基准目录开始。';
+
+  @override
+  String get sambaRootPathHelpText =>
+      '该路径相对于服务器地址中的 SMB 共享目录生效；填写 “/” 表示从共享根目录开始。';
 
   @override
   String get scanDirectoriesTitle => '扫描目录';
@@ -536,7 +879,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sourceNotFoundMessage => '没有找到要编辑的音源，可能已经被删除。';
 
   @override
-  String get connectionFailedMessage => '连接失败，请检查 WebDAV 地址和凭证。';
+  String get connectionFailedMessage => '连接失败，请检查服务器地址、根路径和凭证。';
 
   @override
   String get playbackFailedMessage => '当前文件无法启动播放。';
@@ -587,62 +930,94 @@ class AppLocalizationsZh extends AppLocalizations {
   String get debugModeDescription => '异常发生时显示错误对话框';
 
   @override
-  String get themeCustomizationTitle => '主题定制';
+  String get debugModeEnabledMessage => '🔍 调试模式已启用 - 查看控制台查看详细日志';
 
   @override
-  String get darkModeSettingTitle => '深色模式';
+  String get manualScrapingTitle => '手动刮削';
 
   @override
-  String get darkModeSettingDescription => '启用深色主题';
+  String get manualScrapingActionLabel => '手动刮削';
 
   @override
-  String get seedColorSettingTitle => '强调色';
+  String get scrapingSongName => '歌名';
 
   @override
-  String get seedColorSettingDescription => '选择主要强调色';
+  String get scrapingArtistName => '艺术家';
 
   @override
-  String get colorPresetPurple => '紫色（默认）';
+  String get scrapingSearchButton => '搜索';
 
   @override
-  String get colorPresetBlue => '蓝色';
+  String get scrapingSearchingLabel => '搜索中...';
 
   @override
-  String get colorPresetTeal => '青色';
+  String get scrapingSearchResultsTitle => '搜索结果';
 
   @override
-  String get colorPresetGreen => '绿色';
+  String get scrapingNoResultsMessage => '未找到结果';
 
   @override
-  String get colorPresetYellow => '黄色';
+  String scrapingMatchScoreLabel(int score) {
+    return '匹配度：$score%';
+  }
 
   @override
-  String get colorPresetOrange => '橙色';
+  String get scrapingSelectButtonLabel => '选择';
 
   @override
-  String get colorPresetRed => '红色';
+  String get scrapingCoverLabel => '封面';
 
   @override
-  String get colorPresetPink => '粉红色';
+  String get scrapingLyricsLabel => '歌词';
 
   @override
-  String get colorCustomHexLabel => '自定义（十六进制）';
+  String get scrapingUpdateCoverAction => '更新封面';
 
   @override
-  String get colorCustomHexHint => '#RRGGBB 或 0xRRGGBB';
+  String get scrapingUpdateLyricsAction => '获取歌词';
 
   @override
-  String get navigationHome => '首页';
+  String get scrapingResultApplied => '元数据已应用';
 
   @override
-  String get navigationSearch => '搜索';
+  String get scrapingErrorMessage => '刮削失败';
 
   @override
-  String get navigationLibrary => '音乐库';
+  String get scrapingRetryAction => '重试';
 
   @override
-  String get navigationPlayer => '正在播放';
+  String get automaticScrapingLabel => '自动';
 
   @override
-  String get navigationSettings => '设置';
+  String get manualScrapingLabel => '手动';
+
+  @override
+  String get autoScrapedLabel => '已自动刮削';
+
+  @override
+  String get manuallyScrapedLabel => '已手动刮削';
+
+  @override
+  String get debugLogsTitle => '调试日志';
+
+  @override
+  String get debugLogsTabLabel => '调试日志';
+
+  @override
+  String get clearAction => '清空';
+
+  @override
+  String get autoScrollLabel => '自动';
+
+  @override
+  String get noLogsAvailable => '暂无日志';
+
+  @override
+  String get logsExportedToClipboard => '日志已复制到剪贴板';
+
+  @override
+  String get exportAction => '导出';
+
+  @override
+  String get copyLogsAction => '复制日志';
 }

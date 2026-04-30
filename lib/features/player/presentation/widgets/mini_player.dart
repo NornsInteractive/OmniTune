@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:music/l10n/app_localizations.dart';
 
+import '../../../../core/widgets/studio_chrome.dart';
 import '../../application/player_controller.dart';
+import 'cover_art_image.dart';
 import 'playback_timeline.dart';
 
 class MiniPlayer extends ConsumerWidget {
@@ -16,128 +18,189 @@ class MiniPlayer extends ConsumerWidget {
     final colorScheme = theme.colorScheme;
     final playerState = ref.watch(playerControllerProvider);
     final controller = ref.read(playerControllerProvider.notifier);
+    final panelRadius = studioRadiusOf(context, 24);
+    final coverSize = studioSpacingOf(context, 56).clamp(44.0, 72.0).toDouble();
+    final controlSize = studioSpacingOf(
+      context,
+      36,
+    ).clamp(32.0, 44.0).toDouble();
+    final playSize = studioSpacingOf(context, 40).clamp(36.0, 48.0).toDouble();
 
     if (!playerState.hasTrack) {
       return const SizedBox.shrink();
     }
 
+    final track = playerState.currentTrack!;
     final duration = playerState.duration ?? Duration.zero;
-    final progress = duration == Duration.zero
+    final progress = duration.inMilliseconds <= 0
         ? 0.0
-        : playerState.position.inMilliseconds /
-              duration.inMilliseconds.clamp(1, double.infinity);
+        : playerState.position.inMilliseconds / duration.inMilliseconds;
+
+    // 优先从播放列表中获取当前歌曲(包含最新的刮削数据)，否则使用 PlayableTrack
+    final displaySong =
+        playerState.hasPlaylist &&
+            playerState.currentIndex >= 0 &&
+            playerState.currentIndex < playerState.playlistCount
+        ? playerState.playlist[playerState.currentIndex]
+        : null;
+
+    final displayTitle = displaySong?.displayTitle ?? track.displayTitle;
+    final displayArtist = displaySong?.displayArtist ?? track.displayArtist;
+    final displayAlbum = displaySong?.displayAlbum ?? track.displayAlbum;
+    final displayLocalCoverPath =
+        displaySong?.displayLocalCoverPath ?? track.localCoverPath;
+    final displayCoverUrl =
+        displaySong?.displayCoverUrl ?? track.autoScrapedCoverUrl;
+
     final subtitle = [
-      playerState.currentTrack?.artistName,
-      playerState.currentTrack?.albumTitle,
+      displayArtist,
+      displayAlbum,
+      track.sourceName,
     ].whereType<String>().where((item) => item.isNotEmpty).join(' · ');
 
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-        child: Container(
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: colorScheme.outlineVariant, width: 0.5),
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () => context.push('/player'),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: colorScheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: colorScheme.primary.withValues(alpha: 0.3),
-                              width: 0.5,
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.album_rounded,
-                            color: colorScheme.onPrimaryContainer,
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                playerState.currentTrack!.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                subtitle.isEmpty
-                                    ? playerState.currentTrack!.sourceName
-                                    : subtitle,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          width: 36,
-                          height: 36,
-                          child: IconButton(
-                            tooltip: playerState.isPlaying
-                                ? l10n.pauseAction
-                                : l10n.playAction,
-                            padding: EdgeInsets.zero,
-                            onPressed: controller.togglePlayPause,
-                            icon: Icon(
-                              playerState.isPlaying
-                                  ? Icons.pause_rounded
-                                  : Icons.play_arrow_rounded,
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                        SizedBox(
-                          width: 36,
-                          height: 36,
-                          child: IconButton(
-                            tooltip: l10n.openPlayerAction,
-                            padding: EdgeInsets.zero,
-                            onPressed: () => context.push('/player'),
-                            icon: const Icon(Icons.open_in_full_rounded, size: 20),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(999),
-                      child: PlaybackTimeline(
-                        progress: progress.isNaN ? 0 : progress.clamp(0, 1),
-                        cacheSegments: playerState.cacheSegments,
-                        height: 3,
+    return Padding(
+      padding: studioPaddingOf(context, const EdgeInsets.fromLTRB(0, 0, 0, 10)),
+      child: StudioPanel(
+        padding: EdgeInsets.zero,
+        radius: 24,
+        tint: colorScheme.surfaceContainerLow,
+        child: Material(
+          color: colorScheme.surface.withValues(alpha: 0),
+          borderRadius: BorderRadius.circular(panelRadius),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(panelRadius),
+            onTap: () => context.push('/player'),
+            child: Padding(
+              padding: studioPaddingOf(
+                context,
+                const EdgeInsets.fromLTRB(14, 12, 14, 12),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      CoverArtImage(
+                        title: displayTitle,
+                        subtitle: subtitle,
+                        size: coverSize,
+                        borderRadius: 18,
+                        localCoverPath: displayLocalCoverPath,
+                        coverUrl: displayCoverUrl,
                       ),
+                      const StudioGap(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              displayTitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.titleMedium,
+                            ),
+                            const StudioGap(height: 3),
+                            Text(
+                              subtitle.isEmpty ? track.sourceName : subtitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const StudioGap(width: 8),
+                      IconButton(
+                        tooltip: l10n.previousTrackAction,
+                        onPressed: playerState.canPlayPrevious
+                            ? controller.playPrevious
+                            : null,
+                        iconSize: 22,
+                        visualDensity: VisualDensity.compact,
+                        padding: studioPaddingOf(
+                          context,
+                          const EdgeInsets.all(6),
+                        ),
+                        constraints: BoxConstraints(
+                          minWidth: controlSize,
+                          minHeight: controlSize,
+                        ),
+                        icon: const Icon(Icons.skip_previous_rounded),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: IconButton(
+                          tooltip: playerState.isPlaying
+                              ? l10n.pauseAction
+                              : l10n.playAction,
+                          onPressed: controller.togglePlayPause,
+                          iconSize: 24,
+                          padding: studioPaddingOf(
+                            context,
+                            const EdgeInsets.all(8),
+                          ),
+                          constraints: BoxConstraints(
+                            minWidth: playSize,
+                            minHeight: playSize,
+                          ),
+                          icon: Icon(
+                            playerState.isPlaying
+                                ? Icons.pause_rounded
+                                : Icons.play_arrow_rounded,
+                            color: colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: l10n.nextTrackAction,
+                        onPressed: playerState.canPlayNext
+                            ? controller.playNext
+                            : null,
+                        iconSize: 22,
+                        visualDensity: VisualDensity.compact,
+                        padding: studioPaddingOf(
+                          context,
+                          const EdgeInsets.all(6),
+                        ),
+                        constraints: BoxConstraints(
+                          minWidth: controlSize,
+                          minHeight: controlSize,
+                        ),
+                        icon: const Icon(Icons.skip_next_rounded),
+                      ),
+                      IconButton(
+                        tooltip: l10n.openPlayerAction,
+                        onPressed: () => context.push('/player'),
+                        iconSize: 22,
+                        visualDensity: VisualDensity.compact,
+                        padding: studioPaddingOf(
+                          context,
+                          const EdgeInsets.all(6),
+                        ),
+                        constraints: BoxConstraints(
+                          minWidth: controlSize,
+                          minHeight: controlSize,
+                        ),
+                        icon: const Icon(Icons.expand_less_rounded),
+                      ),
+                    ],
+                  ),
+                  const StudioGap(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: PlaybackTimeline(
+                      progress: progress.isNaN ? 0 : progress.clamp(0, 1),
+                      cacheSegments: playerState.cacheSegments,
+                      height: 4,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),

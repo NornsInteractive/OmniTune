@@ -170,6 +170,150 @@ abstract class AppLocalizations {
   /// **'Theme'**
   String get themeSettingTitle;
 
+  /// No description provided for @themeAccentColorSettingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Accent color'**
+  String get themeAccentColorSettingTitle;
+
+  /// No description provided for @themeAccentColorDefaultLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'System default'**
+  String get themeAccentColorDefaultLabel;
+
+  /// No description provided for @themeBorderRadiusSettingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Corner radius'**
+  String get themeBorderRadiusSettingTitle;
+
+  /// No description provided for @themeCompactnessSettingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Density'**
+  String get themeCompactnessSettingTitle;
+
+  /// No description provided for @backgroundImageSettingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Background image'**
+  String get backgroundImageSettingTitle;
+
+  /// No description provided for @backgroundImageDefaultSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Using the default gradient background'**
+  String get backgroundImageDefaultSummary;
+
+  /// No description provided for @backgroundImageConfiguredSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom background image configured'**
+  String get backgroundImageConfiguredSummary;
+
+  /// No description provided for @backgroundImageDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set background image'**
+  String get backgroundImageDialogTitle;
+
+  /// No description provided for @backgroundImageDialogDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an image as the background for every page. The player keeps its cover-focused atmosphere while a track is playing.'**
+  String get backgroundImageDialogDescription;
+
+  /// No description provided for @backgroundImagePositionHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag the preview to choose which part of the image appears at the current screen ratio.'**
+  String get backgroundImagePositionHelpText;
+
+  /// No description provided for @backgroundImageChooseAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose image'**
+  String get backgroundImageChooseAction;
+
+  /// No description provided for @backgroundImageChangeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Change image'**
+  String get backgroundImageChangeAction;
+
+  /// No description provided for @backgroundImageClearAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear background'**
+  String get backgroundImageClearAction;
+
+  /// No description provided for @backgroundImageCenterAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Center'**
+  String get backgroundImageCenterAction;
+
+  /// No description provided for @backgroundImageEmptyPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'No background image selected yet'**
+  String get backgroundImageEmptyPreview;
+
+  /// No description provided for @backgroundImageFileTypeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Images'**
+  String get backgroundImageFileTypeLabel;
+
+  /// No description provided for @themeColorDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose accent color'**
+  String get themeColorDialogTitle;
+
+  /// No description provided for @themeColorPresetLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Preset colors'**
+  String get themeColorPresetLabel;
+
+  /// No description provided for @themeColorHexFieldLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Hex color'**
+  String get themeColorHexFieldLabel;
+
+  /// No description provided for @themeColorHexFieldHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a value like #FF5722'**
+  String get themeColorHexFieldHint;
+
+  /// No description provided for @themeBorderRadiusDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Corner radius'**
+  String get themeBorderRadiusDialogTitle;
+
+  /// No description provided for @themeBorderRadiusRangeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Range: 12.0 - 32.0px'**
+  String get themeBorderRadiusRangeLabel;
+
+  /// No description provided for @themeCompactnessDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Density'**
+  String get themeCompactnessDialogTitle;
+
+  /// No description provided for @themeCompactnessRangeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'50% (compact) - 150% (comfortable)'**
+  String get themeCompactnessRangeLabel;
+
   /// No description provided for @interfaceSizeSettingTitle.
   ///
   /// In en, this message translates to:
@@ -383,7 +527,7 @@ abstract class AppLocalizations {
   /// No description provided for @persistentPlaybackCacheLabel.
   ///
   /// In en, this message translates to:
-  /// **'Prefer local file cache'**
+  /// **'Cache to local files'**
   String get persistentPlaybackCacheLabel;
 
   /// No description provided for @persistentPlaybackCacheDescription.
@@ -557,7 +701,7 @@ abstract class AppLocalizations {
   /// No description provided for @architectureReadyDescription.
   ///
   /// In en, this message translates to:
-  /// **'The app is already structured for WebDAV today, while keeping the source registry, playback pipeline, and scraper chain ready for SFTP, cloud drives, and metadata enrichment.'**
+  /// **'The app is structured around a unified source registry, playback pipeline, and scraper chain for WebDAV, SFTP, FTP, Samba, and cloud sources.'**
   String get architectureReadyDescription;
 
   /// No description provided for @webdavProtocol.
@@ -572,11 +716,377 @@ abstract class AppLocalizations {
   /// **'SFTP'**
   String get sftpProtocol;
 
+  /// No description provided for @ftpProtocol.
+  ///
+  /// In en, this message translates to:
+  /// **'FTP'**
+  String get ftpProtocol;
+
+  /// No description provided for @sambaProtocol.
+  ///
+  /// In en, this message translates to:
+  /// **'Samba'**
+  String get sambaProtocol;
+
   /// No description provided for @cloudDriveProtocol.
   ///
   /// In en, this message translates to:
   /// **'Cloud drive'**
   String get cloudDriveProtocol;
+
+  /// No description provided for @cloud189Protocol.
+  ///
+  /// In en, this message translates to:
+  /// **'189 Cloud'**
+  String get cloud189Protocol;
+
+  /// No description provided for @sourceProtocolLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Source type'**
+  String get sourceProtocolLabel;
+
+  /// No description provided for @sourceTypeSelectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a source type'**
+  String get sourceTypeSelectionTitle;
+
+  /// No description provided for @sourceTypeSelectionDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Select the protocol first, then enter the connection details for that source.'**
+  String get sourceTypeSelectionDescription;
+
+  /// No description provided for @webdavSourceTypeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV source'**
+  String get webdavSourceTypeTitle;
+
+  /// No description provided for @webdavSourceDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to a NAS or server that exposes your music library through WebDAV.'**
+  String get webdavSourceDescription;
+
+  /// No description provided for @sftpSourceTypeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'SFTP source'**
+  String get sftpSourceTypeTitle;
+
+  /// No description provided for @sftpSourceDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to an SSH/SFTP server and browse music files from a remote directory.'**
+  String get sftpSourceDescription;
+
+  /// No description provided for @ftpSourceTypeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'FTP source'**
+  String get ftpSourceTypeTitle;
+
+  /// No description provided for @ftpSourceDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to FTP, FTPS, or FTPES servers. Playback downloads the file to temporary local cache first.'**
+  String get ftpSourceDescription;
+
+  /// No description provided for @sambaSourceTypeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Samba source'**
+  String get sambaSourceTypeTitle;
+
+  /// No description provided for @sambaSourceDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to SMB/Samba shares such as a NAS shared folder.'**
+  String get sambaSourceDescription;
+
+  /// No description provided for @cloud189SourceTypeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'189 Cloud source'**
+  String get cloud189SourceTypeTitle;
+
+  /// No description provided for @cloud189SourceDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the OpenList-compatible mount flow or use your own 189 Cloud app credentials for OAuth authorization.'**
+  String get cloud189SourceDescription;
+
+  /// No description provided for @cloud189DefaultSourceName.
+  ///
+  /// In en, this message translates to:
+  /// **'189 Cloud'**
+  String get cloud189DefaultSourceName;
+
+  /// No description provided for @cloud189OpenListModeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'OpenList mount'**
+  String get cloud189OpenListModeLabel;
+
+  /// No description provided for @cloud189AppAuthorizationModeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'App authorization'**
+  String get cloud189AppAuthorizationModeLabel;
+
+  /// No description provided for @cloud189OpenListModeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches the OpenList 189Cloud driver: enter the phone number and password used for 189 Cloud login, then the app keeps the session for browsing files.'**
+  String get cloud189OpenListModeDescription;
+
+  /// No description provided for @cloud189AppAuthorizationModeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Use an appKey/appSecret issued by 189 Cloud. After the user authorizes this app, paste the returned code or refreshToken here.'**
+  String get cloud189AppAuthorizationModeDescription;
+
+  /// No description provided for @cloud189OpenAuthorizationAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open 189 Cloud app authorization'**
+  String get cloud189OpenAuthorizationAction;
+
+  /// No description provided for @cloud189AuthorizationOpenedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Authorization opened. After approving this app in 189 Cloud, paste the returned code or refreshToken here.'**
+  String get cloud189AuthorizationOpenedMessage;
+
+  /// No description provided for @cloud189AuthorizationOpenFailedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to open the 189 Cloud authorization page on this device.'**
+  String get cloud189AuthorizationOpenFailedMessage;
+
+  /// No description provided for @cloud189AppAuthorizationConfigRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter appKey and redirect URI before opening authorization.'**
+  String get cloud189AppAuthorizationConfigRequired;
+
+  /// No description provided for @cloud189RefreshTokenLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'189 Cloud refresh token'**
+  String get cloud189RefreshTokenLabel;
+
+  /// No description provided for @cloud189RefreshTokenHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste refreshToken from 189 Cloud authorization'**
+  String get cloud189RefreshTokenHint;
+
+  /// No description provided for @cloud189RefreshTokenHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'The token is stored securely and used only to refresh your 189 Cloud session.'**
+  String get cloud189RefreshTokenHelpText;
+
+  /// No description provided for @cloud189OpenListRefreshTokenLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'OpenList refreshToken'**
+  String get cloud189OpenListRefreshTokenLabel;
+
+  /// No description provided for @cloud189OpenListRefreshTokenHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the refreshToken used by OpenList 189CloudPC'**
+  String get cloud189OpenListRefreshTokenHint;
+
+  /// No description provided for @cloud189OpenListRefreshTokenHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'This follows the OpenList-compatible PC session flow and does not require your own appKey.'**
+  String get cloud189OpenListRefreshTokenHelpText;
+
+  /// No description provided for @cloud189OpenListUsernameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'189 Cloud username'**
+  String get cloud189OpenListUsernameLabel;
+
+  /// No description provided for @cloud189OpenListUsernameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone number used to log in'**
+  String get cloud189OpenListUsernameHint;
+
+  /// No description provided for @cloud189OpenListUsernameHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'Same as the Username field in OpenList 189Cloud.'**
+  String get cloud189OpenListUsernameHelpText;
+
+  /// No description provided for @cloud189OpenListPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'189 Cloud password'**
+  String get cloud189OpenListPasswordLabel;
+
+  /// No description provided for @cloud189OpenListPasswordHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Password used to log in'**
+  String get cloud189OpenListPasswordHint;
+
+  /// No description provided for @cloud189OpenListPasswordHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'Same as the Password field in OpenList 189Cloud.'**
+  String get cloud189OpenListPasswordHelpText;
+
+  /// No description provided for @cloud189AppKeyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'189 Cloud appKey'**
+  String get cloud189AppKeyLabel;
+
+  /// No description provided for @cloud189AppKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'AppKey issued by 189 Cloud'**
+  String get cloud189AppKeyHint;
+
+  /// No description provided for @cloud189AppKeyHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply for an appKey in the 189 Cloud developer platform before using app authorization.'**
+  String get cloud189AppKeyHelpText;
+
+  /// No description provided for @cloud189AppSecretLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'189 Cloud appSecret'**
+  String get cloud189AppSecretLabel;
+
+  /// No description provided for @cloud189AppSecretHint.
+  ///
+  /// In en, this message translates to:
+  /// **'AppSecret issued with your appKey'**
+  String get cloud189AppSecretHint;
+
+  /// No description provided for @cloud189RedirectUriLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Redirect URI'**
+  String get cloud189RedirectUriLabel;
+
+  /// No description provided for @cloud189RedirectUriHint.
+  ///
+  /// In en, this message translates to:
+  /// **'music://cloud189/callback'**
+  String get cloud189RedirectUriHint;
+
+  /// No description provided for @cloud189RedirectUriHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the redirect URI configured for your 189 Cloud application.'**
+  String get cloud189RedirectUriHelpText;
+
+  /// No description provided for @cloud189AuthorizationCodeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Authorization code'**
+  String get cloud189AuthorizationCodeLabel;
+
+  /// No description provided for @cloud189AuthorizationCodeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the code returned by app authorization'**
+  String get cloud189AuthorizationCodeHint;
+
+  /// No description provided for @cloud189AuthorizationCodeHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave this empty only if you already have a refreshToken for the same appKey.'**
+  String get cloud189AuthorizationCodeHelpText;
+
+  /// No description provided for @cloud189AppRefreshTokenLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'App refreshToken'**
+  String get cloud189AppRefreshTokenLabel;
+
+  /// No description provided for @cloud189AppRefreshTokenHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional refreshToken for this appKey'**
+  String get cloud189AppRefreshTokenHint;
+
+  /// No description provided for @cloud189AppRefreshTokenHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'If provided, the app uses it directly instead of exchanging an authorization code.'**
+  String get cloud189AppRefreshTokenHelpText;
+
+  /// No description provided for @cloud189AuthorizationCredentialRequiredError.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an authorization code or refreshToken.'**
+  String get cloud189AuthorizationCredentialRequiredError;
+
+  /// No description provided for @cloud189RootPathHint.
+  ///
+  /// In en, this message translates to:
+  /// **'/Music/'**
+  String get cloud189RootPathHint;
+
+  /// No description provided for @cloud189RootPathHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'Use a folder path in 189 Cloud. Leave \'/\' to start at the cloud root.'**
+  String get cloud189RootPathHelpText;
+
+  /// No description provided for @cloud189ConnectionFailedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'189 Cloud connection failed. Check the credentials; enable debug mode to view the request log.'**
+  String get cloud189ConnectionFailedMessage;
+
+  /// No description provided for @cloud189DebugLogDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'189 Cloud debug log'**
+  String get cloud189DebugLogDialogTitle;
+
+  /// No description provided for @cloud189DebugLogDialogDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Request URLs, parameters, and response summaries from this source setup are shown with sensitive values redacted.'**
+  String get cloud189DebugLogDialogDescription;
+
+  /// No description provided for @cloud189CaptchaDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter 189 Cloud captcha'**
+  String get cloud189CaptchaDialogTitle;
+
+  /// No description provided for @cloud189CaptchaDialogDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic recognition is temporarily unavailable. Enter the characters from the image to continue login.'**
+  String get cloud189CaptchaDialogDescription;
+
+  /// No description provided for @cloud189CaptchaCodeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Captcha'**
+  String get cloud189CaptchaCodeLabel;
+
+  /// No description provided for @cloud189CaptchaCodeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the characters in the image'**
+  String get cloud189CaptchaCodeHint;
 
   /// No description provided for @scraperPipelineLabel.
   ///
@@ -623,7 +1133,7 @@ abstract class AppLocalizations {
   /// No description provided for @libraryEmptyDescription.
   ///
   /// In en, this message translates to:
-  /// **'Add a WebDAV source to browse remote folders, list music files, and start playback from the same library interface.'**
+  /// **'Add a music source to browse remote folders, list music files, and start playback from the same library interface.'**
   String get libraryEmptyDescription;
 
   /// No description provided for @albumsHeadline.
@@ -677,7 +1187,7 @@ abstract class AppLocalizations {
   /// No description provided for @collectionDescription.
   ///
   /// In en, this message translates to:
-  /// **'Browse {sourceName}, scan all songs, and jump between favorites, liked songs, and the raw remote folders.'**
+  /// **'Browse {sourceName}, scan all songs, and jump between all songs, liked songs, and favorites.'**
   String collectionDescription(Object sourceName);
 
   /// No description provided for @collectionDescriptionAllSources.
@@ -821,6 +1331,18 @@ abstract class AppLocalizations {
   /// **'No synced lyrics were found for this track yet.'**
   String get lyricsEmptyLabel;
 
+  /// No description provided for @showLyricsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Show lyrics'**
+  String get showLyricsAction;
+
+  /// No description provided for @hideLyricsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide lyrics'**
+  String get hideLyricsAction;
+
   /// No description provided for @playAction.
   ///
   /// In en, this message translates to:
@@ -838,6 +1360,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stop'**
   String get stopAction;
+
+  /// No description provided for @closeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get closeAction;
+
+  /// No description provided for @previousTrackAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous'**
+  String get previousTrackAction;
+
+  /// No description provided for @nextTrackAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get nextTrackAction;
+
+  /// No description provided for @playNextAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Play next'**
+  String get playNextAction;
+
+  /// No description provided for @playlistTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Playlist'**
+  String get playlistTitle;
+
+  /// No description provided for @playlistEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The playlist is empty.'**
+  String get playlistEmptyTitle;
+
+  /// No description provided for @removeFromPlaylistAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from playlist'**
+  String get removeFromPlaylistAction;
+
+  /// No description provided for @currentTrackLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Now playing'**
+  String get currentTrackLabel;
+
+  /// No description provided for @playbackModeList.
+  ///
+  /// In en, this message translates to:
+  /// **'List play'**
+  String get playbackModeList;
+
+  /// No description provided for @playbackModeRepeatOne.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat one'**
+  String get playbackModeRepeatOne;
+
+  /// No description provided for @playbackModeShuffle.
+  ///
+  /// In en, this message translates to:
+  /// **'Shuffle'**
+  String get playbackModeShuffle;
+
+  /// No description provided for @playlistCountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} in queue'**
+  String playlistCountLabel(int count);
+
+  /// No description provided for @addedToPlayNextMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to play next: {title}'**
+  String addedToPlayNextMessage(Object title);
 
   /// No description provided for @openPlayerAction.
   ///
@@ -881,6 +1481,24 @@ abstract class AppLocalizations {
   /// **'https://dav.example.com/remote.php/dav/files/user/'**
   String get serverUrlHint;
 
+  /// No description provided for @sftpServerUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'sftp://server.example.com:22/home/user'**
+  String get sftpServerUrlHint;
+
+  /// No description provided for @ftpServerUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'ftp://server.example.com/Music'**
+  String get ftpServerUrlHint;
+
+  /// No description provided for @sambaServerUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'smb://server.example.com/share'**
+  String get sambaServerUrlHint;
+
   /// No description provided for @usernameLabel.
   ///
   /// In en, this message translates to:
@@ -892,6 +1510,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Password or app token'**
   String get passwordLabel;
+
+  /// No description provided for @sambaPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get sambaPasswordLabel;
 
   /// No description provided for @rootPathLabel.
   ///
@@ -905,11 +1529,35 @@ abstract class AppLocalizations {
   /// **'/Music/'**
   String get rootPathHint;
 
+  /// No description provided for @sambaRootPathHint.
+  ///
+  /// In en, this message translates to:
+  /// **'/Music/'**
+  String get sambaRootPathHint;
+
   /// No description provided for @rootPathHelpText.
   ///
   /// In en, this message translates to:
   /// **'If the server URL already points to the target folder, keep this as \'/\'.'**
   String get rootPathHelpText;
+
+  /// No description provided for @sftpRootPathHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'The path is relative to the SFTP URL path. Use \'/\' to start at that base directory.'**
+  String get sftpRootPathHelpText;
+
+  /// No description provided for @ftpRootPathHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'The path is relative to the FTP URL path. Use \'/\' to start at that base directory.'**
+  String get ftpRootPathHelpText;
+
+  /// No description provided for @sambaRootPathHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'The path is relative to the SMB share in the server URL. Use \'/\' to start at the share root.'**
+  String get sambaRootPathHelpText;
 
   /// No description provided for @scanDirectoriesTitle.
   ///
@@ -1064,7 +1712,7 @@ abstract class AppLocalizations {
   /// No description provided for @connectionFailedMessage.
   ///
   /// In en, this message translates to:
-  /// **'Connection failed. Check your WebDAV address and credentials.'**
+  /// **'Connection failed. Check the server address, root path, and credentials.'**
   String get connectionFailedMessage;
 
   /// No description provided for @playbackFailedMessage.
@@ -1163,125 +1811,185 @@ abstract class AppLocalizations {
   /// **'Show error dialogs when exceptions occur'**
   String get debugModeDescription;
 
-  /// No description provided for @themeCustomizationTitle.
+  /// No description provided for @debugModeEnabledMessage.
   ///
   /// In en, this message translates to:
-  /// **'Theme customization'**
-  String get themeCustomizationTitle;
+  /// **'🔍 Debug mode enabled - check console for detailed logs'**
+  String get debugModeEnabledMessage;
 
-  /// No description provided for @darkModeSettingTitle.
+  /// No description provided for @manualScrapingTitle.
   ///
   /// In en, this message translates to:
-  /// **'Dark mode'**
-  String get darkModeSettingTitle;
+  /// **'Manual Scraping'**
+  String get manualScrapingTitle;
 
-  /// No description provided for @darkModeSettingDescription.
+  /// No description provided for @manualScrapingActionLabel.
   ///
   /// In en, this message translates to:
-  /// **'Enable dark theme'**
-  String get darkModeSettingDescription;
+  /// **'Scrape metadata'**
+  String get manualScrapingActionLabel;
 
-  /// No description provided for @seedColorSettingTitle.
+  /// No description provided for @scrapingSongName.
   ///
   /// In en, this message translates to:
-  /// **'Accent color'**
-  String get seedColorSettingTitle;
+  /// **'Song name'**
+  String get scrapingSongName;
 
-  /// No description provided for @seedColorSettingDescription.
+  /// No description provided for @scrapingArtistName.
   ///
   /// In en, this message translates to:
-  /// **'Choose the primary accent color'**
-  String get seedColorSettingDescription;
+  /// **'Artist name'**
+  String get scrapingArtistName;
 
-  /// No description provided for @colorPresetPurple.
-  ///
-  /// In en, this message translates to:
-  /// **'Purple (default)'**
-  String get colorPresetPurple;
-
-  /// No description provided for @colorPresetBlue.
-  ///
-  /// In en, this message translates to:
-  /// **'Blue'**
-  String get colorPresetBlue;
-
-  /// No description provided for @colorPresetTeal.
-  ///
-  /// In en, this message translates to:
-  /// **'Teal'**
-  String get colorPresetTeal;
-
-  /// No description provided for @colorPresetGreen.
-  ///
-  /// In en, this message translates to:
-  /// **'Green'**
-  String get colorPresetGreen;
-
-  /// No description provided for @colorPresetYellow.
-  ///
-  /// In en, this message translates to:
-  /// **'Yellow'**
-  String get colorPresetYellow;
-
-  /// No description provided for @colorPresetOrange.
-  ///
-  /// In en, this message translates to:
-  /// **'Orange'**
-  String get colorPresetOrange;
-
-  /// No description provided for @colorPresetRed.
-  ///
-  /// In en, this message translates to:
-  /// **'Red'**
-  String get colorPresetRed;
-
-  /// No description provided for @colorPresetPink.
-  ///
-  /// In en, this message translates to:
-  /// **'Pink'**
-  String get colorPresetPink;
-
-  /// No description provided for @colorCustomHexLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Custom (hex)'**
-  String get colorCustomHexLabel;
-
-  /// No description provided for @colorCustomHexHint.
-  ///
-  /// In en, this message translates to:
-  /// **'#RRGGBB or 0xRRGGBB'**
-  String get colorCustomHexHint;
-
-  /// No description provided for @navigationHome.
-  ///
-  /// In en, this message translates to:
-  /// **'Home'**
-  String get navigationHome;
-
-  /// No description provided for @navigationSearch.
+  /// No description provided for @scrapingSearchButton.
   ///
   /// In en, this message translates to:
   /// **'Search'**
-  String get navigationSearch;
+  String get scrapingSearchButton;
 
-  /// No description provided for @navigationLibrary.
+  /// No description provided for @scrapingSearchingLabel.
   ///
   /// In en, this message translates to:
-  /// **'Library'**
-  String get navigationLibrary;
+  /// **'Searching...'**
+  String get scrapingSearchingLabel;
 
-  /// No description provided for @navigationPlayer.
+  /// No description provided for @scrapingSearchResultsTitle.
   ///
   /// In en, this message translates to:
-  /// **'Now Playing'**
-  String get navigationPlayer;
+  /// **'Search Results'**
+  String get scrapingSearchResultsTitle;
 
-  /// No description provided for @navigationSettings.
+  /// No description provided for @scrapingNoResultsMessage.
   ///
   /// In en, this message translates to:
-  /// **'Settings'**
-  String get navigationSettings;
+  /// **'No results found'**
+  String get scrapingNoResultsMessage;
+
+  /// No description provided for @scrapingMatchScoreLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Match: {score}%'**
+  String scrapingMatchScoreLabel(int score);
+
+  /// No description provided for @scrapingSelectButtonLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Select'**
+  String get scrapingSelectButtonLabel;
+
+  /// No description provided for @scrapingCoverLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cover'**
+  String get scrapingCoverLabel;
+
+  /// No description provided for @scrapingLyricsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Lyrics'**
+  String get scrapingLyricsLabel;
+
+  /// No description provided for @scrapingUpdateCoverAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Update cover'**
+  String get scrapingUpdateCoverAction;
+
+  /// No description provided for @scrapingUpdateLyricsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Get lyrics'**
+  String get scrapingUpdateLyricsAction;
+
+  /// No description provided for @scrapingResultApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Metadata applied successfully'**
+  String get scrapingResultApplied;
+
+  /// No description provided for @scrapingErrorMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Scraping failed'**
+  String get scrapingErrorMessage;
+
+  /// No description provided for @scrapingRetryAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get scrapingRetryAction;
+
+  /// No description provided for @automaticScrapingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic'**
+  String get automaticScrapingLabel;
+
+  /// No description provided for @manualScrapingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get manualScrapingLabel;
+
+  /// No description provided for @autoScrapedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-scraped'**
+  String get autoScrapedLabel;
+
+  /// No description provided for @manuallyScrapedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Manually scraped'**
+  String get manuallyScrapedLabel;
+
+  /// No description provided for @debugLogsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Debug logs'**
+  String get debugLogsTitle;
+
+  /// No description provided for @debugLogsTabLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Debug logs'**
+  String get debugLogsTabLabel;
+
+  /// No description provided for @clearAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get clearAction;
+
+  /// No description provided for @autoScrollLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get autoScrollLabel;
+
+  /// No description provided for @noLogsAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No logs'**
+  String get noLogsAvailable;
+
+  /// No description provided for @logsExportedToClipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Logs copied to clipboard'**
+  String get logsExportedToClipboard;
+
+  /// No description provided for @exportAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get exportAction;
+
+  /// No description provided for @copyLogsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy logs'**
+  String get copyLogsAction;
 }
 
 class _AppLocalizationsDelegate
