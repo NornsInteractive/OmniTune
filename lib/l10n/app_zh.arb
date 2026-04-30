@@ -418,5 +418,40 @@
   "moreOptionsAction": "更多选项",
   "debugSettingsTitle": "开发者",
   "debugModeLabel": "调试模式",
-  "debugModeDescription": "异常发生时显示错误对话框"
+  "debugModeDescription": "异常发生时显示错误对话框",  "debugModeEnabledMessage": "🔍 调试模式已启用 - 查看控制台查看详细日志",  "manualScrapingTitle": "手动刮削",
+  "manualScrapingActionLabel": "手动刮削",
+  "scrapingSongName": "歌名",
+  "scrapingArtistName": "艺术家",
+  "scrapingSearchButton": "搜索",
+  "scrapingSearchingLabel": "搜索中...",
+  "scrapingSearchResultsTitle": "搜索结果",
+  "scrapingNoResultsMessage": "未找到结果",
+  "scrapingMatchScoreLabel": "匹配度：{score}%",
+  "@scrapingMatchScoreLabel": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "scrapingSelectButtonLabel": "选择",
+  "scrapingCoverLabel": "封面",
+  "scrapingLyricsLabel": "歌词",
+  "scrapingUpdateCoverAction": "更新封面",
+  "scrapingUpdateLyricsAction": "获取歌词",
+  "scrapingResultApplied": "元数据已应用",
+  "scrapingErrorMessage": "刮削失败",
+  "scrapingRetryAction": "重试",
+  "automaticScrapingLabel": "自动",
+  "manualScrapingLabel": "手动",
+  "autoScrapedLabel": "已自动刮削",
+  "manuallyScrapedLabel": "已手动刮削",
+  "debugLogsTitle": "调试日志",
+  "debugLogsTabLabel": "调试日志",
+  "clearAction": "清空",
+  "autoScrollLabel": "自动",
+  "noLogsAvailable": "暂无日志",
+  "logsExportedToClipboard": "日志已复制到剪贴板",
+  "exportAction": "导出",
+  "copyLogsAction": "复制日志"
 }

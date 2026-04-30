@@ -5,7 +5,7 @@ import 'package:music/l10n/app_localizations.dart';
 
 import '../../../../core/widgets/studio_chrome.dart';
 import '../../application/player_controller.dart';
-import 'generated_cover_art.dart';
+import 'cover_art_image.dart';
 import 'playback_timeline.dart';
 
 class MiniPlayer extends ConsumerWidget {
@@ -35,9 +35,26 @@ class MiniPlayer extends ConsumerWidget {
     final progress = duration.inMilliseconds <= 0
         ? 0.0
         : playerState.position.inMilliseconds / duration.inMilliseconds;
+
+    // 优先从播放列表中获取当前歌曲(包含最新的刮削数据)，否则使用 PlayableTrack
+    final displaySong =
+        playerState.hasPlaylist &&
+            playerState.currentIndex >= 0 &&
+            playerState.currentIndex < playerState.playlistCount
+        ? playerState.playlist[playerState.currentIndex]
+        : null;
+
+    final displayTitle = displaySong?.displayTitle ?? track.displayTitle;
+    final displayArtist = displaySong?.displayArtist ?? track.displayArtist;
+    final displayAlbum = displaySong?.displayAlbum ?? track.displayAlbum;
+    final displayLocalCoverPath =
+        displaySong?.displayLocalCoverPath ?? track.localCoverPath;
+    final displayCoverUrl =
+        displaySong?.displayCoverUrl ?? track.autoScrapedCoverUrl;
+
     final subtitle = [
-      track.artistName,
-      track.albumTitle,
+      displayArtist,
+      displayAlbum,
       track.sourceName,
     ].whereType<String>().where((item) => item.isNotEmpty).join(' · ');
 
@@ -64,11 +81,13 @@ class MiniPlayer extends ConsumerWidget {
                 children: [
                   Row(
                     children: [
-                      GeneratedCoverArt(
-                        title: track.title,
+                      CoverArtImage(
+                        title: displayTitle,
                         subtitle: subtitle,
                         size: coverSize,
                         borderRadius: 18,
+                        localCoverPath: displayLocalCoverPath,
+                        coverUrl: displayCoverUrl,
                       ),
                       const StudioGap(width: 12),
                       Expanded(
@@ -76,7 +95,7 @@ class MiniPlayer extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              track.title,
+                              displayTitle,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.titleMedium,

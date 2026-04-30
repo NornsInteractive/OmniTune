@@ -1810,6 +1810,186 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show error dialogs when exceptions occur'**
   String get debugModeDescription;
+
+  /// No description provided for @debugModeEnabledMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'🔍 Debug mode enabled - check console for detailed logs'**
+  String get debugModeEnabledMessage;
+
+  /// No description provided for @manualScrapingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual Scraping'**
+  String get manualScrapingTitle;
+
+  /// No description provided for @manualScrapingActionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Scrape metadata'**
+  String get manualScrapingActionLabel;
+
+  /// No description provided for @scrapingSongName.
+  ///
+  /// In en, this message translates to:
+  /// **'Song name'**
+  String get scrapingSongName;
+
+  /// No description provided for @scrapingArtistName.
+  ///
+  /// In en, this message translates to:
+  /// **'Artist name'**
+  String get scrapingArtistName;
+
+  /// No description provided for @scrapingSearchButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get scrapingSearchButton;
+
+  /// No description provided for @scrapingSearchingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching...'**
+  String get scrapingSearchingLabel;
+
+  /// No description provided for @scrapingSearchResultsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Search Results'**
+  String get scrapingSearchResultsTitle;
+
+  /// No description provided for @scrapingNoResultsMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'No results found'**
+  String get scrapingNoResultsMessage;
+
+  /// No description provided for @scrapingMatchScoreLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Match: {score}%'**
+  String scrapingMatchScoreLabel(int score);
+
+  /// No description provided for @scrapingSelectButtonLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Select'**
+  String get scrapingSelectButtonLabel;
+
+  /// No description provided for @scrapingCoverLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cover'**
+  String get scrapingCoverLabel;
+
+  /// No description provided for @scrapingLyricsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Lyrics'**
+  String get scrapingLyricsLabel;
+
+  /// No description provided for @scrapingUpdateCoverAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Update cover'**
+  String get scrapingUpdateCoverAction;
+
+  /// No description provided for @scrapingUpdateLyricsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Get lyrics'**
+  String get scrapingUpdateLyricsAction;
+
+  /// No description provided for @scrapingResultApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Metadata applied successfully'**
+  String get scrapingResultApplied;
+
+  /// No description provided for @scrapingErrorMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Scraping failed'**
+  String get scrapingErrorMessage;
+
+  /// No description provided for @scrapingRetryAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get scrapingRetryAction;
+
+  /// No description provided for @automaticScrapingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic'**
+  String get automaticScrapingLabel;
+
+  /// No description provided for @manualScrapingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get manualScrapingLabel;
+
+  /// No description provided for @autoScrapedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-scraped'**
+  String get autoScrapedLabel;
+
+  /// No description provided for @manuallyScrapedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Manually scraped'**
+  String get manuallyScrapedLabel;
+
+  /// No description provided for @debugLogsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Debug logs'**
+  String get debugLogsTitle;
+
+  /// No description provided for @debugLogsTabLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Debug logs'**
+  String get debugLogsTabLabel;
+
+  /// No description provided for @clearAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get clearAction;
+
+  /// No description provided for @autoScrollLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get autoScrollLabel;
+
+  /// No description provided for @noLogsAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No logs'**
+  String get noLogsAvailable;
+
+  /// No description provided for @logsExportedToClipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Logs copied to clipboard'**
+  String get logsExportedToClipboard;
+
+  /// No description provided for @exportAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get exportAction;
+
+  /// No description provided for @copyLogsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy logs'**
+  String get copyLogsAction;
 }
 
 class _AppLocalizationsDelegate

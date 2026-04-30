@@ -928,4 +928,96 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get debugModeDescription => '异常发生时显示错误对话框';
+
+  @override
+  String get debugModeEnabledMessage => '🔍 调试模式已启用 - 查看控制台查看详细日志';
+
+  @override
+  String get manualScrapingTitle => '手动刮削';
+
+  @override
+  String get manualScrapingActionLabel => '手动刮削';
+
+  @override
+  String get scrapingSongName => '歌名';
+
+  @override
+  String get scrapingArtistName => '艺术家';
+
+  @override
+  String get scrapingSearchButton => '搜索';
+
+  @override
+  String get scrapingSearchingLabel => '搜索中...';
+
+  @override
+  String get scrapingSearchResultsTitle => '搜索结果';
+
+  @override
+  String get scrapingNoResultsMessage => '未找到结果';
+
+  @override
+  String scrapingMatchScoreLabel(int score) {
+    return '匹配度：$score%';
+  }
+
+  @override
+  String get scrapingSelectButtonLabel => '选择';
+
+  @override
+  String get scrapingCoverLabel => '封面';
+
+  @override
+  String get scrapingLyricsLabel => '歌词';
+
+  @override
+  String get scrapingUpdateCoverAction => '更新封面';
+
+  @override
+  String get scrapingUpdateLyricsAction => '获取歌词';
+
+  @override
+  String get scrapingResultApplied => '元数据已应用';
+
+  @override
+  String get scrapingErrorMessage => '刮削失败';
+
+  @override
+  String get scrapingRetryAction => '重试';
+
+  @override
+  String get automaticScrapingLabel => '自动';
+
+  @override
+  String get manualScrapingLabel => '手动';
+
+  @override
+  String get autoScrapedLabel => '已自动刮削';
+
+  @override
+  String get manuallyScrapedLabel => '已手动刮削';
+
+  @override
+  String get debugLogsTitle => '调试日志';
+
+  @override
+  String get debugLogsTabLabel => '调试日志';
+
+  @override
+  String get clearAction => '清空';
+
+  @override
+  String get autoScrollLabel => '自动';
+
+  @override
+  String get noLogsAvailable => '暂无日志';
+
+  @override
+  String get logsExportedToClipboard => '日志已复制到剪贴板';
+
+  @override
+  String get exportAction => '导出';
+
+  @override
+  String get copyLogsAction => '复制日志';
 }

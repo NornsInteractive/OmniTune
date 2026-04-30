@@ -8,6 +8,7 @@ import '../../../core/models/source_profile.dart';
 import '../../../core/widgets/studio_chrome.dart';
 import '../../player/application/player_controller.dart';
 import '../../player/presentation/widgets/generated_cover_art.dart';
+import '../../player/presentation/widgets/track_cover_thumbnail.dart';
 import '../../settings/presentation/add_source_page.dart';
 import '../application/library_catalog_controller.dart';
 import '../application/library_controller.dart';
@@ -434,23 +435,18 @@ class _AlbumTrackRow extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(radius),
           onTap: onTap,
-          onLongPress: onPlayNext,
+          onLongPress: onMoreOptions,
           child: Padding(
             padding: studioListItemPaddingOf(context),
             child: Row(
               children: [
-                Container(
-                  width: leadingSize,
-                  height: leadingSize,
-                  decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(
-                    Icons.music_note_rounded,
-                    size: 18,
-                    color: colorScheme.onPrimaryContainer,
-                  ),
+                TrackCoverThumbnail(
+                  title: track.displayTitle,
+                  subtitle: track.displayArtist,
+                  size: leadingSize,
+                  borderRadius: 14,
+                  localCoverPath: track.displayLocalCoverPath,
+                  coverUrl: track.displayCoverUrl,
                 ),
                 SizedBox(width: studioListGapOf(context)),
                 Expanded(
@@ -458,14 +454,14 @@ class _AlbumTrackRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        track.title,
+                        track.displayTitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.titleSmall,
                       ),
                       const StudioGap(height: 2),
                       Text(
-                        track.artistName,
+                        track.displayArtist,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall?.copyWith(
@@ -569,14 +565,14 @@ void _showAlbumTrackActionsSheet(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      track.title,
+                      track.displayTitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const StudioGap(height: 6),
                     Text(
-                      '${track.artistName} · ${track.albumTitle}',
+                      '${track.displayArtist} · ${track.displayAlbum}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(

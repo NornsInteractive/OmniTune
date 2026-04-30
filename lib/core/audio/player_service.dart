@@ -33,6 +33,13 @@ class PlayerService {
 
   Stream<PlayerException> get errorStream => _player.errorStream;
 
+  void updateCurrentTrack(PlayableTrack track) {
+    if (_currentTrack?.id != track.id) {
+      return;
+    }
+    _currentTrack = track;
+  }
+
   Future<void> playTrack(PlayableTrack track) async {
     _currentTrack = track;
 

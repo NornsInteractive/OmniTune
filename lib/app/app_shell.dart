@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:music/l10n/app_localizations.dart';
 
 import '../core/widgets/studio_chrome.dart';
+import '../features/debug/application/debug_mode_provider.dart';
 import '../features/player/presentation/widgets/mini_player.dart';
 
-class MusicAppShell extends StatelessWidget {
+class MusicAppShell extends ConsumerWidget {
   const MusicAppShell({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final debugModeEnabled = ref.watch(debugModeProvider);
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
 
@@ -93,6 +96,25 @@ class MusicAppShell extends StatelessWidget {
                             },
                           ),
                         ),
+                        if (debugModeEnabled) ...[
+                          const StudioGap(width: 8),
+                          Expanded(
+                            child: _ShellDestination(
+                              label: '日志',
+                              selected: navigationShell.currentIndex == 3,
+                              icon: navigationShell.currentIndex == 3
+                                  ? Icons.terminal_rounded
+                                  : Icons.terminal_outlined,
+                              onTap: () {
+                                navigationShell.goBranch(
+                                  3,
+                                  initialLocation:
+                                      navigationShell.currentIndex == 3,
+                                );
+                              },
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

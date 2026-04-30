@@ -974,4 +974,97 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get debugModeDescription => 'Show error dialogs when exceptions occur';
+
+  @override
+  String get debugModeEnabledMessage =>
+      '🔍 Debug mode enabled - check console for detailed logs';
+
+  @override
+  String get manualScrapingTitle => 'Manual Scraping';
+
+  @override
+  String get manualScrapingActionLabel => 'Scrape metadata';
+
+  @override
+  String get scrapingSongName => 'Song name';
+
+  @override
+  String get scrapingArtistName => 'Artist name';
+
+  @override
+  String get scrapingSearchButton => 'Search';
+
+  @override
+  String get scrapingSearchingLabel => 'Searching...';
+
+  @override
+  String get scrapingSearchResultsTitle => 'Search Results';
+
+  @override
+  String get scrapingNoResultsMessage => 'No results found';
+
+  @override
+  String scrapingMatchScoreLabel(int score) {
+    return 'Match: $score%';
+  }
+
+  @override
+  String get scrapingSelectButtonLabel => 'Select';
+
+  @override
+  String get scrapingCoverLabel => 'Cover';
+
+  @override
+  String get scrapingLyricsLabel => 'Lyrics';
+
+  @override
+  String get scrapingUpdateCoverAction => 'Update cover';
+
+  @override
+  String get scrapingUpdateLyricsAction => 'Get lyrics';
+
+  @override
+  String get scrapingResultApplied => 'Metadata applied successfully';
+
+  @override
+  String get scrapingErrorMessage => 'Scraping failed';
+
+  @override
+  String get scrapingRetryAction => 'Retry';
+
+  @override
+  String get automaticScrapingLabel => 'Automatic';
+
+  @override
+  String get manualScrapingLabel => 'Manual';
+
+  @override
+  String get autoScrapedLabel => 'Auto-scraped';
+
+  @override
+  String get manuallyScrapedLabel => 'Manually scraped';
+
+  @override
+  String get debugLogsTitle => 'Debug logs';
+
+  @override
+  String get debugLogsTabLabel => 'Debug logs';
+
+  @override
+  String get clearAction => 'Clear';
+
+  @override
+  String get autoScrollLabel => 'Auto';
+
+  @override
+  String get noLogsAvailable => 'No logs';
+
+  @override
+  String get logsExportedToClipboard => 'Logs copied to clipboard';
+
+  @override
+  String get exportAction => 'Export';
+
+  @override
+  String get copyLogsAction => 'Copy logs';
 }

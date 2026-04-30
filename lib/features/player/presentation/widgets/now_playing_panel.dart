@@ -1,14 +1,18 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music/l10n/app_localizations.dart';
 
 import '../../../../core/models/library_song.dart';
 import '../../../../core/widgets/studio_chrome.dart';
 import '../../application/player_controller.dart';
+import 'cover_art_image.dart';
 import 'generated_cover_art.dart';
 import 'playback_timeline.dart';
+import 'track_cover_thumbnail.dart';
 
 class NowPlayingPanel extends ConsumerStatefulWidget {
   const NowPlayingPanel({super.key, this.compact = false});
@@ -68,9 +72,26 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
     }
 
     final track = playerState.currentTrack!;
+
+    // 优先从播放列表中获取当前歌曲(包含最新的刮削数据)，否则使用 PlayableTrack
+    final displaySong =
+        playerState.hasPlaylist &&
+            playerState.currentIndex >= 0 &&
+            playerState.currentIndex < playerState.playlistCount
+        ? playerState.playlist[playerState.currentIndex]
+        : null;
+
+    final displayTitle = displaySong?.displayTitle ?? track.displayTitle;
+    final displayArtist = displaySong?.displayArtist ?? track.displayArtist;
+    final displayAlbum = displaySong?.displayAlbum ?? track.displayAlbum;
+    final displayLocalCoverPath =
+        displaySong?.displayLocalCoverPath ?? track.localCoverPath;
+    final displayCoverUrl =
+        displaySong?.displayCoverUrl ?? track.autoScrapedCoverUrl;
+
     final subtitle = [
-      track.artistName,
-      track.albumTitle,
+      displayArtist,
+      displayAlbum,
       track.sourceName,
     ].whereType<String>().where((item) => item.isNotEmpty).join(' · ');
     final duration = playerState.duration;
@@ -95,8 +116,12 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
                       flex: 11,
                       child: _CoverStage(
                         playerState: playerState,
+                        displayTitle: displayTitle,
                         subtitle: subtitle,
+                        localCoverPath: displayLocalCoverPath,
+                        coverUrl: displayCoverUrl,
                         showLyrics: _showLyrics,
+                        onSeekToLine: controller.seekAndPlay,
                         onToggleLyrics: () {
                           setState(() => _showLyrics = !_showLyrics);
                         },
@@ -132,8 +157,12 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
                   children: [
                     _CoverStage(
                       playerState: playerState,
+                      displayTitle: displayTitle,
                       subtitle: subtitle,
+                      localCoverPath: displayLocalCoverPath,
+                      coverUrl: displayCoverUrl,
                       showLyrics: _showLyrics,
+                      onSeekToLine: controller.seekAndPlay,
                       onToggleLyrics: () {
                         setState(() => _showLyrics = !_showLyrics);
                       },
@@ -170,22 +199,28 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
 class _CoverStage extends StatelessWidget {
   const _CoverStage({
     required this.playerState,
+    required this.displayTitle,
     required this.subtitle,
+    required this.localCoverPath,
+    required this.coverUrl,
     required this.showLyrics,
+    required this.onSeekToLine,
     required this.onToggleLyrics,
   });
 
   final PlayerViewState playerState;
+  final String displayTitle;
   final String subtitle;
+  final String? localCoverPath;
+  final String? coverUrl;
   final bool showLyrics;
+  final Future<void> Function(Duration position) onSeekToLine;
   final VoidCallback onToggleLyrics;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
-    final track = playerState.currentTrack!;
-
     return StudioPanel(
       radius: 32,
       tint: colorScheme.surfaceContainerLow,
@@ -194,7 +229,7 @@ class _CoverStage extends StatelessWidget {
         children: [
           StudioSectionTitle(
             eyebrow: l10n.playerTitle.toUpperCase(),
-            title: track.title,
+            title: displayTitle,
             description: subtitle,
           ),
           const StudioGap(height: 20),
@@ -231,17 +266,21 @@ class _CoverStage extends StatelessWidget {
                                 lyrics: playerState.lyrics,
                                 activeIndex: playerState.activeLyricIndex,
                                 emptyLabel: l10n.lyricsEmptyLabel,
+                                scrubPlayTooltip: l10n.playAction,
+                                onSeekToLine: onSeekToLine,
                               ),
                             )
                           : SizedBox(
                               key: const ValueKey('cover'),
                               width: size,
                               height: size,
-                              child: GeneratedCoverArt(
-                                title: track.title,
+                              child: CoverArtImage(
+                                title: displayTitle,
                                 subtitle: subtitle,
                                 size: size,
                                 borderRadius: 28,
+                                localCoverPath: localCoverPath,
+                                coverUrl: coverUrl,
                               ),
                             ),
                     ),
@@ -563,24 +602,14 @@ class _PlaylistRow extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Container(
-                width: leadingSize,
-                height: leadingSize,
-                decoration: BoxDecoration(
-                  color: isCurrent
-                      ? colorScheme.surface
-                      : colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(
-                  isCurrent
-                      ? Icons.graphic_eq_rounded
-                      : Icons.music_note_rounded,
-                  size: 19,
-                  color: isCurrent
-                      ? colorScheme.primary
-                      : colorScheme.onPrimaryContainer,
-                ),
+              TrackCoverThumbnail(
+                title: song.displayTitle,
+                subtitle: '${song.displayArtist} · ${song.displayAlbum}',
+                size: leadingSize,
+                borderRadius: 14,
+                localCoverPath: song.displayLocalCoverPath,
+                coverUrl: song.displayCoverUrl,
+                isCurrentTrack: isCurrent,
               ),
               const StudioGap(width: 12),
               Expanded(
@@ -588,7 +617,7 @@ class _PlaylistRow extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      song.title,
+                      song.displayTitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleSmall?.copyWith(
@@ -601,7 +630,7 @@ class _PlaylistRow extends StatelessWidget {
                     Text(
                       isCurrent
                           ? currentLabel
-                          : '${song.artistName} · ${song.albumTitle}',
+                          : '${song.displayArtist} · ${song.displayAlbum}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
@@ -674,58 +703,411 @@ class _RoundControlButton extends StatelessWidget {
   }
 }
 
-class _LyricsPanel extends StatelessWidget {
+class _LyricsPanel extends StatefulWidget {
   const _LyricsPanel({
     required this.lyrics,
     required this.activeIndex,
     required this.emptyLabel,
+    required this.scrubPlayTooltip,
+    required this.onSeekToLine,
   });
 
   final List<LyricLine> lyrics;
   final int activeIndex;
   final String emptyLabel;
+  final String scrubPlayTooltip;
+  final Future<void> Function(Duration position) onSeekToLine;
+
+  @override
+  State<_LyricsPanel> createState() => _LyricsPanelState();
+}
+
+class _LyricsPanelState extends State<_LyricsPanel> {
+  static const _resumeDelay = Duration(seconds: 3);
+
+  late final ScrollController _scrollController;
+  Timer? _resumeAutoScrollTimer;
+  late List<GlobalKey> _lineKeys;
+  bool _isUserScrolling = false;
+  bool _isAutoScrolling = false;
+  bool _showScrubber = false;
+  int _lastAutoScrolledIndex = -1;
+  int? _scrubberLineIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _lineKeys = _buildLineKeys(widget.lyrics.length);
+    _scheduleScrollToActive(force: true, animated: false);
+  }
+
+  @override
+  void didUpdateWidget(covariant _LyricsPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.lyrics.length != widget.lyrics.length) {
+      _lineKeys = _buildLineKeys(widget.lyrics.length);
+      _lastAutoScrolledIndex = -1;
+      _scrubberLineIndex = null;
+    }
+
+    if (oldWidget.activeIndex != widget.activeIndex ||
+        oldWidget.lyrics != widget.lyrics) {
+      _scheduleScrollToActive(force: oldWidget.lyrics != widget.lyrics);
+    }
+  }
+
+  @override
+  void dispose() {
+    _resumeAutoScrollTimer?.cancel();
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return lyrics.isEmpty
+    return widget.lyrics.isEmpty
         ? Center(
             child: Text(
-              emptyLabel,
+              widget.emptyLabel,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
               textAlign: TextAlign.center,
             ),
           )
-        : ListView.separated(
-            itemCount: lyrics.length,
-            separatorBuilder: (_, _) => const StudioGap(height: 10),
-            itemBuilder: (context, index) {
-              final isActive = index == activeIndex;
-              final line = lyrics[index];
+        : Stack(
+            children: [
+              NotificationListener<ScrollNotification>(
+                onNotification: _handleScrollNotification,
+                child: ListView.separated(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.symmetric(vertical: 88),
+                  itemCount: widget.lyrics.length,
+                  separatorBuilder: (_, _) => const StudioGap(height: 10),
+                  itemBuilder: (context, index) {
+                    final isActive = index == widget.activeIndex;
+                    final line = widget.lyrics[index];
 
-              return AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 180),
-                style:
-                    (isActive
-                            ? theme.textTheme.titleMedium
-                            : theme.textTheme.bodyLarge)
-                        ?.copyWith(
-                          color: isActive
-                              ? colorScheme.primary
-                              : colorScheme.onSurfaceVariant,
-                          fontWeight: isActive
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                        ) ??
-                    const TextStyle(),
-                child: Text(line.text, textAlign: TextAlign.center),
-              );
-            },
+                    return KeyedSubtree(
+                      key: _lineKeys[index],
+                      child: AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 180),
+                        style:
+                            (isActive
+                                    ? theme.textTheme.headlineSmall
+                                    : theme.textTheme.bodyLarge)
+                                ?.copyWith(
+                                  color: isActive
+                                      ? colorScheme.primary
+                                      : colorScheme.onSurfaceVariant,
+                                  fontWeight: isActive
+                                      ? FontWeight.w800
+                                      : FontWeight.w500,
+                                  height: isActive ? 1.25 : 1.4,
+                                ) ??
+                            const TextStyle(),
+                        child: AnimatedScale(
+                          duration: const Duration(milliseconds: 180),
+                          scale: isActive ? 1.08 : 1,
+                          child: Text(line.text, textAlign: TextAlign.center),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Positioned.fill(
+                child: IgnorePointer(
+                  ignoring: !_showScrubber,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 160),
+                    opacity: _showScrubber ? 1 : 0,
+                    child: Align(
+                      alignment: Alignment.center,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 52,
+                              child: Text(
+                                _scrubberTimestampLabel,
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  color: colorScheme.primary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            const StudioGap(width: 10),
+                            Expanded(
+                              child: Container(
+                                height: 1,
+                                color: colorScheme.primary.withValues(
+                                  alpha: 0.42,
+                                ),
+                              ),
+                            ),
+                            const StudioGap(width: 8),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: colorScheme.primaryContainer,
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                tooltip: widget.scrubPlayTooltip,
+                                visualDensity: VisualDensity.compact,
+                                onPressed: _handleScrubberPlay,
+                                icon: Icon(
+                                  Icons.play_arrow_rounded,
+                                  color: colorScheme.onPrimaryContainer,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           );
+  }
+
+  bool _handleScrollNotification(ScrollNotification notification) {
+    if (_isAutoScrolling) {
+      return false;
+    }
+
+    if (notification is UserScrollNotification) {
+      if (notification.direction == ScrollDirection.idle) {
+        _scheduleAutoResumeIfNeeded();
+      } else {
+        _markUserScrolling();
+        _updateScrubberLine();
+      }
+      return false;
+    }
+
+    final isUserDriven =
+        notification is ScrollStartNotification ||
+        notification is ScrollUpdateNotification ||
+        notification is OverscrollNotification;
+
+    if (isUserDriven) {
+      _markUserScrolling();
+      _updateScrubberLine();
+      return false;
+    }
+
+    if (notification is ScrollEndNotification && _isUserScrolling) {
+      _scheduleAutoResumeIfNeeded();
+    }
+
+    return false;
+  }
+
+  void _markUserScrolling() {
+    final fallbackIndex = _resolvedActiveIndex;
+    if (!_isUserScrolling || !_showScrubber || _scrubberLineIndex == null) {
+      setState(() {
+        _isUserScrolling = true;
+        _showScrubber = true;
+        _scrubberLineIndex ??= fallbackIndex;
+      });
+    } else {
+      _isUserScrolling = true;
+    }
+    _resumeAutoScrollTimer?.cancel();
+  }
+
+  void _scheduleAutoResumeIfNeeded() {
+    if (!_isUserScrolling) {
+      return;
+    }
+
+    _resumeAutoScrollTimer?.cancel();
+    _resumeAutoScrollTimer = Timer(_resumeDelay, () {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isUserScrolling = false;
+        _showScrubber = false;
+        _scrubberLineIndex = null;
+      });
+      _scheduleScrollToActive(force: true);
+    });
+  }
+
+  List<GlobalKey> _buildLineKeys(int length) {
+    return List<GlobalKey>.generate(length, (_) => GlobalKey());
+  }
+
+  int get _resolvedActiveIndex {
+    if (widget.lyrics.isEmpty) {
+      return -1;
+    }
+    if (widget.activeIndex >= 0 && widget.activeIndex < widget.lyrics.length) {
+      return widget.activeIndex;
+    }
+    return 0;
+  }
+
+  String get _scrubberTimestampLabel {
+    final index = _scrubberLineIndex;
+    if (index == null || index < 0 || index >= widget.lyrics.length) {
+      return _formatDuration(Duration.zero);
+    }
+    return _formatDuration(widget.lyrics[index].time);
+  }
+
+  void _scheduleScrollToActive({
+    bool force = false,
+    bool animated = true,
+    int remainingAttempts = 8,
+  }) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToActive(
+        force: force,
+        animated: animated,
+        remainingAttempts: remainingAttempts,
+      );
+    });
+  }
+
+  void _updateScrubberLine() {
+    if (!mounted || widget.lyrics.isEmpty) {
+      return;
+    }
+
+    final containerBox = context.findRenderObject();
+    if (containerBox is! RenderBox || !containerBox.hasSize) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _updateScrubberLine(),
+      );
+      return;
+    }
+
+    final centerY = containerBox.size.height / 2;
+    var bestIndex = _resolvedActiveIndex;
+    var bestDistance = double.infinity;
+
+    for (var index = 0; index < _lineKeys.length; index++) {
+      final lineContext = _lineKeys[index].currentContext;
+      if (lineContext == null) {
+        continue;
+      }
+      final renderObject = lineContext.findRenderObject();
+      if (renderObject is! RenderBox || !renderObject.hasSize) {
+        continue;
+      }
+
+      final lineCenter = renderObject.localToGlobal(
+        renderObject.size.center(Offset.zero),
+        ancestor: containerBox,
+      );
+      final distance = (lineCenter.dy - centerY).abs();
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestIndex = index;
+      }
+    }
+
+    if (_scrubberLineIndex == bestIndex) {
+      return;
+    }
+
+    setState(() {
+      _scrubberLineIndex = bestIndex;
+    });
+  }
+
+  Future<void> _handleScrubberPlay() async {
+    final index = _scrubberLineIndex;
+    if (index == null || index < 0 || index >= widget.lyrics.length) {
+      return;
+    }
+
+    _resumeAutoScrollTimer?.cancel();
+    setState(() {
+      _isUserScrolling = false;
+      _showScrubber = false;
+    });
+    await widget.onSeekToLine(widget.lyrics[index].time);
+    _scheduleScrollToActive(force: true);
+  }
+
+  Future<void> _scrollToActive({
+    bool force = false,
+    bool animated = true,
+    int remainingAttempts = 0,
+  }) async {
+    if (!mounted || _isUserScrolling || widget.lyrics.isEmpty) {
+      return;
+    }
+
+    final targetIndex = _resolvedActiveIndex;
+    if (targetIndex < 0 || targetIndex >= _lineKeys.length) {
+      return;
+    }
+
+    if (!_scrollController.hasClients) {
+      if (remainingAttempts > 0) {
+        Future<void>.delayed(const Duration(milliseconds: 60), () {
+          _scheduleScrollToActive(
+            force: force,
+            animated: animated,
+            remainingAttempts: remainingAttempts - 1,
+          );
+        });
+      }
+      return;
+    }
+
+    if (!force && targetIndex == _lastAutoScrolledIndex) {
+      return;
+    }
+
+    final targetContext = _lineKeys[targetIndex].currentContext;
+    if (targetContext == null) {
+      if (remainingAttempts > 0) {
+        Future<void>.delayed(const Duration(milliseconds: 60), () {
+          _scheduleScrollToActive(
+            force: force,
+            animated: animated,
+            remainingAttempts: remainingAttempts - 1,
+          );
+        });
+      }
+      return;
+    }
+
+    _lastAutoScrolledIndex = targetIndex;
+    _isAutoScrolling = true;
+    try {
+      await Scrollable.ensureVisible(
+        targetContext,
+        alignment: 0.5,
+        duration: animated ? const Duration(milliseconds: 320) : Duration.zero,
+        curve: Curves.easeOutCubic,
+      );
+    } finally {
+      if (mounted) {
+        Future<void>.delayed(const Duration(milliseconds: 80), () {
+          if (mounted) {
+            _isAutoScrolling = false;
+          }
+        });
+      } else {
+        _isAutoScrolling = false;
+      }
+    }
   }
 }
 

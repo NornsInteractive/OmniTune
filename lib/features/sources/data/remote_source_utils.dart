@@ -58,6 +58,11 @@ PlayableTrack buildRemotePlayableTrack({
   required SourceProfile profile,
   required RemoteEntry entry,
   required AudioSource audioSource,
+  String? autoScrapedTitle,
+  String? autoScrapedArtist,
+  String? autoScrapedAlbum,
+  String? autoScrapedCoverUrl,
+  String? lyrics,
 }) {
   final folderSegments = p.posix
       .dirname(entry.path)
@@ -77,6 +82,11 @@ PlayableTrack buildRemotePlayableTrack({
     artistName: folderSegments.length >= 2
         ? folderSegments[folderSegments.length - 2]
         : profile.name,
+    autoScrapedTitle: autoScrapedTitle,
+    autoScrapedArtist: autoScrapedArtist,
+    autoScrapedAlbum: autoScrapedAlbum,
+    autoScrapedCoverUrl: autoScrapedCoverUrl,
+    lyrics: lyrics,
   );
 }
 

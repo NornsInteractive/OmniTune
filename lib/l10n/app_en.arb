@@ -418,5 +418,42 @@
   "moreOptionsAction": "More options",
   "debugSettingsTitle": "Developer",
   "debugModeLabel": "Debug mode",
-  "debugModeDescription": "Show error dialogs when exceptions occur"
+  "debugModeDescription": "Show error dialogs when exceptions occur",
+  "debugModeEnabledMessage": "🔍 Debug mode enabled - check console for detailed logs",
+  "manualScrapingTitle": "Manual Scraping",
+  "manualScrapingActionLabel": "Scrape metadata",
+  "scrapingSongName": "Song name",
+  "scrapingArtistName": "Artist name",
+  "scrapingSearchButton": "Search",
+  "scrapingSearchingLabel": "Searching...",
+  "scrapingSearchResultsTitle": "Search Results",
+  "scrapingNoResultsMessage": "No results found",
+  "scrapingMatchScoreLabel": "Match: {score}%",
+  "@scrapingMatchScoreLabel": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "scrapingSelectButtonLabel": "Select",
+  "scrapingCoverLabel": "Cover",
+  "scrapingLyricsLabel": "Lyrics",
+  "scrapingUpdateCoverAction": "Update cover",
+  "scrapingUpdateLyricsAction": "Get lyrics",
+  "scrapingResultApplied": "Metadata applied successfully",
+  "scrapingErrorMessage": "Scraping failed",
+  "scrapingRetryAction": "Retry",
+  "automaticScrapingLabel": "Automatic",
+  "manualScrapingLabel": "Manual",
+  "autoScrapedLabel": "Auto-scraped",
+  "manuallyScrapedLabel": "Manually scraped",
+  "debugLogsTitle": "Debug logs",
+  "debugLogsTabLabel": "Debug logs",
+  "clearAction": "Clear",
+  "autoScrollLabel": "Auto",
+  "noLogsAvailable": "No logs",
+  "logsExportedToClipboard": "Logs copied to clipboard",
+  "exportAction": "Export",
+  "copyLogsAction": "Copy logs"
 }

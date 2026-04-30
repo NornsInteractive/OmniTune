@@ -16,6 +16,7 @@ import '../../../core/models/source_protocol.dart';
 import '../../../core/storage/background_image_store.dart';
 import '../../../core/storage/library_preferences_repository.dart';
 import '../../../core/widgets/studio_chrome.dart';
+import '../../debug/application/debug_mode_provider.dart';
 import '../../library/application/library_catalog_controller.dart';
 import '../../library/application/library_controller.dart';
 import '../../player/application/playback_cache_settings_controller.dart';
@@ -33,18 +34,27 @@ class SettingsPage extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final preferences = ref.watch(appSettingsControllerProvider).valueOrNull ?? const LibraryPreferences();
+    final preferences =
+        ref.watch(appSettingsControllerProvider).valueOrNull ??
+        const LibraryPreferences();
     final accentHex = preferences.customThemeColors.primaryColorSeed;
-    final accentColor = preferences.customThemeColors.getSeedColor() ?? colorScheme.primary;
-    final accentSummary = accentHex == null || accentHex.trim().isEmpty ? l10n.themeAccentColorDefaultLabel : accentHex;
+    final accentColor =
+        preferences.customThemeColors.getSeedColor() ?? colorScheme.primary;
+    final accentSummary = accentHex == null || accentHex.trim().isEmpty
+        ? l10n.themeAccentColorDefaultLabel
+        : accentHex;
     final cacheSettings =
-        ref.watch(playbackCacheSettingsControllerProvider).valueOrNull ?? const PlaybackCacheSettings();
-    final sources = ref.watch(sourcesControllerProvider).valueOrNull ?? const <SourceProfile>[];
+        ref.watch(playbackCacheSettingsControllerProvider).valueOrNull ??
+        const PlaybackCacheSettings();
+    final sources =
+        ref.watch(sourcesControllerProvider).valueOrNull ??
+        const <SourceProfile>[];
     final browser = ref.watch(libraryControllerProvider).valueOrNull;
     final appBarBackground = colorScheme.surfaceContainerLowest;
-    final settingsToolbarHeight = ((theme.appBarTheme.toolbarHeight ?? kToolbarHeight) * 0.82)
-        .clamp(40.0, 48.0)
-        .toDouble();
+    final settingsToolbarHeight =
+        ((theme.appBarTheme.toolbarHeight ?? kToolbarHeight) * 0.82)
+            .clamp(40.0, 48.0)
+            .toDouble();
 
     return Scaffold(
       backgroundColor: appBarBackground,
@@ -65,12 +75,17 @@ class SettingsPage extends ConsumerWidget {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 1180),
               child: ListView(
-                padding: studioListPaddingOf(context, const EdgeInsets.fromLTRB(4, 12, 4, 32)),
+                padding: studioListPaddingOf(
+                  context,
+                  const EdgeInsets.fromLTRB(4, 12, 4, 32),
+                ),
                 children: [
                   DefaultTextStyle.merge(
                     style: TextStyle(color: colorScheme.onPrimaryContainer),
                     child: IconTheme.merge(
-                      data: IconThemeData(color: colorScheme.onPrimaryContainer),
+                      data: IconThemeData(
+                        color: colorScheme.onPrimaryContainer,
+                      ),
                       child: StudioPanel(
                         radius: 40,
                         tint: colorScheme.primaryContainer,
@@ -88,24 +103,32 @@ class SettingsPage extends ConsumerWidget {
                                 ),
                                 StudioPill(
                                   icon: Icons.cloud_done_rounded,
-                                  label: l10n.savedSourcesCountLabel(sources.length),
+                                  label: l10n.savedSourcesCountLabel(
+                                    sources.length,
+                                  ),
                                 ),
                                 StudioPill(
                                   icon: Icons.language_rounded,
-                                  label: _localeLabel(l10n, preferences.localePreference),
+                                  label: _localeLabel(
+                                    l10n,
+                                    preferences.localePreference,
+                                  ),
                                 ),
                               ],
                             ),
                             StudioGap(height: 20),
                             Text(
                               l10n.settingsCenterHeadline,
-                              style: theme.textTheme.headlineMedium?.copyWith(color: colorScheme.onPrimaryContainer),
+                              style: theme.textTheme.headlineMedium?.copyWith(
+                                color: colorScheme.onPrimaryContainer,
+                              ),
                             ),
                             StudioGap(height: 12),
                             Text(
                               l10n.settingsCenterDescription,
                               style: theme.textTheme.bodyLarge?.copyWith(
-                                color: colorScheme.onPrimaryContainer.withValues(alpha: 0.76),
+                                color: colorScheme.onPrimaryContainer
+                                    .withValues(alpha: 0.76),
                               ),
                             ),
                             StudioGap(height: 20),
@@ -115,13 +138,22 @@ class SettingsPage extends ConsumerWidget {
                               children: [
                                 _MetaPill(
                                   icon: Icons.language_rounded,
-                                  label: _localeLabel(l10n, preferences.localePreference),
+                                  label: _localeLabel(
+                                    l10n,
+                                    preferences.localePreference,
+                                  ),
                                 ),
                                 _MetaPill(
                                   icon: Icons.palette_outlined,
-                                  label: _themeLabel(l10n, preferences.themePreference),
+                                  label: _themeLabel(
+                                    l10n,
+                                    preferences.themePreference,
+                                  ),
                                 ),
-                                _MetaPill(icon: Icons.offline_bolt_outlined, label: l10n.playbackCacheTitle),
+                                _MetaPill(
+                                  icon: Icons.offline_bolt_outlined,
+                                  label: l10n.playbackCacheTitle,
+                                ),
                               ],
                             ),
                           ],
@@ -136,7 +168,10 @@ class SettingsPage extends ConsumerWidget {
                       _SettingTile(
                         icon: Icons.language_rounded,
                         title: l10n.languageSettingTitle,
-                        subtitle: _localeLabel(l10n, preferences.localePreference),
+                        subtitle: _localeLabel(
+                          l10n,
+                          preferences.localePreference,
+                        ),
                         onTap: () => _showSelectionDialog<AppLocalePreference>(
                           context: context,
                           title: l10n.languageSettingTitle,
@@ -144,29 +179,43 @@ class SettingsPage extends ConsumerWidget {
                           options: [
                             _DialogOption(
                               value: AppLocalePreference.system,
-                              label: _localeLabel(l10n, AppLocalePreference.system),
+                              label: _localeLabel(
+                                l10n,
+                                AppLocalePreference.system,
+                              ),
                               icon: Icons.settings_suggest_rounded,
                             ),
                             _DialogOption(
                               value: AppLocalePreference.chinese,
-                              label: _localeLabel(l10n, AppLocalePreference.chinese),
+                              label: _localeLabel(
+                                l10n,
+                                AppLocalePreference.chinese,
+                              ),
                               icon: Icons.translate_rounded,
                             ),
                             _DialogOption(
                               value: AppLocalePreference.english,
-                              label: _localeLabel(l10n, AppLocalePreference.english),
+                              label: _localeLabel(
+                                l10n,
+                                AppLocalePreference.english,
+                              ),
                               icon: Icons.public_rounded,
                             ),
                           ],
                           onSelected: (value) {
-                            return ref.read(appSettingsControllerProvider.notifier).setLocalePreference(value);
+                            return ref
+                                .read(appSettingsControllerProvider.notifier)
+                                .setLocalePreference(value);
                           },
                         ),
                       ),
                       _SettingTile(
                         icon: Icons.dark_mode_outlined,
                         title: l10n.themeSettingTitle,
-                        subtitle: _themeLabel(l10n, preferences.themePreference),
+                        subtitle: _themeLabel(
+                          l10n,
+                          preferences.themePreference,
+                        ),
                         onTap: () => _showSelectionDialog<AppThemePreference>(
                           context: context,
                           title: l10n.themeSettingTitle,
@@ -174,12 +223,18 @@ class SettingsPage extends ConsumerWidget {
                           options: [
                             _DialogOption(
                               value: AppThemePreference.system,
-                              label: _themeLabel(l10n, AppThemePreference.system),
+                              label: _themeLabel(
+                                l10n,
+                                AppThemePreference.system,
+                              ),
                               icon: Icons.brightness_auto_rounded,
                             ),
                             _DialogOption(
                               value: AppThemePreference.light,
-                              label: _themeLabel(l10n, AppThemePreference.light),
+                              label: _themeLabel(
+                                l10n,
+                                AppThemePreference.light,
+                              ),
                               icon: Icons.light_mode_rounded,
                             ),
                             _DialogOption(
@@ -189,14 +244,18 @@ class SettingsPage extends ConsumerWidget {
                             ),
                           ],
                           onSelected: (value) {
-                            return ref.read(appSettingsControllerProvider.notifier).setThemePreference(value);
+                            return ref
+                                .read(appSettingsControllerProvider.notifier)
+                                .setThemePreference(value);
                           },
                         ),
                       ),
                       _SettingTile(
                         icon: Icons.dashboard_customize_outlined,
                         title: l10n.interfaceSizeSettingTitle,
-                        subtitle: l10n.interfaceScaleSummary(_scalePercent(preferences.interfaceScaleFactor)),
+                        subtitle: l10n.interfaceScaleSummary(
+                          _scalePercent(preferences.interfaceScaleFactor),
+                        ),
                         onTap: () => _showScaleDialog(
                           context: context,
                           title: l10n.interfaceSizeSettingTitle,
@@ -206,14 +265,18 @@ class SettingsPage extends ConsumerWidget {
                           divisions: 50,
                           initialValue: preferences.interfaceScaleFactor,
                           onSaved: (value) {
-                            return ref.read(appSettingsControllerProvider.notifier).setInterfaceScale(value);
+                            return ref
+                                .read(appSettingsControllerProvider.notifier)
+                                .setInterfaceScale(value);
                           },
                         ),
                       ),
                       _SettingTile(
                         icon: Icons.format_size_rounded,
                         title: l10n.fontSizeSettingTitle,
-                        subtitle: l10n.fontScaleSummary(_scalePercent(preferences.fontScaleFactor)),
+                        subtitle: l10n.fontScaleSummary(
+                          _scalePercent(preferences.fontScaleFactor),
+                        ),
                         onTap: () => _showScaleDialog(
                           context: context,
                           title: l10n.fontSizeSettingTitle,
@@ -223,7 +286,9 @@ class SettingsPage extends ConsumerWidget {
                           divisions: 57,
                           initialValue: preferences.fontScaleFactor,
                           onSaved: (value) {
-                            return ref.read(appSettingsControllerProvider.notifier).setFontScale(value);
+                            return ref
+                                .read(appSettingsControllerProvider.notifier)
+                                .setFontScale(value);
                           },
                         ),
                       ),
@@ -238,46 +303,71 @@ class SettingsPage extends ConsumerWidget {
                             currentColor: accentHex ?? '',
                           );
                           if (colorHex != null && colorHex.isNotEmpty) {
-                            debugPrint('🎨 [ColorPicker] Selected color: $colorHex');
-                            final updated = preferences.customThemeColors.copyWith(primaryColorSeed: colorHex);
-                            debugPrint('🎨 [ColorPicker] Updated CustomThemeColors: ${updated.primaryColorSeed}');
-                            await ref.read(appSettingsControllerProvider.notifier).setCustomThemeColors(updated);
-                            debugPrint('🎨 [ColorPicker] Color saved to storage');
+                            debugPrint(
+                              '🎨 [ColorPicker] Selected color: $colorHex',
+                            );
+                            final updated = preferences.customThemeColors
+                                .copyWith(primaryColorSeed: colorHex);
+                            debugPrint(
+                              '🎨 [ColorPicker] Updated CustomThemeColors: ${updated.primaryColorSeed}',
+                            );
+                            await ref
+                                .read(appSettingsControllerProvider.notifier)
+                                .setCustomThemeColors(updated);
+                            debugPrint(
+                              '🎨 [ColorPicker] Color saved to storage',
+                            );
                           } else {
-                            debugPrint('🎨 [ColorPicker] Cancelled or empty: ${colorHex ?? "null"}');
+                            debugPrint(
+                              '🎨 [ColorPicker] Cancelled or empty: ${colorHex ?? "null"}',
+                            );
                           }
                         },
                       ),
                       _SettingTile(
                         icon: Icons.rounded_corner,
                         title: l10n.themeBorderRadiusSettingTitle,
-                        subtitle: '${preferences.customThemeColors.borderRadius.toStringAsFixed(1)}px',
+                        subtitle:
+                            '${preferences.customThemeColors.borderRadius.toStringAsFixed(1)}px',
                         onTap: () async {
-                          final updated = preferences.customThemeColors.copyWith(
-                            borderRadius:
-                                await _showBorderRadiusSlider(
-                                  context: context,
-                                  initialValue: preferences.customThemeColors.borderRadius,
-                                ) ??
-                                preferences.customThemeColors.borderRadius,
-                          );
-                          await ref.read(appSettingsControllerProvider.notifier).setCustomThemeColors(updated);
+                          final updated = preferences.customThemeColors
+                              .copyWith(
+                                borderRadius:
+                                    await _showBorderRadiusSlider(
+                                      context: context,
+                                      initialValue: preferences
+                                          .customThemeColors
+                                          .borderRadius,
+                                    ) ??
+                                    preferences.customThemeColors.borderRadius,
+                              );
+                          await ref
+                              .read(appSettingsControllerProvider.notifier)
+                              .setCustomThemeColors(updated);
                         },
                       ),
                       _SettingTile(
                         icon: Icons.density_medium_rounded,
                         title: l10n.themeCompactnessSettingTitle,
-                        subtitle: '${(preferences.customThemeColors.interfaceCompactness * 100).toStringAsFixed(0)}%',
+                        subtitle:
+                            '${(preferences.customThemeColors.interfaceCompactness * 100).toStringAsFixed(0)}%',
                         onTap: () async {
-                          final updated = preferences.customThemeColors.copyWith(
-                            interfaceCompactness:
-                                await _showCompactnessSlider(
-                                  context: context,
-                                  initialValue: preferences.customThemeColors.interfaceCompactness,
-                                ) ??
-                                preferences.customThemeColors.interfaceCompactness,
-                          );
-                          await ref.read(appSettingsControllerProvider.notifier).setCustomThemeColors(updated);
+                          final updated = preferences.customThemeColors
+                              .copyWith(
+                                interfaceCompactness:
+                                    await _showCompactnessSlider(
+                                      context: context,
+                                      initialValue: preferences
+                                          .customThemeColors
+                                          .interfaceCompactness,
+                                    ) ??
+                                    preferences
+                                        .customThemeColors
+                                        .interfaceCompactness,
+                              );
+                          await ref
+                              .read(appSettingsControllerProvider.notifier)
+                              .setCustomThemeColors(updated);
                         },
                       ),
                       _SettingTile(
@@ -286,7 +376,11 @@ class SettingsPage extends ConsumerWidget {
                         subtitle: preferences.backgroundImageSource == null
                             ? l10n.backgroundImageDefaultSummary
                             : l10n.backgroundImageConfiguredSummary,
-                        onTap: () => _showBackgroundImageDialog(context: context, ref: ref, preferences: preferences),
+                        onTap: () => _showBackgroundImageDialog(
+                          context: context,
+                          ref: ref,
+                          preferences: preferences,
+                        ),
                       ),
                     ],
                   ),
@@ -299,7 +393,10 @@ class SettingsPage extends ConsumerWidget {
                         title: l10n.sourceManagementSettingTitle,
                         subtitle: browser?.selectedSource == null
                             ? l10n.sourceManagementEmptySummary
-                            : l10n.sourceManagementSummary(browser!.selectedSource!.name, sources.length),
+                            : l10n.sourceManagementSummary(
+                                browser!.selectedSource!.name,
+                                sources.length,
+                              ),
                         onTap: () => _showSourceManagementDialog(
                           pageContext: context,
                           ref: ref,
@@ -322,8 +419,11 @@ class SettingsPage extends ConsumerWidget {
                               : l10n.cacheStorageModeMemory,
                           cacheSettings.memoryCacheTrackLimit,
                         ),
-                        onTap: () =>
-                            _showCacheSettingsDialog(context: context, ref: ref, initialSettings: cacheSettings),
+                        onTap: () => _showCacheSettingsDialog(
+                          context: context,
+                          ref: ref,
+                          initialSettings: cacheSettings,
+                        ),
                       ),
                       _SettingTile(
                         icon: Icons.delete_sweep_outlined,
@@ -332,7 +432,10 @@ class SettingsPage extends ConsumerWidget {
                         destructive: true,
                         onTap: () => _showCacheManagementDialog(
                           context: context,
-                          sourceNames: {for (final source in sources) source.id: source.name},
+                          sourceNames: {
+                            for (final source in sources)
+                              source.id: source.name,
+                          },
                         ),
                       ),
                     ],
@@ -344,7 +447,10 @@ class SettingsPage extends ConsumerWidget {
                       Padding(
                         padding: studioListPaddingOf(
                           context,
-                          const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                          const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 8.0,
+                          ),
                         ),
                         child: SwitchListTile.adaptive(
                           contentPadding: EdgeInsets.zero,
@@ -352,7 +458,21 @@ class SettingsPage extends ConsumerWidget {
                           subtitle: Text(l10n.debugModeDescription),
                           value: preferences.enableDebugMode,
                           onChanged: (value) {
-                            ref.read(appSettingsControllerProvider.notifier).setDebugMode(value);
+                            // 启用或禁用调试模式
+                            ref
+                                .read(debugModeProvider.notifier)
+                                .setEnabled(value);
+                            ref
+                                .read(appSettingsControllerProvider.notifier)
+                                .setDebugMode(value);
+                            if (value) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(l10n.debugModeEnabledMessage),
+                                  duration: const Duration(seconds: 3),
+                                ),
+                              );
+                            }
                           },
                         ),
                       ),
@@ -375,7 +495,8 @@ class SettingsPage extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final materialL10n = MaterialLocalizations.of(context);
     var enablePersistentCache = initialSettings.enablePersistentCache;
-    var memoryCacheTrackLimit = initialSettings.memoryCacheTrackLimit.toDouble();
+    var memoryCacheTrackLimit = initialSettings.memoryCacheTrackLimit
+        .toDouble();
 
     return showDialog<void>(
       context: context,
@@ -403,12 +524,20 @@ class SettingsPage extends ConsumerWidget {
                         },
                       ),
                       const SizedBox(height: 20),
-                      Text(l10n.memoryCacheTrackLimitLabel, style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        l10n.memoryCacheTrackLimitLabel,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       const SizedBox(height: 8),
-                      Text(l10n.memoryCacheTrackLimitDescription, style: Theme.of(context).textTheme.bodyMedium),
+                      Text(
+                        l10n.memoryCacheTrackLimitDescription,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
                       const SizedBox(height: 16),
                       Text(
-                        l10n.memoryCacheTrackLimitValue(memoryCacheTrackLimit.round()),
+                        l10n.memoryCacheTrackLimitValue(
+                          memoryCacheTrackLimit.round(),
+                        ),
                         style: Theme.of(context).textTheme.labelLarge,
                       ),
                       Slider(
@@ -416,7 +545,9 @@ class SettingsPage extends ConsumerWidget {
                         max: 12,
                         divisions: 11,
                         value: memoryCacheTrackLimit,
-                        label: l10n.memoryCacheTrackLimitValue(memoryCacheTrackLimit.round()),
+                        label: l10n.memoryCacheTrackLimitValue(
+                          memoryCacheTrackLimit.round(),
+                        ),
                         onChanged: (value) {
                           setState(() {
                             memoryCacheTrackLimit = value;
@@ -434,9 +565,15 @@ class SettingsPage extends ConsumerWidget {
                 ),
                 FilledButton(
                   onPressed: () async {
-                    final controller = ref.read(playbackCacheSettingsControllerProvider.notifier);
-                    await controller.setPersistentCacheEnabled(enablePersistentCache);
-                    await controller.setMemoryCacheTrackLimit(memoryCacheTrackLimit.round());
+                    final controller = ref.read(
+                      playbackCacheSettingsControllerProvider.notifier,
+                    );
+                    await controller.setPersistentCacheEnabled(
+                      enablePersistentCache,
+                    );
+                    await controller.setMemoryCacheTrackLimit(
+                      memoryCacheTrackLimit.round(),
+                    );
                     if (dialogContext.mounted) {
                       Navigator.of(dialogContext).pop();
                     }
@@ -463,8 +600,13 @@ class SettingsPage extends ConsumerWidget {
     final stagedSources = <String>[];
     var didSave = false;
     var source = preferences.backgroundImageSource;
-    var alignment = Alignment(preferences.backgroundImageAlignmentX, preferences.backgroundImageAlignmentY);
-    var previewFuture = source == null ? Future<Uint8List?>.value() : readStudioBackgroundImage(source);
+    var alignment = Alignment(
+      preferences.backgroundImageAlignmentX,
+      preferences.backgroundImageAlignmentY,
+    );
+    var previewFuture = source == null
+        ? Future<Uint8List?>.value()
+        : readStudioBackgroundImage(source);
 
     await showDialog<void>(
       context: context,
@@ -486,7 +628,11 @@ class SettingsPage extends ConsumerWidget {
               }
 
               final bytes = await file.readAsBytes();
-              final nextSource = await saveStudioBackgroundImage(bytes, fileName: file.name, mimeType: file.mimeType);
+              final nextSource = await saveStudioBackgroundImage(
+                bytes,
+                fileName: file.name,
+                mimeType: file.mimeType,
+              );
               stagedSources.add(nextSource);
               setState(() {
                 source = nextSource;
@@ -517,9 +663,9 @@ class SettingsPage extends ConsumerWidget {
                       const SizedBox(height: 12),
                       Text(
                         l10n.backgroundImagePositionHelpText,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       Wrap(
@@ -530,14 +676,18 @@ class SettingsPage extends ConsumerWidget {
                             onPressed: chooseImage,
                             icon: const Icon(Icons.image_search_rounded),
                             label: Text(
-                              source == null ? l10n.backgroundImageChooseAction : l10n.backgroundImageChangeAction,
+                              source == null
+                                  ? l10n.backgroundImageChooseAction
+                                  : l10n.backgroundImageChangeAction,
                             ),
                           ),
                           OutlinedButton.icon(
                             onPressed: source == null
                                 ? null
                                 : () {
-                                    setState(() => alignment = Alignment.center);
+                                    setState(
+                                      () => alignment = Alignment.center,
+                                    );
                                   },
                             icon: const Icon(Icons.center_focus_strong_rounded),
                             label: Text(l10n.backgroundImageCenterAction),
@@ -549,7 +699,8 @@ class SettingsPage extends ConsumerWidget {
                                     setState(() {
                                       source = null;
                                       alignment = Alignment.center;
-                                      previewFuture = Future<Uint8List?>.value();
+                                      previewFuture =
+                                          Future<Uint8List?>.value();
                                     });
                                   },
                             icon: const Icon(Icons.delete_outline_rounded),
@@ -658,10 +809,13 @@ class SettingsPage extends ConsumerWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        l10n.scaleRangeLabel(_scalePercent(min), _scalePercent(max)),
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        l10n.scaleRangeLabel(
+                          _scalePercent(min),
+                          _scalePercent(max),
+                        ),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -689,11 +843,21 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  Future<String?> _showColorPickerDialog({required BuildContext context, required String currentColor}) {
+  Future<String?> _showColorPickerDialog({
+    required BuildContext context,
+    required String currentColor,
+  }) {
     final l10n = AppLocalizations.of(context)!;
     final materialL10n = MaterialLocalizations.of(context);
-    var selectedHsv = HSVColor.fromColor(_colorFromHexOrFallback(currentColor, Theme.of(context).colorScheme.primary));
-    final hexController = TextEditingController(text: _hexFromColor(selectedHsv.toColor()));
+    var selectedHsv = HSVColor.fromColor(
+      _colorFromHexOrFallback(
+        currentColor,
+        Theme.of(context).colorScheme.primary,
+      ),
+    );
+    final hexController = TextEditingController(
+      text: _hexFromColor(selectedHsv.toColor()),
+    );
 
     void syncHexField(Color color) {
       final nextHex = _hexFromColor(color);
@@ -721,7 +885,10 @@ class SettingsPage extends ConsumerWidget {
             }
 
             // 生成实时主题预览
-            final previewScheme = ColorScheme.fromSeed(seedColor: selectedColor, brightness: Brightness.light);
+            final previewScheme = ColorScheme.fromSeed(
+              seedColor: selectedColor,
+              brightness: Brightness.light,
+            );
 
             return AlertDialog(
               title: Text(l10n.themeColorDialogTitle),
@@ -732,7 +899,10 @@ class SettingsPage extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Center(
-                      child: _CircularColorPicker(hsvColor: selectedHsv, onChanged: updateHsv),
+                      child: _CircularColorPicker(
+                        hsvColor: selectedHsv,
+                        onChanged: updateHsv,
+                      ),
                     ),
                     const SizedBox(height: 14),
                     _HueSlider(
@@ -763,7 +933,10 @@ class SettingsPage extends ConsumerWidget {
                     ),
                     const SizedBox(height: 14),
                     StudioPanel(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
                       radius: 20,
                       tint: dialogColorScheme.surfaceContainerHighest,
                       child: Row(
@@ -780,15 +953,19 @@ class SettingsPage extends ConsumerWidget {
                               textCapitalization: TextCapitalization.characters,
                               onChanged: (value) {
                                 // 优先使用自定义的hex解析器确保一致性
+                                // 如果自定义解析失败，尝试flutter_colorpicker的函数
                                 Color? color = _parseHexColor(value);
-                                if (color == null) {
-                                  // 如果自定义解析失败，尝试flutter_colorpicker的函数
-                                  color = colorFromHex(value, enableAlpha: false);
-                                }
+                                color ??= colorFromHex(
+                                  value,
+                                  enableAlpha: false,
+                                );
                                 if (color == null) {
                                   return;
                                 }
-                                setState(() => selectedHsv = HSVColor.fromColor(color!));
+                                setState(
+                                  () =>
+                                      selectedHsv = HSVColor.fromColor(color!),
+                                );
                               },
                             ),
                           ),
@@ -813,7 +990,9 @@ class SettingsPage extends ConsumerWidget {
                   onPressed: () {
                     // 生成hex值并规范化，确保一致的存储格式
                     final hexColor = _hexFromColor(selectedHsv.toColor());
-                    final normalized = CustomThemeColors.normalizeHexColor(hexColor) ?? hexColor;
+                    final normalized =
+                        CustomThemeColors.normalizeHexColor(hexColor) ??
+                        hexColor;
                     Navigator.of(dialogContext).pop(normalized);
                   },
                   child: Text(materialL10n.okButtonLabel),
@@ -871,7 +1050,10 @@ class SettingsPage extends ConsumerWidget {
     }
   }
 
-  Future<double?> _showBorderRadiusSlider({required BuildContext context, required double initialValue}) {
+  Future<double?> _showBorderRadiusSlider({
+    required BuildContext context,
+    required double initialValue,
+  }) {
     final l10n = AppLocalizations.of(context)!;
     final materialL10n = MaterialLocalizations.of(context);
     var value = initialValue;
@@ -889,7 +1071,10 @@ class SettingsPage extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${value.toStringAsFixed(1)}px', style: Theme.of(context).textTheme.headlineSmall),
+                    Text(
+                      '${value.toStringAsFixed(1)}px',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
                     const SizedBox(height: 20),
                     Slider(
                       min: 12,
@@ -906,9 +1091,9 @@ class SettingsPage extends ConsumerWidget {
                     const SizedBox(height: 12),
                     Text(
                       l10n.themeBorderRadiusRangeLabel,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -932,7 +1117,10 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  Future<double?> _showCompactnessSlider({required BuildContext context, required double initialValue}) {
+  Future<double?> _showCompactnessSlider({
+    required BuildContext context,
+    required double initialValue,
+  }) {
     final l10n = AppLocalizations.of(context)!;
     final materialL10n = MaterialLocalizations.of(context);
     var value = initialValue;
@@ -950,7 +1138,10 @@ class SettingsPage extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${(value * 100).toStringAsFixed(0)}%', style: Theme.of(context).textTheme.headlineSmall),
+                    Text(
+                      '${(value * 100).toStringAsFixed(0)}%',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
                     const SizedBox(height: 20),
                     Slider(
                       min: 0.5,
@@ -967,9 +1158,9 @@ class SettingsPage extends ConsumerWidget {
                     const SizedBox(height: 12),
                     Text(
                       l10n.themeCompactnessRangeLabel,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -993,7 +1184,10 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  Future<void> _showCacheManagementDialog({required BuildContext context, required Map<String, String> sourceNames}) {
+  Future<void> _showCacheManagementDialog({
+    required BuildContext context,
+    required Map<String, String> sourceNames,
+  }) {
     return showDialog<void>(
       context: context,
       builder: (_) => _CacheManagementDialog(sourceNames: sourceNames),
@@ -1041,15 +1235,21 @@ class SettingsPage extends ConsumerWidget {
                         deleteLabel: materialL10n.deleteButtonTooltip,
                         onTap: () async {
                           Navigator.of(dialogContext).pop();
-                          await ref.read(libraryControllerProvider.notifier).selectSource(source.id);
+                          await ref
+                              .read(libraryControllerProvider.notifier)
+                              .selectSource(source.id);
                         },
                         onEdit: () {
                           Navigator.of(dialogContext).pop();
-                          GoRouter.of(pageContext).push('/settings/source/${source.id}');
+                          GoRouter.of(
+                            pageContext,
+                          ).push('/settings/source/${source.id}');
                         },
                         onDelete: () async {
                           Navigator.of(dialogContext).pop();
-                          await ref.read(sourcesControllerProvider.notifier).deleteProfile(source.id);
+                          await ref
+                              .read(sourcesControllerProvider.notifier)
+                              .deleteProfile(source.id);
                           ref.invalidate(libraryControllerProvider);
                           ref.invalidate(libraryCatalogControllerProvider);
                         },
@@ -1065,12 +1265,17 @@ class SettingsPage extends ConsumerWidget {
               OutlinedButton.icon(
                 onPressed: () async {
                   Navigator.of(dialogContext).pop();
-                  await ref.read(libraryCatalogControllerProvider.notifier).scanAllSources();
+                  await ref
+                      .read(libraryCatalogControllerProvider.notifier)
+                      .scanAllSources();
                 },
                 icon: const Icon(Icons.radar_rounded),
                 label: Text(l10n.scanLibraryAction),
               ),
-            TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: Text(materialL10n.closeButtonLabel)),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(materialL10n.closeButtonLabel),
+            ),
             FilledButton.icon(
               onPressed: () {
                 Navigator.of(dialogContext).pop();
@@ -1177,7 +1382,8 @@ class _SettingsSection extends StatelessWidget {
           SizedBox(height: studioListSpacingOf(context, 12)),
           for (var index = 0; index < children.length; index++) ...[
             children[index],
-            if (index != children.length - 1) SizedBox(height: studioListGapOf(context)),
+            if (index != children.length - 1)
+              SizedBox(height: studioListGapOf(context)),
           ],
         ],
       ),
@@ -1205,7 +1411,9 @@ class _SettingTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final accentColor = destructive ? colorScheme.error : colorScheme.onSurfaceVariant;
+    final accentColor = destructive
+        ? colorScheme.error
+        : colorScheme.onSurfaceVariant;
     final radius = studioRadiusOf(context, 24);
     final iconBoxSize = studioListIconBoxSizeOf(context);
 
@@ -1228,13 +1436,22 @@ class _SettingTile extends StatelessWidget {
                   width: iconBoxSize,
                   height: iconBoxSize,
                   decoration: BoxDecoration(
-                    color: destructive ? colorScheme.errorContainer : colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(studioRadiusOf(context, 16)),
+                    color: destructive
+                        ? colorScheme.errorContainer
+                        : colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(
+                      studioRadiusOf(context, 16),
+                    ),
                   ),
                   child: Icon(
                     icon,
-                    size: studioListSpacingOf(context, 20).clamp(18.0, 23.0).toDouble(),
-                    color: destructive ? colorScheme.onErrorContainer : colorScheme.onPrimaryContainer,
+                    size: studioListSpacingOf(
+                      context,
+                      20,
+                    ).clamp(18.0, 23.0).toDouble(),
+                    color: destructive
+                        ? colorScheme.onErrorContainer
+                        : colorScheme.onPrimaryContainer,
                   ),
                 ),
                 SizedBox(width: studioListGapOf(context)),
@@ -1244,17 +1461,26 @@ class _SettingTile extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.titleMedium?.copyWith(color: destructive ? colorScheme.error : null),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              color: destructive ? colorScheme.error : null,
+                            ),
                       ),
                       SizedBox(height: studioListSpacingOf(context, 3)),
-                      Text(subtitle, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: accentColor)),
+                      Text(
+                        subtitle,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodyMedium?.copyWith(color: accentColor),
+                      ),
                     ],
                   ),
                 ),
                 SizedBox(width: studioListGapOf(context)),
-                if (trailing != null) ...[trailing!, SizedBox(width: studioListGapOf(context))],
+                if (trailing != null) ...[
+                  trailing!,
+                  SizedBox(width: studioListGapOf(context)),
+                ],
                 Icon(Icons.chevron_right_rounded, color: accentColor),
               ],
             ),
@@ -1291,7 +1517,9 @@ class _BackgroundImagePositionPreview extends StatelessWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: colorScheme.surfaceContainerHighest,
-            border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.22)),
+            border: Border.all(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.22),
+            ),
           ),
           child: FutureBuilder<Uint8List?>(
             future: previewFuture,
@@ -1302,7 +1530,9 @@ class _BackgroundImagePositionPreview extends StatelessWidget {
                   child: Text(
                     emptyLabel,
                     textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 );
               }
@@ -1310,8 +1540,14 @@ class _BackgroundImagePositionPreview extends StatelessWidget {
               return LayoutBuilder(
                 builder: (context, constraints) {
                   Alignment draggedAlignment(Offset delta) {
-                    final nextX = (alignment.x - delta.dx / constraints.maxWidth * 2).clamp(-1.0, 1.0).toDouble();
-                    final nextY = (alignment.y - delta.dy / constraints.maxHeight * 2).clamp(-1.0, 1.0).toDouble();
+                    final nextX =
+                        (alignment.x - delta.dx / constraints.maxWidth * 2)
+                            .clamp(-1.0, 1.0)
+                            .toDouble();
+                    final nextY =
+                        (alignment.y - delta.dy / constraints.maxHeight * 2)
+                            .clamp(-1.0, 1.0)
+                            .toDouble();
                     return Alignment(nextX, nextY);
                   }
 
@@ -1345,10 +1581,17 @@ class _BackgroundImagePositionPreview extends StatelessWidget {
                         IgnorePointer(
                           child: DecoratedBox(
                             decoration: BoxDecoration(
-                              border: Border.all(color: colorScheme.onSurface.withValues(alpha: 0.16), width: 2),
+                              border: Border.all(
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.16,
+                                ),
+                                width: 2,
+                              ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: colorScheme.shadow.withValues(alpha: 0.18),
+                                  color: colorScheme.shadow.withValues(
+                                    alpha: 0.18,
+                                  ),
                                   blurRadius: 18,
                                   offset: const Offset(0, 8),
                                 ),
@@ -1401,7 +1644,9 @@ class _SourceManagementCard extends StatelessWidget {
     return StudioPanel(
       padding: EdgeInsets.zero,
       radius: 22,
-      tint: selected ? colorScheme.primaryContainer : colorScheme.surfaceContainerLow,
+      tint: selected
+          ? colorScheme.primaryContainer
+          : colorScheme.surfaceContainerLow,
       child: Material(
         color: colorScheme.surface.withValues(alpha: 0),
         borderRadius: BorderRadius.circular(radius),
@@ -1414,7 +1659,9 @@ class _SourceManagementCard extends StatelessWidget {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final compact = constraints.maxWidth < 430;
-                final foreground = selected ? colorScheme.onPrimaryContainer : colorScheme.onSurface;
+                final foreground = selected
+                    ? colorScheme.onPrimaryContainer
+                    : colorScheme.onSurface;
                 final secondary = selected
                     ? colorScheme.onPrimaryContainer.withValues(alpha: 0.72)
                     : colorScheme.onSurfaceVariant;
@@ -1425,12 +1672,18 @@ class _SourceManagementCard extends StatelessWidget {
                       width: studioListIconBoxSizeOf(context),
                       height: studioListIconBoxSizeOf(context),
                       decoration: BoxDecoration(
-                        color: selected ? colorScheme.surface.withValues(alpha: 0.72) : colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(studioRadiusOf(context, 14)),
+                        color: selected
+                            ? colorScheme.surface.withValues(alpha: 0.72)
+                            : colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(
+                          studioRadiusOf(context, 14),
+                        ),
                       ),
                       child: Icon(
                         Icons.cloud_circle_rounded,
-                        color: selected ? colorScheme.primary : colorScheme.onPrimaryContainer,
+                        color: selected
+                            ? colorScheme.primary
+                            : colorScheme.onPrimaryContainer,
                       ),
                     ),
                     SizedBox(width: studioListGapOf(context)),
@@ -1446,12 +1699,18 @@ class _SourceManagementCard extends StatelessWidget {
                                   source.name,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.titleSmall?.copyWith(color: foreground),
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    color: foreground,
+                                  ),
                                 ),
                               ),
                               if (selected) ...[
                                 const SizedBox(width: 6),
-                                Icon(Icons.check_circle_rounded, size: 18, color: colorScheme.primary),
+                                Icon(
+                                  Icons.check_circle_rounded,
+                                  size: 18,
+                                  color: colorScheme.primary,
+                                ),
                               ],
                             ],
                           ),
@@ -1460,13 +1719,17 @@ class _SourceManagementCard extends StatelessWidget {
                             '$protocolLabel · ${source.hostLabel}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(color: secondary),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: secondary,
+                            ),
                           ),
                           Text(
                             source.rootPath,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(color: secondary),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: secondary,
+                            ),
                           ),
                         ],
                       ),
@@ -1485,8 +1748,14 @@ class _SourceManagementCard extends StatelessWidget {
                           }
                         },
                         itemBuilder: (context) => [
-                          PopupMenuItem(value: _SourceManagementAction.edit, child: Text(editLabel)),
-                          PopupMenuItem(value: _SourceManagementAction.delete, child: Text(deleteLabel)),
+                          PopupMenuItem(
+                            value: _SourceManagementAction.edit,
+                            child: Text(editLabel),
+                          ),
+                          PopupMenuItem(
+                            value: _SourceManagementAction.delete,
+                            child: Text(deleteLabel),
+                          ),
                         ],
                       )
                     else ...[
@@ -1500,7 +1769,10 @@ class _SourceManagementCard extends StatelessWidget {
                         tooltip: deleteLabel,
                         visualDensity: VisualDensity.compact,
                         onPressed: onDelete,
-                        icon: Icon(Icons.delete_outline_rounded, color: colorScheme.error),
+                        icon: Icon(
+                          Icons.delete_outline_rounded,
+                          color: colorScheme.error,
+                        ),
                       ),
                     ],
                   ],
@@ -1530,8 +1802,16 @@ class _ColorPreview extends StatelessWidget {
       decoration: BoxDecoration(
         color: color,
         shape: BoxShape.circle,
-        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.68)),
-        boxShadow: [BoxShadow(color: color.withValues(alpha: 0.24), blurRadius: 18, offset: const Offset(0, 6))],
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.68),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.24),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
     );
   }
@@ -1550,7 +1830,11 @@ class _CircularColorPicker extends StatelessWidget {
       return;
     }
 
-    final selected = _SaturationValueCirclePainter.hsvForOffset(localPosition, size, hsvColor.hue);
+    final selected = _SaturationValueCirclePainter.hsvForOffset(
+      localPosition,
+      size,
+      hsvColor.hue,
+    );
 
     onChanged(selected);
   }
@@ -1570,7 +1854,10 @@ class _CircularColorPicker extends StatelessWidget {
         builder: (context, constraints) {
           final colorScheme = Theme.of(context).colorScheme;
           final size = Size(constraints.maxWidth, constraints.maxHeight);
-          final thumbOffset = _SaturationValueCirclePainter.offsetForHsv(hsvColor, size);
+          final thumbOffset = _SaturationValueCirclePainter.offsetForHsv(
+            hsvColor,
+            size,
+          );
 
           return GestureDetector(
             onTapDown: (details) => _selectColor(details.localPosition, size),
@@ -1583,7 +1870,9 @@ class _CircularColorPicker extends StatelessWidget {
                 selectedColor: hsvColor.toColor(),
                 thumbOffset: thumbOffset,
                 hue: hsvColor.hue,
-                outlineColor: colorScheme.outlineVariant.withValues(alpha: 0.48),
+                outlineColor: colorScheme.outlineVariant.withValues(
+                  alpha: 0.48,
+                ),
               ),
               child: const SizedBox.expand(),
             ),
@@ -1615,7 +1904,10 @@ class _SaturationValueCirclePainter extends CustomPainter {
   }
 
   static Offset offsetForHsv(HSVColor hsvColor, Size size) {
-    final candidate = Offset(hsvColor.saturation * size.width, (1 - hsvColor.value) * size.height);
+    final candidate = Offset(
+      hsvColor.saturation * size.width,
+      (1 - hsvColor.value) * size.height,
+    );
     final center = Offset(size.width / 2, size.height / 2);
     final radius = math.min(size.width, size.height) / 2;
     final vector = candidate - center;
@@ -1625,7 +1917,10 @@ class _SaturationValueCirclePainter extends CustomPainter {
     }
 
     final direction = math.atan2(vector.dy, vector.dx);
-    return Offset(center.dx + math.cos(direction) * radius, center.dy + math.sin(direction) * radius);
+    return Offset(
+      center.dx + math.cos(direction) * radius,
+      center.dy + math.sin(direction) * radius,
+    );
   }
 
   @override
@@ -1633,7 +1928,8 @@ class _SaturationValueCirclePainter extends CustomPainter {
     final rect = Offset.zero & size;
     final center = rect.center;
     final radius = math.min(size.width, size.height) / 2;
-    final circle = Path()..addOval(Rect.fromCircle(center: center, radius: radius));
+    final circle = Path()
+      ..addOval(Rect.fromCircle(center: center, radius: radius));
 
     canvas.save();
     canvas.clipPath(circle);
@@ -1641,7 +1937,10 @@ class _SaturationValueCirclePainter extends CustomPainter {
     canvas.drawRect(rect, Paint()..color = hueColor);
     canvas.drawRect(
       rect,
-      Paint()..shader = const LinearGradient(colors: [Colors.white, Color(0x00FFFFFF)]).createShader(rect),
+      Paint()
+        ..shader = const LinearGradient(
+          colors: [Colors.white, Color(0x00FFFFFF)],
+        ).createShader(rect),
     );
     canvas.drawRect(
       rect,
@@ -1723,7 +2022,9 @@ class _HueSlider extends StatelessWidget {
             height: height,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.42)),
+              border: Border.all(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.42),
+              ),
               boxShadow: [
                 BoxShadow(
                   color: colorScheme.shadow.withValues(alpha: 0.08),
@@ -1772,7 +2073,10 @@ class _HueSliderPainter extends CustomPainter {
       rect,
       Paint()
         ..shader = LinearGradient(
-          colors: [for (var hue = 0; hue <= 360; hue += 60) HSVColor.fromAHSV(1, hue.toDouble(), 1, 1).toColor()],
+          colors: [
+            for (var hue = 0; hue <= 360; hue += 60)
+              HSVColor.fromAHSV(1, hue.toDouble(), 1, 1).toColor(),
+          ],
         ).createShader(rect),
     );
     canvas.drawCircle(
@@ -1812,17 +2116,21 @@ class _CacheManagementDialog extends ConsumerStatefulWidget {
   final Map<String, String> sourceNames;
 
   @override
-  ConsumerState<_CacheManagementDialog> createState() => _CacheManagementDialogState();
+  ConsumerState<_CacheManagementDialog> createState() =>
+      _CacheManagementDialogState();
 }
 
-class _CacheManagementDialogState extends ConsumerState<_CacheManagementDialog> {
+class _CacheManagementDialogState
+    extends ConsumerState<_CacheManagementDialog> {
   final Set<String> _selectedTrackIds = <String>{};
   late final Stream<List<PlaybackCacheInventoryItem>> _inventoryStream;
 
   @override
   void initState() {
     super.initState();
-    _inventoryStream = ref.read(webDavPlaybackCacheProvider).watchCachedTracks();
+    _inventoryStream = ref
+        .read(webDavPlaybackCacheProvider)
+        .watchCachedTracks();
   }
 
   @override
@@ -1840,8 +2148,13 @@ class _CacheManagementDialogState extends ConsumerState<_CacheManagementDialog> 
           title: Text(l10n.clearCachedFilesTitle),
           content: SizedBox(
             width: 560,
-            child: !snapshot.hasData && snapshot.connectionState == ConnectionState.waiting
-                ? const SizedBox(height: 220, child: Center(child: CircularProgressIndicator()))
+            child:
+                !snapshot.hasData &&
+                    snapshot.connectionState == ConnectionState.waiting
+                ? const SizedBox(
+                    height: 220,
+                    child: Center(child: CircularProgressIndicator()),
+                  )
                 : (items.isEmpty
                       ? _DialogEmptyState(
                           icon: Icons.offline_bolt_outlined,
@@ -1864,27 +2177,50 @@ class _CacheManagementDialogState extends ConsumerState<_CacheManagementDialog> 
                               child: ListView.separated(
                                 shrinkWrap: true,
                                 itemCount: items.length,
-                                separatorBuilder: (context, _) => SizedBox(height: studioListGapOf(context)),
+                                separatorBuilder: (context, _) =>
+                                    SizedBox(height: studioListGapOf(context)),
                                 itemBuilder: (context, index) {
                                   final item = items[index];
-                                  final selected = selectedIds.contains(item.trackId);
-                                  final sourceName = widget.sourceNames[item.sourceId] ?? l10n.cacheUnknownSourceLabel;
+                                  final selected = selectedIds.contains(
+                                    item.trackId,
+                                  );
+                                  final sourceName =
+                                      widget.sourceNames[item.sourceId] ??
+                                      l10n.cacheUnknownSourceLabel;
                                   final cacheMode = _cacheModeLabel(l10n, item);
-                                  final coverage = item.totalBytes == null || item.totalBytes == 0
+                                  final coverage =
+                                      item.totalBytes == null ||
+                                          item.totalBytes == 0
                                       ? l10n.cacheCoverageUnknownLabel
-                                      : l10n.cacheCoverageLabel(((item.cachedBytes / item.totalBytes!) * 100).round());
+                                      : l10n.cacheCoverageLabel(
+                                          ((item.cachedBytes /
+                                                      item.totalBytes!) *
+                                                  100)
+                                              .round(),
+                                        );
 
                                   return Material(
-                                    color: Theme.of(context).colorScheme.surfaceContainerLow,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceContainerLow,
                                     borderRadius: BorderRadius.circular(22),
                                     child: CheckboxListTile(
                                       value: selected,
                                       dense: true,
                                       visualDensity: VisualDensity.compact,
-                                      contentPadding: studioListItemPaddingOf(context),
-                                      controlAffinity: ListTileControlAffinity.leading,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-                                      title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                      contentPadding: studioListItemPaddingOf(
+                                        context,
+                                      ),
+                                      controlAffinity:
+                                          ListTileControlAffinity.leading,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(22),
+                                      ),
+                                      title: Text(
+                                        item.title,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                       subtitle: Text(
                                         '$sourceName · $cacheMode · $coverage\n${item.remotePath}',
                                         maxLines: 2,
@@ -1895,7 +2231,9 @@ class _CacheManagementDialogState extends ConsumerState<_CacheManagementDialog> 
                                           if (value == true) {
                                             _selectedTrackIds.add(item.trackId);
                                           } else {
-                                            _selectedTrackIds.remove(item.trackId);
+                                            _selectedTrackIds.remove(
+                                              item.trackId,
+                                            );
                                           }
                                         });
                                       },
@@ -1912,7 +2250,10 @@ class _CacheManagementDialogState extends ConsumerState<_CacheManagementDialog> 
               spacing: 8,
               runSpacing: 8,
               children: [
-                TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(materialL10n.closeButtonLabel)),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(materialL10n.closeButtonLabel),
+                ),
                 if (items.isNotEmpty)
                   TextButton(
                     onPressed: () {
@@ -1926,19 +2267,27 @@ class _CacheManagementDialogState extends ConsumerState<_CacheManagementDialog> 
                         }
                       });
                     },
-                    child: Text(selectedIds.length == items.length ? l10n.clearSelectionAction : l10n.selectAllAction),
+                    child: Text(
+                      selectedIds.length == items.length
+                          ? l10n.clearSelectionAction
+                          : l10n.selectAllAction,
+                    ),
                   ),
                 OutlinedButton(
                   onPressed: items.isEmpty
                       ? null
                       : () async {
                           final messenger = ScaffoldMessenger.of(this.context);
-                          await ref.read(webDavPlaybackCacheProvider).clearAllCachedData();
+                          await ref
+                              .read(webDavPlaybackCacheProvider)
+                              .clearAllCachedData();
                           if (!mounted) {
                             return;
                           }
                           setState(_selectedTrackIds.clear);
-                          messenger.showSnackBar(SnackBar(content: Text(l10n.cacheClearedMessage)));
+                          messenger.showSnackBar(
+                            SnackBar(content: Text(l10n.cacheClearedMessage)),
+                          );
                         },
                   child: Text(l10n.clearCacheAction),
                 ),
@@ -1947,7 +2296,9 @@ class _CacheManagementDialogState extends ConsumerState<_CacheManagementDialog> 
                       ? null
                       : () async {
                           final messenger = ScaffoldMessenger.of(this.context);
-                          await ref.read(webDavPlaybackCacheProvider).removeCachedTracks(selectedIds);
+                          await ref
+                              .read(webDavPlaybackCacheProvider)
+                              .removeCachedTracks(selectedIds);
                           if (!mounted) {
                             return;
                           }
@@ -1955,7 +2306,13 @@ class _CacheManagementDialogState extends ConsumerState<_CacheManagementDialog> 
                             _selectedTrackIds.removeAll(selectedIds);
                           });
                           messenger.showSnackBar(
-                            SnackBar(content: Text(l10n.selectedCacheDeletedMessage(selectedIds.length))),
+                            SnackBar(
+                              content: Text(
+                                l10n.selectedCacheDeletedMessage(
+                                  selectedIds.length,
+                                ),
+                              ),
+                            ),
                           );
                         },
                   child: Text(l10n.deleteSelectedCacheAction),
@@ -1968,7 +2325,10 @@ class _CacheManagementDialogState extends ConsumerState<_CacheManagementDialog> 
     );
   }
 
-  String _cacheModeLabel(AppLocalizations l10n, PlaybackCacheInventoryItem item) {
+  String _cacheModeLabel(
+    AppLocalizations l10n,
+    PlaybackCacheInventoryItem item,
+  ) {
     if (item.hasPersistentCopy && item.hasMemoryData) {
       return l10n.cacheModeHybridLabel;
     }
@@ -2009,7 +2369,11 @@ class _MetaPill extends StatelessWidget {
 }
 
 class _DialogEmptyState extends StatelessWidget {
-  const _DialogEmptyState({required this.icon, required this.title, required this.description});
+  const _DialogEmptyState({
+    required this.icon,
+    required this.title,
+    required this.description,
+  });
 
   final IconData icon;
   final String title;
@@ -2036,7 +2400,9 @@ class _DialogEmptyState extends StatelessWidget {
           Text(
             description,
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -2045,7 +2411,11 @@ class _DialogEmptyState extends StatelessWidget {
 }
 
 class _DialogOption<T> {
-  const _DialogOption({required this.value, required this.label, required this.icon});
+  const _DialogOption({
+    required this.value,
+    required this.label,
+    required this.icon,
+  });
 
   final T value;
   final String label;

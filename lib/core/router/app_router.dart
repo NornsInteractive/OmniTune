@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../app/app_shell.dart';
 import '../../core/models/source_protocol.dart';
+import '../../features/debug/presentation/debug_logs_page.dart';
 import '../../features/library/presentation/albums_page.dart';
 import '../../features/library/presentation/library_page.dart';
 import '../../features/player/presentation/now_playing_page.dart';
@@ -59,6 +60,14 @@ GoRouter appRouter(Ref ref) {
               GoRoute(
                 path: '/browser',
                 builder: (context, state) => const LibraryBrowserPage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/debug-logs',
+                builder: (context, state) => const DebugLogsPage(),
               ),
             ],
           ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:music/features/library/presentation/widgets/debug_log_panel.dart';
 import 'package:music/l10n/app_localizations.dart';
 
 import '../../../core/models/library_song.dart';
@@ -9,6 +10,7 @@ import '../../../core/models/source_profile.dart';
 import '../../../core/widgets/studio_chrome.dart';
 import '../../player/application/player_controller.dart';
 import '../../player/presentation/widgets/generated_cover_art.dart';
+import '../../player/presentation/widgets/track_cover_thumbnail.dart';
 import '../../settings/presentation/add_source_page.dart';
 import '../application/library_catalog_controller.dart';
 import '../application/library_controller.dart';
@@ -301,56 +303,66 @@ class _CollectionHome extends ConsumerWidget {
             .read(libraryCatalogControllerProvider.notifier)
             .scanAllSources();
       },
-      child: CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
-          SliverToBoxAdapter(
-            child: _CollectionHero(browser: browser, catalog: catalog),
-          ),
-          const StudioSliverGap(height: 14),
-          SliverToBoxAdapter(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final width = constraints.maxWidth >= 860
-                    ? (constraints.maxWidth - 16) / 2
-                    : constraints.maxWidth;
+      child: Column(
+        children: [
+          Expanded(
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: _CollectionHero(browser: browser, catalog: catalog),
+                ),
+                const StudioSliverGap(height: 14),
+                SliverToBoxAdapter(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final width = constraints.maxWidth >= 860
+                          ? (constraints.maxWidth - 16) / 2
+                          : constraints.maxWidth;
 
-                final cards = [
-                  _QuickCard(
-                    icon: LibraryCollectionSection.allSongs.icon,
-                    title: l10n.allSongsCollectionTitle,
-                    subtitle:
-                        '${catalog?.tracks.length ?? 0} ${l10n.tracksLabel}',
-                    onTap: () => context.push('/collection/list/all'),
-                  ),
-                  _QuickCard(
-                    icon: LibraryCollectionSection.liked.icon,
-                    title: l10n.likedCollectionTitle,
-                    subtitle:
-                        '${catalog?.likedTracks.length ?? 0} ${l10n.tracksLabel}',
-                    onTap: () => context.push('/collection/list/liked'),
-                  ),
-                  _QuickCard(
-                    icon: LibraryCollectionSection.favorites.icon,
-                    title: l10n.favoritesCollectionTitle,
-                    subtitle:
-                        '${catalog?.favoriteTracks.length ?? 0} ${l10n.tracksLabel}',
-                    onTap: () => context.push('/collection/list/favorites'),
-                  ),
-                ];
+                      final cards = [
+                        _QuickCard(
+                          icon: LibraryCollectionSection.allSongs.icon,
+                          title: l10n.allSongsCollectionTitle,
+                          subtitle:
+                              '${catalog?.tracks.length ?? 0} ${l10n.tracksLabel}',
+                          onTap: () => context.push('/collection/list/all'),
+                        ),
+                        _QuickCard(
+                          icon: LibraryCollectionSection.liked.icon,
+                          title: l10n.likedCollectionTitle,
+                          subtitle:
+                              '${catalog?.likedTracks.length ?? 0} ${l10n.tracksLabel}',
+                          onTap: () => context.push('/collection/list/liked'),
+                        ),
+                        _QuickCard(
+                          icon: LibraryCollectionSection.favorites.icon,
+                          title: l10n.favoritesCollectionTitle,
+                          subtitle:
+                              '${catalog?.favoriteTracks.length ?? 0} ${l10n.tracksLabel}',
+                          onTap: () =>
+                              context.push('/collection/list/favorites'),
+                        ),
+                      ];
 
-                return Wrap(
-                  spacing: studioSpacingOf(context, 14),
-                  runSpacing: studioSpacingOf(context, 14),
-                  children: [
-                    for (final card in cards)
-                      SizedBox(width: width, child: card),
-                  ],
-                );
-              },
+                      return Wrap(
+                        spacing: studioSpacingOf(context, 14),
+                        runSpacing: studioSpacingOf(context, 14),
+                        children: [
+                          for (final card in cards)
+                            SizedBox(width: width, child: card),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+                const StudioSliverGap(height: 14),
+              ],
             ),
           ),
-          const StudioSliverGap(height: 14),
+          // 显示日志面板
+          if (catalog?.isScanning == true || (catalog?.tracks.isEmpty ?? false))
+            const DebugLogPanel(maxHeight: 250, showClearButton: true),
         ],
       ),
     );
@@ -601,7 +613,12 @@ class _BrowserBody extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
     final controller = ref.read(libraryControllerProvider.notifier);
+    final catalog = ref.watch(libraryCatalogControllerProvider).valueOrNull;
     final playerState = ref.watch(playerControllerProvider);
+    final trackByRemoteEntry = {
+      for (final track in catalog?.tracks ?? const <LibrarySong>[])
+        '${track.sourceId}::${track.remotePath}': track,
+    };
 
     return StudioPanel(
       radius: 28,
@@ -662,6 +679,8 @@ class _BrowserBody extends ConsumerWidget {
 
                     return _EntryRow(
                       entry: entry,
+                      track:
+                          trackByRemoteEntry['${entry.sourceId}::${entry.path}'],
                       isCurrentTrack: isCurrentTrack,
                       onTap: () async {
                         try {
@@ -836,31 +855,19 @@ class _SongRow extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(radius),
           onTap: onTap,
-          onLongPress: onPlayNext,
+          onLongPress: onShowDetails,
           child: Padding(
             padding: studioListItemPaddingOf(context),
             child: Row(
               children: [
-                Container(
-                  width: leadingSize,
-                  height: leadingSize,
-                  decoration: BoxDecoration(
-                    color: isCurrentTrack
-                        ? colorScheme.surface
-                        : colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(
-                      studioRadiusOf(context, 16),
-                    ),
-                  ),
-                  child: Icon(
-                    isCurrentTrack
-                        ? Icons.graphic_eq_rounded
-                        : Icons.music_note_rounded,
-                    size: 20,
-                    color: isCurrentTrack
-                        ? colorScheme.primary
-                        : colorScheme.onPrimaryContainer,
-                  ),
+                TrackCoverThumbnail(
+                  title: song.displayTitle,
+                  subtitle: '${song.displayArtist} · ${song.displayAlbum}',
+                  size: leadingSize,
+                  borderRadius: studioRadiusOf(context, 16),
+                  localCoverPath: song.displayLocalCoverPath,
+                  coverUrl: song.displayCoverUrl,
+                  isCurrentTrack: isCurrentTrack,
                 ),
                 SizedBox(width: studioListGapOf(context)),
                 Expanded(
@@ -868,7 +875,7 @@ class _SongRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        song.title,
+                        song.displayTitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.titleSmall?.copyWith(
@@ -884,7 +891,7 @@ class _SongRow extends StatelessWidget {
                         ).clamp(3.0, 5.0).toDouble(),
                       ),
                       Text(
-                        '${song.artistName} · ${song.albumTitle}',
+                        '${song.displayArtist} · ${song.displayAlbum}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall?.copyWith(
@@ -961,26 +968,29 @@ class _SongRow extends StatelessWidget {
 class _EntryRow extends StatelessWidget {
   const _EntryRow({
     required this.entry,
+    this.track,
     required this.isCurrentTrack,
     required this.onTap,
   });
 
   final RemoteEntry entry;
+  final LibrarySong? track;
   final bool isCurrentTrack;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final colorScheme = Theme.of(context).colorScheme;
     final radius = studioRadiusOf(context, 18);
     final leadingSize = studioListIconBoxSizeOf(context);
-
-    final icon = switch (entry.kind) {
-      RemoteEntryKind.directory => Icons.folder_rounded,
-      RemoteEntryKind.audio =>
-        isCurrentTrack ? Icons.graphic_eq_rounded : Icons.music_note_rounded,
-      RemoteEntryKind.file => Icons.description_rounded,
-    };
+    final displayTrack = track;
+    final subtitle = displayTrack == null
+        ? entry.path
+        : [
+            displayTrack.displayArtist,
+            displayTrack.displayAlbum,
+          ].where((item) => item.trim().isNotEmpty).join(' · ');
 
     return StudioPanel(
       padding: EdgeInsets.zero,
@@ -998,20 +1008,50 @@ class _EntryRow extends StatelessWidget {
           visualDensity: VisualDensity.compact,
           minLeadingWidth: leadingSize,
           contentPadding: studioListItemPaddingOf(context),
-          leading: Container(
-            width: leadingSize,
-            height: leadingSize,
-            decoration: BoxDecoration(
-              color: colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Icon(icon, size: 18, color: colorScheme.onPrimaryContainer),
-          ),
-          title: Text(entry.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Text(
-            entry.path,
+          leading: entry.kind == RemoteEntryKind.audio
+              ? TrackCoverThumbnail(
+                  title: displayTrack?.displayTitle ?? entry.title,
+                  subtitle: subtitle.isEmpty ? entry.path : subtitle,
+                  size: leadingSize,
+                  borderRadius: studioRadiusOf(context, 13),
+                  localCoverPath: displayTrack?.displayLocalCoverPath,
+                  coverUrl: displayTrack?.displayCoverUrl,
+                  isCurrentTrack: isCurrentTrack,
+                )
+              : Container(
+                  width: leadingSize,
+                  height: leadingSize,
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: Icon(
+                    entry.kind == RemoteEntryKind.directory
+                        ? Icons.folder_rounded
+                        : Icons.description_rounded,
+                    size: 18,
+                    color: colorScheme.onPrimaryContainer,
+                  ),
+                ),
+          title: Text(
+            displayTrack?.displayTitle ?? entry.name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: isCurrentTrack
+                  ? colorScheme.onPrimaryContainer
+                  : colorScheme.onSurface,
+            ),
+          ),
+          subtitle: Text(
+            subtitle.isEmpty ? entry.path : subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: isCurrentTrack
+                  ? colorScheme.onPrimaryContainer.withValues(alpha: 0.74)
+                  : colorScheme.onSurfaceVariant,
+            ),
           ),
           trailing: Icon(
             entry.isDirectory

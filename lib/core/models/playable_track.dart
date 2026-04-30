@@ -11,6 +11,13 @@ class PlayableTrack {
     this.sourceSizeBytes,
     this.artistName,
     this.albumTitle,
+    // 刮削字段
+    this.autoScrapedTitle,
+    this.autoScrapedArtist,
+    this.autoScrapedAlbum,
+    this.autoScrapedCoverUrl,
+    this.localCoverPath,
+    this.lyrics,
   });
 
   final String id;
@@ -22,4 +29,33 @@ class PlayableTrack {
   final int? sourceSizeBytes;
   final String? artistName;
   final String? albumTitle;
+
+  // 自动刮削字段
+  final String? autoScrapedTitle;
+  final String? autoScrapedArtist;
+  final String? autoScrapedAlbum;
+  final String? autoScrapedCoverUrl;
+  final String? localCoverPath; // 本地缓存的封面文件路径
+  final String? lyrics;
+
+  /// 获取显示标题（优先级：自动刮削 > 原始）
+  String get displayTitle {
+    if (autoScrapedTitle?.isNotEmpty == true) return autoScrapedTitle!;
+    return title;
+  }
+
+  /// 获取显示艺术家（优先级：自动刮削 > 原始）
+  String get displayArtist {
+    if (autoScrapedArtist?.isNotEmpty == true) return autoScrapedArtist!;
+    return artistName ?? '';
+  }
+
+  /// 获取显示专辑（优先级：自动刮削 > 原始）
+  String get displayAlbum {
+    if (autoScrapedAlbum?.isNotEmpty == true) return autoScrapedAlbum!;
+    return albumTitle ?? '';
+  }
+
+  /// 获取显示歌词 
+  String? get displayLyrics => lyrics;
 }
