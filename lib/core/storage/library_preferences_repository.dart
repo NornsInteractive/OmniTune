@@ -25,6 +25,8 @@ class LibraryPreferences {
     this.backgroundImageSource,
     this.backgroundImageAlignmentX = 0,
     this.backgroundImageAlignmentY = 0,
+    this.albumPageSize = 9,
+    this.albumViewGrid = false,
   });
 
   final Set<String> favoriteTrackIds;
@@ -40,6 +42,8 @@ class LibraryPreferences {
   final String? backgroundImageSource;
   final double backgroundImageAlignmentX;
   final double backgroundImageAlignmentY;
+  final int albumPageSize;
+  final bool albumViewGrid;
 
   PlaybackCacheSettings get playbackCacheSettings {
     return PlaybackCacheSettings(
@@ -63,6 +67,8 @@ class LibraryPreferences {
     bool clearBackgroundImageSource = false,
     double? backgroundImageAlignmentX,
     double? backgroundImageAlignmentY,
+    int? albumPageSize,
+    bool? albumViewGrid,
   }) {
     return LibraryPreferences(
       favoriteTrackIds: favoriteTrackIds ?? this.favoriteTrackIds,
@@ -92,6 +98,8 @@ class LibraryPreferences {
           (backgroundImageAlignmentY ?? this.backgroundImageAlignmentY)
               .clamp(-1.0, 1.0)
               .toDouble(),
+      albumPageSize: (albumPageSize ?? this.albumPageSize).clamp(1, 60).toInt(),
+      albumViewGrid: albumViewGrid ?? this.albumViewGrid,
     );
   }
 }
@@ -107,7 +115,7 @@ class SecureLibraryPreferencesRepository
   SecureLibraryPreferencesRepository(this._storage);
 
   static const _key = 'library_preferences_v1';
-  static const _displayDefaultsVersion = 2;
+  static const _displayDefaultsVersion = 3;
 
   final FlutterSecureStorage _storage;
 
@@ -125,7 +133,7 @@ class SecureLibraryPreferencesRepository
         displayDefaultsVersion < _displayDefaultsVersion;
     final fontScaleStorage = json['fontScaleFactor'] ?? json['fontScale'];
     final fontScaleFactor =
-        shouldMigrateDisplayDefaults && _isStoredDefaultScale(fontScaleStorage)
+        shouldMigrateDisplayDefaults && _matchesOldFontDefault(fontScaleStorage)
         ? AppDisplayPreferences.defaultFontScale
         : AppDisplayPreferences.fontScaleFromStorage(fontScaleStorage);
     final customThemeColors = _customThemeColorsFromStorage(
@@ -165,6 +173,10 @@ class SecureLibraryPreferencesRepository
           ((json['backgroundImageAlignmentY'] as num?)?.toDouble() ?? 0)
               .clamp(-1.0, 1.0)
               .toDouble(),
+      albumPageSize: ((json['albumPageSize'] as num?)?.toInt() ?? 9)
+          .clamp(1, 60)
+          .toInt(),
+      albumViewGrid: json['albumViewGrid'] as bool? ?? false,
     );
   }
 
@@ -196,6 +208,8 @@ class SecureLibraryPreferencesRepository
       'backgroundImageAlignmentY': preferences.backgroundImageAlignmentY
           .clamp(-1.0, 1.0)
           .toDouble(),
+      'albumPageSize': preferences.albumPageSize.clamp(1, 60),
+      'albumViewGrid': preferences.albumViewGrid,
     });
     return _storage.write(key: _key, value: raw);
   }
@@ -210,11 +224,25 @@ class SecureLibraryPreferencesRepository
 
     final colors = CustomThemeColors.fromJson(value);
     final compactnessStorage = value['interfaceCompactness'];
-    if (shouldMigrateDisplayDefaults &&
-        _isStoredDefaultScale(compactnessStorage)) {
-      return colors.copyWith(
-        interfaceCompactness: const CustomThemeColors().interfaceCompactness,
+    if (shouldMigrateDisplayDefaults) {
+      final borderRadiusStorage = value['borderRadius'];
+      final shouldResetCompactness =
+          _isStoredDefaultScale(compactnessStorage) ||
+          _matchesOldCompactnessDefault(compactnessStorage);
+      final shouldResetRadius = _matchesOldBorderRadiusDefault(
+        borderRadiusStorage,
       );
+
+      if (shouldResetCompactness || shouldResetRadius) {
+        return colors.copyWith(
+          interfaceCompactness: shouldResetCompactness
+              ? const CustomThemeColors().interfaceCompactness
+              : colors.interfaceCompactness,
+          borderRadius: shouldResetRadius
+              ? const CustomThemeColors().borderRadius
+              : colors.borderRadius,
+        );
+      }
     }
 
     return colors;
@@ -222,6 +250,25 @@ class SecureLibraryPreferencesRepository
 
   bool _isStoredDefaultScale(Object? value) {
     return value is num && (value.toDouble() - 1).abs() < 0.0001;
+  }
+
+  bool _matchesOldFontDefault(Object? value) {
+    if (value is num) {
+      return (value.toDouble() - 0.85).abs() < 0.0001 ||
+          _isStoredDefaultScale(value);
+    }
+    if (value is String) {
+      return value == 'standard';
+    }
+    return false;
+  }
+
+  bool _matchesOldCompactnessDefault(Object? value) {
+    return value is num && (value.toDouble() - 0.5).abs() < 0.0001;
+  }
+
+  bool _matchesOldBorderRadiusDefault(Object? value) {
+    return value is num && (value.toDouble() - 24).abs() < 0.0001;
   }
 }
 

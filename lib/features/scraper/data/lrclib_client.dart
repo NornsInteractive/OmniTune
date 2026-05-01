@@ -8,6 +8,7 @@ class LrclibClient {
         BaseOptions(
           baseUrl: _baseUrl,
           connectTimeout: const Duration(seconds: 10),
+          sendTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 10),
           responseType: ResponseType.json,
         ),
@@ -47,6 +48,66 @@ class LrclibClient {
       artistName: artistName,
       albumName: albumName,
     );
+  }
+
+  Future<List<LrclibLyrics>> searchLyricsCandidates({
+    required String trackName,
+    String? artistName,
+    String? albumName,
+    int limit = 12,
+  }) async {
+    if (trackName.trim().isEmpty) {
+      return const [];
+    }
+    try {
+      final response = await _get(
+        '/search',
+        queryParameters: {
+          'track_name': trackName.trim(),
+          if (artistName?.trim().isNotEmpty == true)
+            'artist_name': artistName!.trim(),
+          if (albumName?.trim().isNotEmpty == true)
+            'album_name': albumName!.trim(),
+        },
+        options: Options(
+          connectTimeout: const Duration(seconds: 10),
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 16),
+        ),
+        maxTimeoutRetries: 1,
+      );
+      if (response?.data is! List<dynamic>) {
+        return const [];
+      }
+      return _rankLyricsCandidates(
+        response!.data as List<dynamic>,
+        trackName: trackName,
+        artistName: artistName,
+        albumName: albumName,
+        limit: limit,
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return const [];
+      }
+      if (_isTimeoutLike(e) && artistName?.trim().isNotEmpty == true) {
+        final fallback = await _searchLyricsCandidatesByTitleOnly(
+          trackName: trackName,
+          limit: limit,
+        );
+        if (fallback.isNotEmpty) {
+          return fallback;
+        }
+      }
+      DebugLogger.warning(
+        'LRCLIB',
+        '歌词候选搜索失败: ${e.response?.statusCode ?? e.type}',
+      );
+      return const [];
+    } catch (e, stack) {
+      DebugLogger.error('LRCLIB', '歌词候选搜索异常', e.toString(), stack);
+      return const [];
+    }
   }
 
   Future<LrclibLyrics?> _getExactLyrics({
@@ -153,13 +214,73 @@ class LrclibClient {
     return null;
   }
 
+  Future<List<LrclibLyrics>> _searchLyricsCandidatesByTitleOnly({
+    required String trackName,
+    required int limit,
+  }) async {
+    try {
+      final response = await _get(
+        '/search',
+        queryParameters: {'track_name': trackName.trim()},
+        options: Options(
+          connectTimeout: const Duration(seconds: 10),
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 16),
+        ),
+        maxTimeoutRetries: 0,
+      );
+      if (response?.data is! List<dynamic>) {
+        return const [];
+      }
+      return _rankLyricsCandidates(
+        response!.data as List<dynamic>,
+        trackName: trackName,
+        limit: limit,
+      );
+    } catch (e, stack) {
+      DebugLogger.warning('LRCLIB', '歌词候选标题兜底搜索失败: $e');
+      DebugLogger.info('LRCLIB', '歌词候选标题兜底堆栈: $stack');
+      return const [];
+    }
+  }
+
+  List<LrclibLyrics> _rankLyricsCandidates(
+    List<dynamic> data, {
+    required String trackName,
+    String? artistName,
+    String? albumName,
+    required int limit,
+  }) {
+    final results = data
+        .whereType<Map<String, dynamic>>()
+        .map(LrclibLyrics.fromJson)
+        .where((lyrics) => lyrics.bestLyrics.trim().isNotEmpty)
+        .toList();
+    results.sort((left, right) {
+      final leftScore = _scoreLyrics(left, trackName, artistName, albumName);
+      final rightScore = _scoreLyrics(right, trackName, artistName, albumName);
+      return rightScore.compareTo(leftScore);
+    });
+    if (results.length <= limit) {
+      return results;
+    }
+    return results.take(limit).toList(growable: false);
+  }
+
   Future<Response<dynamic>?> _get(
     String path, {
     Map<String, dynamic>? queryParameters,
+    int retryCount = 0,
+    int maxTimeoutRetries = 0,
+    Options? options,
   }) async {
     await _throttleRequests();
     try {
-      return await _dio.get(path, queryParameters: queryParameters);
+      return await _dio.get(
+        path,
+        queryParameters: queryParameters,
+        options: options,
+      );
     } on DioException catch (e) {
       if (e.response?.statusCode == 429) {
         final retryAfter = _retryAfterDuration(e.response);
@@ -169,10 +290,41 @@ class LrclibClient {
         );
         await Future.delayed(retryAfter);
         await _throttleRequests();
-        return _dio.get(path, queryParameters: queryParameters);
+        return _dio.get(
+          path,
+          queryParameters: queryParameters,
+          options: options,
+        );
+      }
+      final timeoutLike =
+          e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.connectionError;
+      if (timeoutLike && retryCount < maxTimeoutRetries) {
+        final delay = Duration(milliseconds: 500 * (retryCount + 1));
+        DebugLogger.warning(
+          'LRCLIB',
+          '请求超时/连接异常，${delay.inMilliseconds}ms 后重试 (${retryCount + 1}/$maxTimeoutRetries)',
+        );
+        await Future.delayed(delay);
+        return _get(
+          path,
+          queryParameters: queryParameters,
+          retryCount: retryCount + 1,
+          maxTimeoutRetries: maxTimeoutRetries,
+          options: options,
+        );
       }
       rethrow;
     }
+  }
+
+  bool _isTimeoutLike(DioException error) {
+    return error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        error.type == DioExceptionType.sendTimeout ||
+        error.type == DioExceptionType.connectionError;
   }
 
   Future<void> _throttleRequests() {

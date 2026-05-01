@@ -1,6 +1,12 @@
+import 'dart:ui';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:music/l10n/app_localizations.dart';
+import 'package:path/path.dart' as p;
 
 import '../../../core/models/library_album.dart';
 import '../../../core/models/library_song.dart';
@@ -9,9 +15,15 @@ import '../../../core/widgets/studio_chrome.dart';
 import '../../player/application/player_controller.dart';
 import '../../player/presentation/widgets/generated_cover_art.dart';
 import '../../player/presentation/widgets/track_cover_thumbnail.dart';
+import '../../scraper/presentation/manual_scraping_sheet.dart';
+import '../../settings/application/app_settings_controller.dart';
 import '../../settings/presentation/add_source_page.dart';
+import '../../sources/application/source_session_manager.dart';
+import '../../sources/application/sources_controller.dart';
 import '../application/library_catalog_controller.dart';
 import '../application/library_controller.dart';
+
+enum _AlbumViewMode { grid, list }
 
 class AlbumsPage extends ConsumerStatefulWidget {
   const AlbumsPage({super.key});
@@ -22,73 +34,101 @@ class AlbumsPage extends ConsumerStatefulWidget {
 
 class _AlbumsPageState extends ConsumerState<AlbumsPage> {
   String? _selectedSourceId;
-  final Map<String, LibraryAlbumGroupingMode> _groupingBySourceId = {};
+  _AlbumViewMode _viewMode = _AlbumViewMode.list;
+  int _pageIndex = 0;
+  bool _hydratedViewMode = false;
 
   @override
   Widget build(BuildContext context) {
+    _GlacierPalette.sync(context);
+    final l10n = AppLocalizations.of(context)!;
+    final preferences = ref.watch(appSettingsControllerProvider).valueOrNull;
     final browserAsync = ref.watch(libraryControllerProvider);
     final catalogAsync = ref.watch(libraryCatalogControllerProvider);
 
-    return browserAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => _AlbumsFeedback(message: error.toString()),
-      data: (browser) {
-        if (!browser.hasSources) {
-          final l10n = AppLocalizations.of(context)!;
-          return _AlbumsEmptyState(
-            title: l10n.libraryEmptyTitle,
-            description: l10n.libraryEmptyDescription,
-            actionLabel: l10n.addSourceAction,
-            onPressed: () {
-              showSourceTypePicker(context);
-            },
-          );
-        }
+    if (!_hydratedViewMode && preferences != null) {
+      _viewMode = preferences.albumViewGrid
+          ? _AlbumViewMode.grid
+          : _AlbumViewMode.list;
+      _hydratedViewMode = true;
+    }
 
-        final selectedSource = _resolveSelectedSource(browser.sources, browser);
-        final groupingMode =
-            _groupingBySourceId[selectedSource.id] ??
-            LibraryAlbumGroupingMode.folder;
+    void handleViewModeChanged(_AlbumViewMode value) {
+      setState(() {
+        _viewMode = value;
+        _pageIndex = 0;
+      });
+      ref
+          .read(appSettingsControllerProvider.notifier)
+          .setAlbumViewGrid(value == _AlbumViewMode.grid);
+    }
 
-        return catalogAsync.when(
-          loading: () => _AlbumsContent(
-            sources: browser.sources,
-            selectedSource: selectedSource,
-            groupingMode: groupingMode,
-            onSourceSelected: (sourceId) {
-              setState(() => _selectedSourceId = sourceId);
-            },
-            onGroupingChanged: (value) {
-              setState(() => _groupingBySourceId[selectedSource.id] = value);
-            },
-          ),
-          error: (error, _) => _AlbumsFeedback(message: error.toString()),
-          data: (catalog) {
-            final albums = catalog.albumsForSource(
-              selectedSource.id,
-              groupingMode,
+    return _GlacierScreen(
+      child: browserAsync.when(
+        loading: () => Center(
+          child: CircularProgressIndicator(color: _GlacierPalette.primary),
+        ),
+        error: (error, _) => _GlacierCenteredMessage(message: error.toString()),
+        data: (browser) {
+          if (!browser.hasSources) {
+            return _AlbumsEmptyState(
+              title: l10n.sourceManagementEmptyTitle,
+              description:
+                  'Add a source to start building album views from your cloud library.',
             );
-            final sourceTracks = catalog.tracks
-                .where((track) => track.sourceId == selectedSource.id)
-                .length;
+          }
 
-            return _AlbumsContent(
+          final selectedSource = _resolveSelectedSource(
+            browser.sources,
+            browser,
+          );
+          final groupingMode = LibraryAlbumGroupingMode.folder;
+
+          return catalogAsync.when(
+            loading: () => _AlbumsContent(
               sources: browser.sources,
               selectedSource: selectedSource,
-              groupingMode: groupingMode,
-              catalog: catalog,
-              albums: albums,
-              sourceTracks: sourceTracks,
+              viewMode: _viewMode,
+              pageIndex: _pageIndex,
+              onViewModeChanged: handleViewModeChanged,
+              onPageChanged: (value) {
+                setState(() => _pageIndex = value);
+              },
               onSourceSelected: (sourceId) {
                 setState(() => _selectedSourceId = sourceId);
               },
-              onGroupingChanged: (value) {
-                setState(() => _groupingBySourceId[selectedSource.id] = value);
-              },
-            );
-          },
-        );
-      },
+            ),
+            error: (error, _) =>
+                _GlacierCenteredMessage(message: error.toString()),
+            data: (catalog) {
+              final albums = catalog.albumsForSource(
+                selectedSource.id,
+                groupingMode,
+              );
+              final sourceTracks = catalog.tracks
+                  .where((track) => track.sourceId == selectedSource.id)
+                  .length;
+
+              return _AlbumsContent(
+                sources: browser.sources,
+                selectedSource: selectedSource,
+                catalog: catalog,
+                albums: albums,
+                sourceTracks: sourceTracks,
+                viewMode: _viewMode,
+                pageIndex: _pageIndex,
+                onViewModeChanged: handleViewModeChanged,
+                onPageChanged: (value) {
+                  setState(() => _pageIndex = value);
+                },
+                onSourceSelected: (sourceId) {
+                  setState(() => _selectedSourceId = sourceId);
+                },
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
@@ -110,424 +150,362 @@ class _AlbumsContent extends ConsumerWidget {
   const _AlbumsContent({
     required this.sources,
     required this.selectedSource,
-    required this.groupingMode,
+    required this.viewMode,
+    required this.pageIndex,
+    required this.onViewModeChanged,
+    required this.onPageChanged,
     this.catalog,
     this.albums = const [],
     this.sourceTracks = 0,
     this.onSourceSelected,
-    this.onGroupingChanged,
   });
 
   final List<SourceProfile> sources;
   final SourceProfile selectedSource;
-  final LibraryAlbumGroupingMode groupingMode;
+  final _AlbumViewMode viewMode;
+  final int pageIndex;
+  final ValueChanged<_AlbumViewMode> onViewModeChanged;
+  final ValueChanged<int> onPageChanged;
   final LibraryCatalogState? catalog;
   final List<LibraryAlbum> albums;
   final int sourceTracks;
   final ValueChanged<String>? onSourceSelected;
-  final ValueChanged<LibraryAlbumGroupingMode>? onGroupingChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
+    final width = MediaQuery.sizeOf(context).width;
+    final preferences = ref.watch(appSettingsControllerProvider).valueOrNull;
+    final itemsPerPage = _itemsPerPage(width, preferences?.albumPageSize ?? 9);
+    final totalPages = (albums.length / itemsPerPage).ceil().clamp(1, 999);
+    final currentPage = pageIndex.clamp(0, totalPages - 1);
+    final visibleAlbums = albums
+        .skip(currentPage * itemsPerPage)
+        .take(itemsPerPage)
+        .toList(growable: false);
+    final albumCountBySource = <String, int>{};
+    final trackCountBySource = <String, int>{};
+    for (final source in sources) {
+      albumCountBySource[source.id] =
+          catalog
+              ?.albumsForSource(source.id, LibraryAlbumGroupingMode.folder)
+              .length ??
+          (source.id == selectedSource.id ? albums.length : 0);
+      trackCountBySource[source.id] =
+          catalog?.tracks
+              .where((track) => track.sourceId == source.id)
+              .length ??
+          (source.id == selectedSource.id ? sourceTracks : 0);
+    }
 
-    return RefreshIndicator(
-      onRefresh: () {
-        if (catalog == null) {
-          return ref
-              .read(libraryCatalogControllerProvider.notifier)
-              .scanAllSources();
-        }
+    Future<void> refreshAlbums() {
+      if (catalog == null) {
         return ref
             .read(libraryCatalogControllerProvider.notifier)
-            .rescanSource(selectedSource.id);
-      },
-      child: CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
-          SliverToBoxAdapter(
-            child: _AlbumsHeaderCard(
-              sources: sources,
-              selectedSource: selectedSource,
-              groupingMode: groupingMode,
-              catalog: catalog,
-              onSourceSelected: onSourceSelected,
-              onGroupingChanged: onGroupingChanged,
-              onScanPressed: () {
-                if (catalog == null ||
-                    catalog!.scannedSources
-                        .where((source) => source.id == selectedSource.id)
-                        .isEmpty) {
-                  ref
-                      .read(libraryCatalogControllerProvider.notifier)
-                      .scanAllSources();
-                } else {
-                  ref
-                      .read(libraryCatalogControllerProvider.notifier)
-                      .rescanSource(selectedSource.id);
-                }
-              },
+            .scanAllSources();
+      }
+      return ref
+          .read(libraryCatalogControllerProvider.notifier)
+          .rescanSource(selectedSource.id);
+    }
+
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: studioListPaddingOf(
+              context,
+              const EdgeInsets.fromLTRB(28, 12, 28, 0),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        l10n.albumsTabLabel,
+                        style: _glacierTextStyle(
+                          color: _GlacierPalette.onSurface,
+                          size: 34,
+                          weight: FontWeight.w700,
+                          height: 1.05,
+                        ),
+                      ),
+                    ),
+                    _TopIconButton(
+                      icon: Icons.radar_rounded,
+                      onTap: refreshAlbums,
+                    ),
+                    const SizedBox(width: 8),
+                    _ViewModeButton(
+                      icon: Icons.grid_view_rounded,
+                      selected: viewMode == _AlbumViewMode.grid,
+                      onTap: () => onViewModeChanged(_AlbumViewMode.grid),
+                    ),
+                    const SizedBox(width: 8),
+                    _ViewModeButton(
+                      icon: Icons.view_list_rounded,
+                      selected: viewMode == _AlbumViewMode.list,
+                      onTap: () => onViewModeChanged(_AlbumViewMode.list),
+                    ),
+                    const SizedBox(width: 8),
+                    _TopIconButton(
+                      icon: Icons.add_link_rounded,
+                      onTap: () => showSourceTypePicker(context),
+                    ),
+                    const SizedBox(width: 8),
+                    _TopIconButton(
+                      icon: Icons.settings_rounded,
+                      onTap: () => context.push('/settings'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  selectedSource.name,
+                  style: _glacierTextStyle(
+                    color: _GlacierPalette.onSurfaceVariant,
+                    size: 15,
+                    weight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  height: 60,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: sources.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 10),
+                    itemBuilder: (context, index) {
+                      final source = sources[index];
+                      final countLabel =
+                          '${albumCountBySource[source.id] ?? 0} ${l10n.albumsTabLabel} ${trackCountBySource[source.id] ?? 0} ${l10n.tracksLabel}';
+                      return _SourceChip(
+                        label: source.name,
+                        subtitle: countLabel,
+                        selected: source.id == selectedSource.id,
+                        onTap: onSourceSelected == null
+                            ? null
+                            : () => onSourceSelected!(source.id),
+                      );
+                    },
+                  ),
+                ),
+                if (catalog?.isScanning == true) ...[
+                  const SizedBox(height: 18),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      minHeight: 4,
+                      backgroundColor: _GlacierPalette.surfaceContainerHigh,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        _GlacierPalette.primary,
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 22),
+              ],
             ),
           ),
-          const StudioSliverGap(height: 16),
-          if (catalog != null && catalog!.isScanning)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: studioPaddingOf(
-                  context,
-                  const EdgeInsets.only(bottom: 16),
-                ),
-                child: const LinearProgressIndicator(
-                  minHeight: 4,
-                  borderRadius: BorderRadius.all(Radius.circular(999)),
-                ),
-              ),
-            ),
-          if (albums.isEmpty)
-            SliverToBoxAdapter(
-              child: _AlbumsEmptyState(
-                title: l10n.albumsEmptyTitle,
-                description: l10n.albumsEmptyDescription,
-                actionLabel: l10n.scanLibraryAction,
-                onPressed: () {
-                  ref
-                      .read(libraryCatalogControllerProvider.notifier)
-                      .scanAllSources();
-                },
-              ),
-            )
-          else
-            SliverPadding(
-              padding: studioPaddingOf(
+        ),
+        if (albums.isEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: studioListPaddingOf(
                 context,
-                const EdgeInsets.only(bottom: 20),
+                const EdgeInsets.fromLTRB(28, 0, 28, 140),
               ),
-              sliver: SliverLayoutBuilder(
-                builder: (context, constraints) {
-                  final crossAxisCount = constraints.crossAxisExtent >= 1320
-                      ? 5
-                      : constraints.crossAxisExtent >= 900
-                      ? 4
-                      : constraints.crossAxisExtent >= 320
-                      ? 3
-                      : 2;
-
-                  return SliverGrid(
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      final album = albums[index];
-                      return _AlbumCard(
-                        album: album,
-                        onTap: () => _openAlbumSheet(context, ref, album),
-                      );
-                    }, childCount: albums.length),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: crossAxisCount,
-                      mainAxisSpacing: studioSpacingOf(context, 12),
-                      crossAxisSpacing: studioSpacingOf(context, 12),
-                      childAspectRatio: 0.62,
-                    ),
-                  );
-                },
+              child: _EmptyGlassCard(
+                title: l10n.albumsEmptyTitle,
+                description:
+                    'Run a scan for this source and OmniTune will group tracks into album collections here.',
               ),
             ),
-        ],
-      ),
+          )
+        else
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: studioListPaddingOf(
+                context,
+                const EdgeInsets.fromLTRB(28, 0, 28, 144),
+              ),
+              child: Column(
+                children: [
+                  if (viewMode == _AlbumViewMode.list)
+                    _AlbumList(
+                      albums: visibleAlbums,
+                      onOpenAlbum: (album) =>
+                          _openAlbumSheet(context, ref, album, l10n),
+                      onPlayAlbum: (album) {
+                        if (album.tracks.isEmpty) {
+                          return;
+                        }
+                        ref
+                            .read(playerControllerProvider.notifier)
+                            .playLibrarySong(
+                              album.tracks.first,
+                              playlist: album.tracks,
+                            );
+                      },
+                    )
+                  else
+                    _AlbumGrid(
+                      albums: visibleAlbums,
+                      maxWidth: width - 56,
+                      onOpenAlbum: (album) =>
+                          _openAlbumSheet(context, ref, album, l10n),
+                      onPlayAlbum: (album) {
+                        if (album.tracks.isEmpty) {
+                          return;
+                        }
+                        ref
+                            .read(playerControllerProvider.notifier)
+                            .playLibrarySong(
+                              album.tracks.first,
+                              playlist: album.tracks,
+                            );
+                      },
+                    ),
+                  if (totalPages > 1) ...[
+                    const SizedBox(height: 32),
+                    _PaginationRow(
+                      currentPage: currentPage,
+                      totalPages: totalPages,
+                      onPageChanged: onPageChanged,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+      ],
     );
+  }
+
+  int _itemsPerPage(double width, int configuredPageSize) {
+    return configuredPageSize.clamp(1, 60).toInt();
   }
 
   Future<void> _openAlbumSheet(
     BuildContext context,
     WidgetRef ref,
     LibraryAlbum album,
+    AppLocalizations l10n,
   ) {
     return showModalBottomSheet<void>(
       context: context,
-      showDragHandle: true,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (sheetContext) {
-        final colorScheme = Theme.of(sheetContext).colorScheme;
-        final maxSheetHeight = MediaQuery.sizeOf(sheetContext).height * 0.58;
+        final maxSheetHeight = MediaQuery.sizeOf(sheetContext).height * 0.72;
 
         return SafeArea(
           top: false,
           child: Padding(
-            padding: studioPaddingOf(
-              sheetContext,
-              const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            ),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxHeight: maxSheetHeight),
-              child: Consumer(
-                builder: (context, sheetRef, _) {
-                  final l10n = AppLocalizations.of(context)!;
-                  final catalogState = sheetRef
-                      .watch(libraryCatalogControllerProvider)
-                      .valueOrNull;
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(
+                studioRadiusOf(sheetContext, 28),
+              ),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                child: Container(
+                  constraints: BoxConstraints(maxHeight: maxSheetHeight),
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+                  decoration: BoxDecoration(
+                    color: _GlacierPalette.surface.withValues(alpha: 0.94),
+                    borderRadius: BorderRadius.circular(
+                      studioRadiusOf(sheetContext, 28),
+                    ),
+                  ),
+                  child: Consumer(
+                    builder: (context, sheetRef, _) {
+                      final catalogState = sheetRef
+                          .watch(libraryCatalogControllerProvider)
+                          .valueOrNull;
 
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      StudioPanel(
-                        padding: const EdgeInsets.all(12),
-                        radius: 22,
-                        tint: colorScheme.primaryContainer,
-                        child: Row(
-                          children: [
-                            GeneratedCoverArt(
-                              title: album.title,
-                              subtitle: album.artistName,
-                              size: 64,
-                              borderRadius: 18,
-                            ),
-                            const StudioGap(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    album.title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.titleMedium,
-                                  ),
-                                  const StudioGap(height: 4),
-                                  Text(
-                                    album.artistName,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: Theme.of(context).textTheme.bodySmall
-                                        ?.copyWith(
-                                          color: colorScheme.onSurfaceVariant,
-                                        ),
-                                  ),
-                                  const StudioGap(height: 8),
-                                  StudioPill(
-                                    icon: Icons.music_note_rounded,
-                                    label:
-                                        '${album.trackCount} ${l10n.tracksLabel}',
-                                    prominent: true,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const StudioGap(height: 12),
-                      Flexible(
-                        child: ListView.separated(
-                          shrinkWrap: true,
-                          itemCount: album.tracks.length,
-                          separatorBuilder: (context, _) =>
-                              SizedBox(height: studioListGapOf(context)),
-                          itemBuilder: (context, index) {
-                            final track = album.tracks[index];
-                            final isFavorite =
-                                catalogState?.favoriteTrackIds.contains(
-                                  track.id,
-                                ) ??
-                                false;
-                            final isLiked =
-                                catalogState?.likedTrackIds.contains(
-                                  track.id,
-                                ) ??
-                                false;
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _AlbumSheetHeader(album: album),
+                          const SizedBox(height: 14),
+                          Flexible(
+                            child: ListView.separated(
+                              shrinkWrap: true,
+                              itemCount: album.tracks.length,
+                              separatorBuilder: (_, _) =>
+                                  const SizedBox(height: 10),
+                              itemBuilder: (context, index) {
+                                final track = album.tracks[index];
+                                final isFavorite =
+                                    catalogState?.favoriteTrackIds.contains(
+                                      track.id,
+                                    ) ??
+                                    false;
+                                final isLiked =
+                                    catalogState?.likedTrackIds.contains(
+                                      track.id,
+                                    ) ??
+                                    false;
 
-                            return _AlbumTrackRow(
-                              track: track,
-                              isFavorite: isFavorite,
-                              isLiked: isLiked,
-                              onFavorite: () {
-                                sheetRef
-                                    .read(
-                                      libraryCatalogControllerProvider.notifier,
-                                    )
-                                    .toggleFavorite(track.id);
-                              },
-                              onLiked: () {
-                                sheetRef
-                                    .read(
-                                      libraryCatalogControllerProvider.notifier,
-                                    )
-                                    .toggleLiked(track.id);
-                              },
-                              onTap: () {
-                                sheetRef
-                                    .read(playerControllerProvider.notifier)
-                                    .playLibrarySong(
-                                      track,
-                                      playlist: album.tracks,
-                                    );
-                                Navigator.of(sheetContext).pop();
-                              },
-                              onPlayNext: () {
-                                _addAlbumTrackToPlayNext(
-                                  sheetContext,
-                                  sheetRef,
-                                  track,
-                                );
-                              },
-                              onMoreOptions: () {
-                                _showAlbumTrackActionsSheet(
-                                  sheetContext,
-                                  sheetRef,
+                                return _AlbumTrackTile(
                                   track: track,
                                   isFavorite: isFavorite,
                                   isLiked: isLiked,
-                                  playlist: album.tracks,
+                                  onFavorite: () {
+                                    sheetRef
+                                        .read(
+                                          libraryCatalogControllerProvider
+                                              .notifier,
+                                        )
+                                        .toggleFavorite(track.id);
+                                  },
+                                  onLiked: () {
+                                    sheetRef
+                                        .read(
+                                          libraryCatalogControllerProvider
+                                              .notifier,
+                                        )
+                                        .toggleLiked(track.id);
+                                  },
+                                  onTap: () {
+                                    sheetRef
+                                        .read(playerControllerProvider.notifier)
+                                        .playLibrarySong(
+                                          track,
+                                          playlist: album.tracks,
+                                        );
+                                    Navigator.of(sheetContext).pop();
+                                  },
+                                  onMoreOptions: () {
+                                    _showAlbumTrackActionsSheet(
+                                      sheetContext,
+                                      sheetRef,
+                                      track: track,
+                                      isFavorite: isFavorite,
+                                      isLiked: isLiked,
+                                      playlist: album.tracks,
+                                    );
+                                  },
                                 );
                               },
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  );
-                },
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
               ),
             ),
           ),
         );
       },
-    );
-  }
-}
-
-class _AlbumTrackRow extends StatelessWidget {
-  const _AlbumTrackRow({
-    required this.track,
-    required this.isFavorite,
-    required this.isLiked,
-    required this.onFavorite,
-    required this.onLiked,
-    required this.onTap,
-    required this.onPlayNext,
-    required this.onMoreOptions,
-  });
-
-  final LibrarySong track;
-  final bool isFavorite;
-  final bool isLiked;
-  final VoidCallback onFavorite;
-  final VoidCallback onLiked;
-  final VoidCallback onTap;
-  final VoidCallback onPlayNext;
-  final VoidCallback onMoreOptions;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final radius = studioRadiusOf(context, 18);
-    final leadingSize = studioListIconBoxSizeOf(context);
-
-    return StudioPanel(
-      padding: EdgeInsets.zero,
-      radius: 18,
-      tint: colorScheme.surfaceContainerLow,
-      child: Material(
-        color: colorScheme.surface.withValues(alpha: 0),
-        borderRadius: BorderRadius.circular(radius),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(radius),
-          onTap: onTap,
-          onLongPress: onMoreOptions,
-          child: Padding(
-            padding: studioListItemPaddingOf(context),
-            child: Row(
-              children: [
-                TrackCoverThumbnail(
-                  title: track.displayTitle,
-                  subtitle: track.displayArtist,
-                  size: leadingSize,
-                  borderRadius: 14,
-                  localCoverPath: track.displayLocalCoverPath,
-                  coverUrl: track.displayCoverUrl,
-                ),
-                SizedBox(width: studioListGapOf(context)),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        track.displayTitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleSmall,
-                      ),
-                      const StudioGap(height: 2),
-                      Text(
-                        track.displayArtist,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                _CompactTrackButton(
-                  tooltip: l10n.favoritesCollectionTitle,
-                  onPressed: onFavorite,
-                  icon: isFavorite
-                      ? Icons.bookmark_rounded
-                      : Icons.bookmark_border_rounded,
-                ),
-                _CompactTrackButton(
-                  tooltip: l10n.likedCollectionTitle,
-                  onPressed: onLiked,
-                  icon: isLiked
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                ),
-                _CompactTrackButton(
-                  tooltip: l10n.playAction,
-                  onPressed: onTap,
-                  icon: Icons.play_arrow_rounded,
-                ),
-                _CompactTrackButton(
-                  tooltip: l10n.moreOptionsAction,
-                  onPressed: onMoreOptions,
-                  icon: Icons.more_horiz_rounded,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CompactTrackButton extends StatelessWidget {
-  const _CompactTrackButton({
-    required this.tooltip,
-    required this.onPressed,
-    required this.icon,
-  });
-
-  final String tooltip;
-  final VoidCallback onPressed;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: tooltip,
-      onPressed: onPressed,
-      icon: Icon(icon),
-      iconSize: 20,
-      visualDensity: VisualDensity.compact,
-      padding: studioListPaddingOf(context, const EdgeInsets.all(4)),
-      constraints: BoxConstraints(
-        minWidth: studioListActionSizeOf(context),
-        minHeight: studioListActionSizeOf(context),
-      ),
     );
   }
 }
@@ -542,55 +520,37 @@ void _showAlbumTrackActionsSheet(
 }) {
   showModalBottomSheet<void>(
     context: albumSheetContext,
-    showDragHandle: true,
+    useRootNavigator: true,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
     builder: (context) {
       final l10n = AppLocalizations.of(context)!;
-      final colorScheme = Theme.of(context).colorScheme;
 
       return SafeArea(
         top: false,
         child: Padding(
-          padding: studioPaddingOf(
-            context,
-            const EdgeInsets.fromLTRB(20, 0, 20, 20),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              StudioPanel(
-                padding: const EdgeInsets.all(16),
-                radius: 22,
-                tint: colorScheme.primaryContainer,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      track.displayTitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const StudioGap(height: 6),
-                    Text(
-                      '${track.displayArtist} · ${track.displayAlbum}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(studioRadiusOf(context, 28)),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+                decoration: BoxDecoration(
+                  color: _GlacierPalette.surface.withValues(alpha: 0.94),
+                  borderRadius: BorderRadius.circular(
+                    studioRadiusOf(context, 28),
+                  ),
                 ),
-              ),
-              const StudioGap(height: 12),
-              StudioPanel(
-                padding: const EdgeInsets.all(14),
-                radius: 22,
-                tint: colorScheme.surfaceContainerLow,
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    FilledButton.icon(
-                      onPressed: () {
+                    _TrackActionHeader(track: track),
+                    const SizedBox(height: 10),
+                    _TrackActionTile(
+                      icon: Icons.play_arrow_rounded,
+                      label: l10n.playAction,
+                      onTap: () {
                         ref
                             .read(playerControllerProvider.notifier)
                             .playLibrarySong(track, playlist: playlist);
@@ -599,64 +559,66 @@ void _showAlbumTrackActionsSheet(
                           Navigator.of(albumSheetContext).pop();
                         }
                       },
-                      icon: const Icon(Icons.play_arrow_rounded),
-                      label: Text(l10n.playAction),
                     ),
-                    const StudioGap(height: 10),
-                    FilledButton.tonalIcon(
-                      onPressed: () {
+                    _TrackActionTile(
+                      icon: Icons.queue_play_next_rounded,
+                      label: l10n.playNextAction,
+                      onTap: () {
                         Navigator.of(context).pop();
                         _addAlbumTrackToPlayNext(albumSheetContext, ref, track);
                       },
-                      icon: const Icon(Icons.playlist_add_rounded),
-                      label: Text(l10n.playNextAction),
                     ),
-                    const StudioGap(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () {
-                              ref
-                                  .read(
-                                    libraryCatalogControllerProvider.notifier,
-                                  )
-                                  .toggleFavorite(track.id);
-                              Navigator.of(context).pop();
-                            },
-                            icon: Icon(
-                              isFavorite
-                                  ? Icons.bookmark_rounded
-                                  : Icons.bookmark_border_rounded,
-                            ),
-                            label: Text(l10n.favoritesCollectionTitle),
-                          ),
-                        ),
-                        const StudioGap(width: 10),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () {
-                              ref
-                                  .read(
-                                    libraryCatalogControllerProvider.notifier,
-                                  )
-                                  .toggleLiked(track.id);
-                              Navigator.of(context).pop();
-                            },
-                            icon: Icon(
-                              isLiked
-                                  ? Icons.favorite_rounded
-                                  : Icons.favorite_border_rounded,
-                            ),
-                            label: Text(l10n.likedCollectionTitle),
-                          ),
-                        ),
-                      ],
+                    _TrackActionTile(
+                      icon: isFavorite
+                          ? Icons.bookmark_remove_rounded
+                          : Icons.bookmark_add_rounded,
+                      label: isFavorite
+                          ? l10n.removeFromFavoritesAction
+                          : l10n.addToFavoritesAction,
+                      onTap: () {
+                        ref
+                            .read(libraryCatalogControllerProvider.notifier)
+                            .toggleFavorite(track.id);
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                    _TrackActionTile(
+                      icon: isLiked
+                          ? Icons.favorite_rounded
+                          : Icons.favorite_border_rounded,
+                      label: isLiked
+                          ? l10n.removeFromLikedAction
+                          : l10n.addToLikedAction,
+                      onTap: () {
+                        ref
+                            .read(libraryCatalogControllerProvider.notifier)
+                            .toggleLiked(track.id);
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                    _TrackActionTile(
+                      icon: Icons.auto_fix_high_rounded,
+                      label: l10n.manualScrapingActionLabel,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        showManualScrapingSheet(
+                          context: albumSheetContext,
+                          song: track,
+                        );
+                      },
+                    ),
+                    _TrackActionTile(
+                      icon: Icons.info_outline_rounded,
+                      label: l10n.songDetailsTitle,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        _showTrackDetailsSheet(albumSheetContext, track);
+                      },
                     ),
                   ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
       );
@@ -691,100 +653,365 @@ Future<void> _addAlbumTrackToPlayNext(
   );
 }
 
-class _AlbumsHeaderCard extends StatelessWidget {
-  const _AlbumsHeaderCard({
-    required this.sources,
-    required this.selectedSource,
-    required this.groupingMode,
-    required this.catalog,
-    required this.onSourceSelected,
-    required this.onGroupingChanged,
-    required this.onScanPressed,
-  });
+Future<void> _showTrackDetailsSheet(BuildContext context, LibrarySong song) {
+  final l10n = AppLocalizations.of(context)!;
+  return showModalBottomSheet<void>(
+    context: context,
+    useRootNavigator: true,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (sheetContext) {
+      return SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(
+              studioRadiusOf(sheetContext, 28),
+            ),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: _GlacierPalette.surface.withValues(alpha: 0.94),
+                  borderRadius: BorderRadius.circular(
+                    studioRadiusOf(sheetContext, 28),
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      song.displayTitle,
+                      style: _glacierTextStyle(
+                        color: _GlacierPalette.onSurface,
+                        size: 22,
+                        weight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    _DetailRow(
+                      label: l10n.artistLabel,
+                      value: song.displayArtist,
+                    ),
+                    _DetailRow(
+                      label: l10n.albumLabel,
+                      value: song.displayAlbum,
+                    ),
+                    _DetailRow(label: l10n.sourceLabel, value: song.sourceName),
+                    _DetailRow(
+                      label: l10n.filePathLabel,
+                      value: song.remotePath,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
 
-  final List<SourceProfile> sources;
-  final SourceProfile selectedSource;
-  final LibraryAlbumGroupingMode groupingMode;
-  final LibraryCatalogState? catalog;
-  final ValueChanged<String>? onSourceSelected;
-  final ValueChanged<LibraryAlbumGroupingMode>? onGroupingChanged;
-  final VoidCallback onScanPressed;
+class _GlacierScreen extends StatelessWidget {
+  const _GlacierScreen({required this.child});
+
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final colorScheme = Theme.of(context).colorScheme;
+    return ColoredBox(
+      color: _GlacierPalette.background,
+      child: SafeArea(bottom: false, child: child),
+    );
+  }
+}
 
-    return StudioPanel(
-      radius: 24,
-      tint: colorScheme.surfaceContainerLow,
+class _TopIconButton extends StatelessWidget {
+  const _TopIconButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final buttonRadius = studioRadiusOf(context, 14);
+    return InkWell(
+      borderRadius: BorderRadius.circular(buttonRadius),
+      onTap: onTap,
+      child: SizedBox(
+        width: 38,
+        height: 38,
+        child: Icon(icon, color: _GlacierPalette.primary, size: 22),
+      ),
+    );
+  }
+}
+
+class _SourceChip extends StatelessWidget {
+  const _SourceChip({
+    required this.label,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final chipRadius = studioRadiusOf(context, 16);
+    return Material(
+      color: selected
+          ? _GlacierPalette.primary.withValues(alpha: 0.12)
+          : _GlacierPalette.surface.withValues(alpha: 0.6),
+      borderRadius: BorderRadius.circular(chipRadius),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(chipRadius),
+        onTap: onTap,
+        child: Container(
+          padding: studioPaddingOf(
+            context,
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(chipRadius),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                label,
+                style: _glacierTextStyle(
+                  color: selected
+                      ? _GlacierPalette.primary
+                      : _GlacierPalette.onSurfaceVariant,
+                  size: 13,
+                  weight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: _glacierTextStyle(
+                  color: selected
+                      ? _GlacierPalette.primary.withValues(alpha: 0.84)
+                      : _GlacierPalette.onSurfaceVariant.withValues(
+                          alpha: 0.84,
+                        ),
+                  size: 11,
+                  weight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ViewModeButton extends StatelessWidget {
+  const _ViewModeButton({
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final buttonRadius = studioRadiusOf(context, 16);
+    return Material(
+      color: selected
+          ? _GlacierPalette.primary.withValues(alpha: 0.12)
+          : Colors.transparent,
+      borderRadius: BorderRadius.circular(buttonRadius),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(buttonRadius),
+        onTap: onTap,
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: Icon(
+            icon,
+            size: 20,
+            color: selected
+                ? _GlacierPalette.primary
+                : _GlacierPalette.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AlbumList extends StatelessWidget {
+  const _AlbumList({
+    required this.albums,
+    required this.onOpenAlbum,
+    required this.onPlayAlbum,
+  });
+
+  final List<LibraryAlbum> albums;
+  final ValueChanged<LibraryAlbum> onOpenAlbum;
+  final ValueChanged<LibraryAlbum> onPlayAlbum;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        for (var index = 0; index < albums.length; index++) ...[
+          _AlbumListRow(
+            album: albums[index],
+            onTap: () => onOpenAlbum(albums[index]),
+            onPlay: () => onPlayAlbum(albums[index]),
+          ),
+          if (index != albums.length - 1) const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+}
+
+class _AlbumGrid extends StatelessWidget {
+  const _AlbumGrid({
+    required this.albums,
+    required this.maxWidth,
+    required this.onOpenAlbum,
+    required this.onPlayAlbum,
+  });
+
+  final List<LibraryAlbum> albums;
+  final double maxWidth;
+  final ValueChanged<LibraryAlbum> onOpenAlbum;
+  final ValueChanged<LibraryAlbum> onPlayAlbum;
+
+  @override
+  Widget build(BuildContext context) {
+    final crossAxisCount = maxWidth >= 1200
+        ? 5
+        : maxWidth >= 900
+        ? 4
+        : 3;
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: albums.length,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        crossAxisSpacing: 24,
+        mainAxisSpacing: 28,
+        childAspectRatio: 0.64,
+      ),
+      itemBuilder: (context, index) {
+        return _AlbumGridCard(
+          album: albums[index],
+          onOpenAlbum: () => onOpenAlbum(albums[index]),
+          onPlayAlbum: () => onPlayAlbum(albums[index]),
+        );
+      },
+    );
+  }
+}
+
+class _AlbumGridCard extends StatelessWidget {
+  const _AlbumGridCard({
+    required this.album,
+    required this.onOpenAlbum,
+    required this.onPlayAlbum,
+  });
+
+  final LibraryAlbum album;
+  final VoidCallback onOpenAlbum;
+  final VoidCallback onPlayAlbum;
+
+  @override
+  Widget build(BuildContext context) {
+    final cardRadius = studioRadiusOf(context, 24);
+    return InkWell(
+      borderRadius: BorderRadius.circular(cardRadius),
+      onTap: onOpenAlbum,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  l10n.albumsTabLabel,
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
+          Expanded(
+            child: SizedBox.expand(
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(cardRadius),
+                        border: Border.all(
+                          color: _GlacierPalette.outline.withValues(
+                            alpha: 0.45,
+                          ),
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(0.5),
+                        child: _AlbumArtwork(album: album, size: 200),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: 10,
+                    bottom: 10,
+                    child: Material(
+                      color: _GlacierPalette.primary.withValues(alpha: 0.96),
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: onPlayAlbum,
+                        child: SizedBox(
+                          width: 30,
+                          height: 30,
+                          child: Icon(
+                            Icons.play_arrow_rounded,
+                            size: 18,
+                            color: _GlacierPalette.onPrimary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              IconButton(
-                tooltip: catalog?.isScanning == true
-                    ? l10n.scanningAction
-                    : l10n.scanLibraryAction,
-                onPressed: onScanPressed,
-                icon: Icon(
-                  catalog?.isScanning == true
-                      ? Icons.sync_rounded
-                      : Icons.radar_rounded,
-                ),
-              ),
-            ],
-          ),
-          const StudioGap(height: 12),
-          SizedBox(
-            height: studioSpacingOf(context, 72).clamp(58.0, 88.0).toDouble(),
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: sources.length,
-              separatorBuilder: (_, _) => const StudioGap(width: 10),
-              itemBuilder: (context, index) {
-                final source = sources[index];
-                final isSelected = source.id == selectedSource.id;
-                final albumCount =
-                    catalog?.albumCountForSource(source.id, groupingMode) ?? 0;
-
-                return _SourceCard(
-                  source: source,
-                  albumCount: albumCount,
-                  isSelected: isSelected,
-                  onTap: onSourceSelected == null
-                      ? null
-                      : () => onSourceSelected!(source.id),
-                );
-              },
             ),
           ),
-          const StudioGap(height: 12),
-          SegmentedButton<LibraryAlbumGroupingMode>(
-            segments: [
-              ButtonSegment(
-                value: LibraryAlbumGroupingMode.folder,
-                label: Text(l10n.folderAlbumsModeLabel),
-                icon: const Icon(Icons.folder_copy_rounded),
-              ),
-              ButtonSegment(
-                value: LibraryAlbumGroupingMode.scraped,
-                label: Text(l10n.scrapedAlbumsModeLabel),
-                icon: const Icon(Icons.auto_awesome_rounded),
-              ),
-            ],
-            selected: {groupingMode},
-            onSelectionChanged: onGroupingChanged == null
-                ? null
-                : (selection) => onGroupingChanged!(selection.first),
+          const SizedBox(height: 14),
+          Text(
+            album.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: _glacierTextStyle(
+              color: _GlacierPalette.onSurface,
+              size: 16,
+              weight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            album.artistName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: _glacierTextStyle(
+              color: _GlacierPalette.onSurfaceVariant,
+              size: 12,
+              weight: FontWeight.w500,
+            ),
           ),
         ],
       ),
@@ -792,170 +1019,91 @@ class _AlbumsHeaderCard extends StatelessWidget {
   }
 }
 
-class _SourceCard extends StatelessWidget {
-  const _SourceCard({
-    required this.source,
-    required this.albumCount,
-    required this.isSelected,
-    this.onTap,
+class _PaginationRow extends StatelessWidget {
+  const _PaginationRow({
+    required this.currentPage,
+    required this.totalPages,
+    required this.onPageChanged,
   });
 
-  final SourceProfile source;
-  final int albumCount;
-  final bool isSelected;
-  final VoidCallback? onTap;
+  final int currentPage;
+  final int totalPages;
+  final ValueChanged<int> onPageChanged;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final radius = studioRadiusOf(context, 22);
-
-    return Material(
-      color: isSelected
-          ? colorScheme.primaryContainer
-          : colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(radius),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(radius),
-        onTap: onTap,
-        child: SizedBox(
-          width: studioSpacingOf(context, 168).clamp(136.0, 204.0).toDouble(),
-          child: Padding(
-            padding: studioPaddingOf(context, const EdgeInsets.all(14)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  source.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: isSelected
-                        ? colorScheme.onPrimaryContainer
-                        : colorScheme.onSurface,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '$albumCount ${AppLocalizations.of(context)!.albumsTabLabel}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: isSelected
-                        ? colorScheme.onPrimaryContainer.withValues(alpha: 0.78)
-                        : colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _PageArrowButton(
+          icon: Icons.chevron_left_rounded,
+          enabled: currentPage > 0,
+          onTap: currentPage > 0 ? () => onPageChanged(currentPage - 1) : null,
         ),
-      ),
+        const SizedBox(width: 8),
+        for (var index = 0; index < totalPages; index++) ...[
+          _PageIndexButton(
+            label: '${index + 1}',
+            selected: index == currentPage,
+            onTap: () => onPageChanged(index),
+          ),
+          if (index != totalPages - 1) const SizedBox(width: 6),
+        ],
+        const SizedBox(width: 8),
+        _PageArrowButton(
+          icon: Icons.chevron_right_rounded,
+          enabled: currentPage < totalPages - 1,
+          onTap: currentPage < totalPages - 1
+              ? () => onPageChanged(currentPage + 1)
+              : null,
+        ),
+      ],
     );
   }
 }
 
-class _AlbumCard extends StatelessWidget {
-  const _AlbumCard({required this.album, required this.onTap});
+class _PageIndexButton extends StatelessWidget {
+  const _PageIndexButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
-  final LibraryAlbum album;
+  final String label;
+  final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final radius = studioRadiusOf(context, 20);
-
-    return StudioPanel(
-      padding: EdgeInsets.zero,
-      radius: 20,
-      tint: colorScheme.surfaceContainerLow,
-      child: Material(
-        color: colorScheme.surface.withValues(alpha: 0),
-        borderRadius: BorderRadius.circular(radius),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(radius),
-          onTap: onTap,
-          child: Padding(
-            padding: studioPaddingOf(context, const EdgeInsets.all(8)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final artSize = constraints.maxWidth;
-
-                    return Stack(
-                      children: [
-                        GeneratedCoverArt(
-                          title: album.title,
-                          subtitle: album.artistName,
-                          size: artSize,
-                          borderRadius: 16,
-                        ),
-                        Positioned(
-                          right: 8,
-                          bottom: 8,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: colorScheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: IconButton(
-                              onPressed: onTap,
-                              iconSize: 18,
-                              padding: studioPaddingOf(
-                                context,
-                                const EdgeInsets.all(8),
-                              ),
-                              constraints: BoxConstraints(
-                                minWidth: studioSpacingOf(
-                                  context,
-                                  32,
-                                ).clamp(28.0, 40.0).toDouble(),
-                                minHeight: studioSpacingOf(
-                                  context,
-                                  32,
-                                ).clamp(28.0, 40.0).toDouble(),
-                              ),
-                              icon: Icon(
-                                Icons.play_arrow_rounded,
-                                color: colorScheme.onPrimaryContainer,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                const StudioGap(height: 8),
-                Text(
-                  album.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleSmall,
-                ),
-                const StudioGap(height: 2),
-                Text(
-                  album.artistName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '${album.trackCount} ${AppLocalizations.of(context)!.tracksLabel}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
+    final pageRadius = studioRadiusOf(context, 14);
+    return Material(
+      color: selected
+          ? _GlacierPalette.primary.withValues(alpha: 0.2)
+          : Colors.transparent,
+      borderRadius: BorderRadius.circular(pageRadius),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(pageRadius),
+        onTap: onTap,
+        child: Container(
+          width: 42,
+          height: 42,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(pageRadius),
+            border: selected
+                ? Border.all(
+                    color: _GlacierPalette.primary.withValues(alpha: 0.3),
+                  )
+                : null,
+          ),
+          child: Text(
+            label,
+            style: _glacierTextStyle(
+              color: selected
+                  ? _GlacierPalette.primary
+                  : _GlacierPalette.onSurfaceVariant,
+              size: 16,
+              weight: selected ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
         ),
@@ -964,76 +1112,123 @@ class _AlbumCard extends StatelessWidget {
   }
 }
 
-class _AlbumsFeedback extends StatelessWidget {
-  const _AlbumsFeedback({required this.message});
+class _PageArrowButton extends StatelessWidget {
+  const _PageArrowButton({
+    required this.icon,
+    required this.enabled,
+    required this.onTap,
+  });
 
-  final String message;
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: StudioPanel(
-        radius: 28,
-        child: Text(message, textAlign: TextAlign.center),
+    return SizedBox(
+      width: 32,
+      height: 32,
+      child: IconButton(
+        onPressed: onTap,
+        iconSize: 18,
+        padding: EdgeInsets.zero,
+        splashRadius: 18,
+        icon: Icon(
+          icon,
+          color: enabled
+              ? _GlacierPalette.onSurfaceVariant
+              : _GlacierPalette.onSurfaceVariant.withValues(alpha: 0.45),
+        ),
       ),
     );
   }
 }
 
-class _AlbumsEmptyState extends StatelessWidget {
-  const _AlbumsEmptyState({
-    required this.title,
-    required this.description,
-    required this.actionLabel,
-    required this.onPressed,
+class _AlbumListRow extends StatelessWidget {
+  const _AlbumListRow({
+    required this.album,
+    required this.onTap,
+    required this.onPlay,
   });
 
-  final String title;
-  final String description;
-  final String actionLabel;
-  final VoidCallback onPressed;
+  final LibraryAlbum album;
+  final VoidCallback onTap;
+  final VoidCallback onPlay;
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 720),
-        child: StudioPanel(
-          radius: 28,
-          tint: colorScheme.surfaceContainerLow,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+    final cardRadius = studioRadiusOf(context, 22);
+    return Material(
+      color: _GlacierPalette.surface.withValues(alpha: 0.6),
+      borderRadius: BorderRadius.circular(cardRadius),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(cardRadius),
+        onTap: onTap,
+        child: Padding(
+          padding: studioListPaddingOf(context, const EdgeInsets.all(12)),
+          child: Row(
             children: [
-              GeneratedCoverArt(
-                title: title,
-                subtitle: description,
-                size: studioSpacingOf(
-                  context,
-                  180,
-                ).clamp(132.0, 220.0).toDouble(),
-                borderRadius: 26,
+              SizedBox(
+                width: 72,
+                height: 72,
+                child: _AlbumArtwork(album: album, size: 72),
               ),
-              const StudioGap(height: 20),
-              Text(
-                title,
-                style: Theme.of(context).textTheme.headlineSmall,
-                textAlign: TextAlign.center,
-              ),
-              const StudioGap(height: 8),
-              Text(
-                description,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      album.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _glacierTextStyle(
+                        color: _GlacierPalette.onSurface,
+                        size: 16,
+                        weight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      album.artistName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _glacierTextStyle(
+                        color: _GlacierPalette.onSurfaceVariant,
+                        size: 13,
+                        weight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${album.trackCount} tracks',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _glacierTextStyle(
+                        color: _GlacierPalette.onSurfaceVariant,
+                        size: 12,
+                        weight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
-                textAlign: TextAlign.center,
               ),
-              const StudioGap(height: 20),
-              FilledButton.icon(
-                onPressed: onPressed,
-                icon: const Icon(Icons.add_link_rounded),
-                label: Text(actionLabel),
+              Material(
+                color: _GlacierPalette.primary.withValues(alpha: 0.12),
+                shape: const CircleBorder(),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: onPlay,
+                  child: SizedBox(
+                    width: 30,
+                    height: 30,
+                    child: Icon(
+                      Icons.play_arrow_rounded,
+                      size: 18,
+                      color: _GlacierPalette.primary,
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -1041,4 +1236,685 @@ class _AlbumsEmptyState extends StatelessWidget {
       ),
     );
   }
+}
+
+class _AlbumFolderArtwork {
+  const _AlbumFolderArtwork({required this.bytes, required this.mimeType});
+
+  final Uint8List bytes;
+  final String? mimeType;
+}
+
+class _AlbumFolderArtworkRequest {
+  const _AlbumFolderArtworkRequest({
+    required this.sourceId,
+    required this.directoryPath,
+  });
+
+  final String sourceId;
+  final String directoryPath;
+
+  @override
+  bool operator ==(Object other) {
+    return other is _AlbumFolderArtworkRequest &&
+        other.sourceId == sourceId &&
+        other.directoryPath == directoryPath;
+  }
+
+  @override
+  int get hashCode => Object.hash(sourceId, directoryPath);
+}
+
+final _albumFolderArtworkProvider =
+    FutureProvider.family<_AlbumFolderArtwork?, _AlbumFolderArtworkRequest>((
+      ref,
+      request,
+    ) async {
+      final sources = await ref.read(sourcesControllerProvider.future);
+      if (sources.isEmpty) {
+        return null;
+      }
+      final source = sources.firstWhere(
+        (item) => item.id == request.sourceId,
+        orElse: () => sources.first,
+      );
+      if (source.id != request.sourceId) {
+        return null;
+      }
+      final sessionManager = ref.read(musicSourceSessionManagerProvider);
+      final musicSource = await sessionManager.get(source);
+      final listing = await musicSource.listFiles(request.directoryPath);
+      final imageFiles = listing.entries
+          .where((entry) {
+            if (entry.isDirectory) {
+              return false;
+            }
+            final ext = p.extension(entry.name).toLowerCase();
+            return ext == '.jpg' ||
+                ext == '.jpeg' ||
+                ext == '.png' ||
+                ext == '.webp';
+          })
+          .toList(growable: false);
+      if (imageFiles.isEmpty) {
+        return null;
+      }
+
+      const preferredNames = ['cover', 'folder', 'front', 'album', 'artwork'];
+
+      imageFiles.sort((left, right) {
+        final leftName = p.basenameWithoutExtension(left.name).toLowerCase();
+        final rightName = p.basenameWithoutExtension(right.name).toLowerCase();
+        final leftPreferred = preferredNames.indexOf(leftName);
+        final rightPreferred = preferredNames.indexOf(rightName);
+        final leftOrder = leftPreferred == -1 ? 999 : leftPreferred;
+        final rightOrder = rightPreferred == -1 ? 999 : rightPreferred;
+        if (leftOrder != rightOrder) {
+          return leftOrder.compareTo(rightOrder);
+        }
+        return left.name.toLowerCase().compareTo(right.name.toLowerCase());
+      });
+
+      for (final file in imageFiles) {
+        final bytes = await musicSource.readBinaryFile(file.path);
+        if (bytes != null && bytes.isNotEmpty) {
+          return _AlbumFolderArtwork(bytes: bytes, mimeType: file.mimeType);
+        }
+      }
+      return null;
+    });
+
+class _AlbumArtwork extends ConsumerWidget {
+  const _AlbumArtwork({required this.album, required this.size});
+
+  final LibraryAlbum album;
+  final double size;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final leadTrack = album.tracks.isEmpty ? null : album.tracks.first;
+    if (leadTrack != null) {
+      final folderArtwork = ref.watch(
+        _albumFolderArtworkProvider(
+          _AlbumFolderArtworkRequest(
+            sourceId: leadTrack.sourceId,
+            directoryPath: leadTrack.directoryPath,
+          ),
+        ),
+      );
+      final folderData = folderArtwork.valueOrNull;
+      if (folderData != null && folderData.bytes.isNotEmpty) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Image.memory(
+            folderData.bytes,
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+            errorBuilder: (_, _, _) => GeneratedCoverArt(
+              title: album.title,
+              subtitle: album.artistName,
+              size: size,
+              borderRadius: 18,
+            ),
+          ),
+        );
+      }
+    }
+
+    if (leadTrack != null &&
+        ((leadTrack.displayLocalCoverPath?.isNotEmpty ?? false) ||
+            (leadTrack.displayCoverUrl?.isNotEmpty ?? false))) {
+      return TrackCoverThumbnail(
+        title: leadTrack.displayTitle,
+        subtitle: leadTrack.displayArtist,
+        size: size,
+        borderRadius: 18,
+        localCoverPath: leadTrack.displayLocalCoverPath,
+        coverUrl: leadTrack.displayCoverUrl,
+      );
+    }
+
+    return GeneratedCoverArt(
+      title: album.title,
+      subtitle: album.artistName,
+      size: size,
+      borderRadius: 18,
+    );
+  }
+}
+
+class _AlbumSheetHeader extends StatelessWidget {
+  const _AlbumSheetHeader({required this.album});
+
+  final LibraryAlbum album;
+
+  @override
+  Widget build(BuildContext context) {
+    final cardRadius = studioRadiusOf(context, 22);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(cardRadius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: _GlacierPalette.primary.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(cardRadius),
+            border: Border.all(
+              color: _GlacierPalette.primary.withValues(alpha: 0.18),
+            ),
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 64,
+                height: 64,
+                child: _AlbumArtwork(album: album, size: 64),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      album.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _glacierTextStyle(
+                        color: _GlacierPalette.onSurface,
+                        size: 18,
+                        weight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      album.artistName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _glacierTextStyle(
+                        color: _GlacierPalette.onSurfaceVariant,
+                        size: 13,
+                        weight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _GlacierPalette.surface.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(
+                          studioRadiusOf(context, 14),
+                        ),
+                      ),
+                      child: Text(
+                        '${album.trackCount} tracks',
+                        style: _glacierTextStyle(
+                          color: _GlacierPalette.primary,
+                          size: 12,
+                          weight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AlbumTrackTile extends StatelessWidget {
+  const _AlbumTrackTile({
+    required this.track,
+    required this.isFavorite,
+    required this.isLiked,
+    required this.onFavorite,
+    required this.onLiked,
+    required this.onTap,
+    required this.onMoreOptions,
+  });
+
+  final LibrarySong track;
+  final bool isFavorite;
+  final bool isLiked;
+  final VoidCallback onFavorite;
+  final VoidCallback onLiked;
+  final VoidCallback onTap;
+  final VoidCallback onMoreOptions;
+
+  @override
+  Widget build(BuildContext context) {
+    final cardRadius = studioRadiusOf(context, 22);
+    final coverSize = studioListIconBoxSizeOf(context).clamp(36.0, 46.0);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(cardRadius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Material(
+          color: _GlacierPalette.surface.withValues(alpha: 0.58),
+          child: InkWell(
+            onTap: onTap,
+            onLongPress: onMoreOptions,
+            child: Container(
+              padding: studioListPaddingOf(context, const EdgeInsets.all(8)),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(cardRadius),
+              ),
+              child: Row(
+                children: [
+                  TrackCoverThumbnail(
+                    title: track.displayTitle,
+                    subtitle: track.displayArtist,
+                    size: coverSize,
+                    borderRadius: 12,
+                    localCoverPath: track.displayLocalCoverPath,
+                    coverUrl: track.displayCoverUrl,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          track.displayTitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: _glacierTextStyle(
+                            color: _GlacierPalette.onSurface,
+                            size: 14,
+                            weight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          track.displayArtist,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: _glacierTextStyle(
+                            color: _GlacierPalette.onSurfaceVariant,
+                            size: 11,
+                            weight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _CompactIconButton(
+                    icon: isFavorite
+                        ? Icons.bookmark_rounded
+                        : Icons.bookmark_border_rounded,
+                    onTap: onFavorite,
+                    active: isFavorite,
+                  ),
+                  _CompactIconButton(
+                    icon: isLiked
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    onTap: onLiked,
+                    active: isLiked,
+                  ),
+                  _CompactIconButton(
+                    icon: Icons.more_horiz_rounded,
+                    onTap: onMoreOptions,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CompactIconButton extends StatelessWidget {
+  const _CompactIconButton({
+    required this.icon,
+    required this.onTap,
+    this.active = false,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    final buttonRadius = studioRadiusOf(context, 16);
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(buttonRadius),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(buttonRadius),
+        onTap: onTap,
+        child: SizedBox(
+          width: 34,
+          height: 34,
+          child: Icon(
+            icon,
+            size: 20,
+            color: active
+                ? _GlacierPalette.primary
+                : _GlacierPalette.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TrackActionHeader extends StatelessWidget {
+  const _TrackActionHeader({required this.track});
+
+  final LibrarySong track;
+
+  @override
+  Widget build(BuildContext context) {
+    final cardRadius = studioRadiusOf(context, 22);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(cardRadius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          padding: studioListPaddingOf(context, const EdgeInsets.all(16)),
+          decoration: BoxDecoration(
+            color: _GlacierPalette.primary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(cardRadius),
+            border: Border.all(
+              color: _GlacierPalette.primary.withValues(alpha: 0.18),
+            ),
+          ),
+          child: Row(
+            children: [
+              TrackCoverThumbnail(
+                title: track.displayTitle,
+                subtitle: track.displayArtist,
+                size: 56,
+                borderRadius: 18,
+                localCoverPath: track.displayLocalCoverPath,
+                coverUrl: track.displayCoverUrl,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      track.displayTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _glacierTextStyle(
+                        color: _GlacierPalette.onSurface,
+                        size: 16,
+                        weight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${track.displayArtist} · ${track.displayAlbum}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _glacierTextStyle(
+                        color: _GlacierPalette.onSurfaceVariant,
+                        size: 12,
+                        weight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TrackActionTile extends StatelessWidget {
+  const _TrackActionTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon, color: _GlacierPalette.primary),
+      title: Text(
+        label,
+        style: _glacierTextStyle(
+          color: _GlacierPalette.onSurface,
+          size: 15,
+          weight: FontWeight.w500,
+        ),
+      ),
+      onTap: onTap,
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: _glacierTextStyle(
+              color: _GlacierPalette.onSurfaceVariant,
+              size: 12,
+              weight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: _glacierTextStyle(
+              color: _GlacierPalette.onSurface,
+              size: 14,
+              weight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AlbumsEmptyState extends StatelessWidget {
+  const _AlbumsEmptyState({required this.title, required this.description});
+
+  final String title;
+  final String description;
+
+  @override
+  Widget build(BuildContext context) {
+    final cardRadius = studioRadiusOf(context, 32);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(cardRadius),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+              child: Container(
+                padding: const EdgeInsets.all(26),
+                decoration: BoxDecoration(
+                  color: _GlacierPalette.surface.withValues(alpha: 0.62),
+                  borderRadius: BorderRadius.circular(cardRadius),
+                  border: Border.all(
+                    color: _GlacierPalette.outline.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GeneratedCoverArt(
+                      title: title,
+                      subtitle: description,
+                      size: 180,
+                      borderRadius: 26,
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      title,
+                      style: _glacierTextStyle(
+                        color: _GlacierPalette.onSurface,
+                        size: 26,
+                        weight: FontWeight.w700,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      description,
+                      style: _glacierTextStyle(
+                        color: _GlacierPalette.onSurfaceVariant,
+                        size: 14,
+                        weight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyGlassCard extends StatelessWidget {
+  const _EmptyGlassCard({required this.title, required this.description});
+
+  final String title;
+  final String description;
+
+  @override
+  Widget build(BuildContext context) {
+    final cardRadius = studioRadiusOf(context, 32);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(cardRadius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: _GlacierPalette.surface.withValues(alpha: 0.62),
+            borderRadius: BorderRadius.circular(cardRadius),
+            border: Border.all(
+              color: _GlacierPalette.outline.withValues(alpha: 0.4),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: _glacierTextStyle(
+                  color: _GlacierPalette.onSurface,
+                  size: 24,
+                  weight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                description,
+                style: _glacierTextStyle(
+                  color: _GlacierPalette.onSurfaceVariant,
+                  size: 14,
+                  weight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GlacierCenteredMessage extends StatelessWidget {
+  const _GlacierCenteredMessage({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: _glacierTextStyle(
+            color: _GlacierPalette.onSurface,
+            size: 15,
+            weight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GlacierPalette {
+  static Color background = const Color(0xFF0A0E1A);
+  static Color surface = const Color(0xFF0F1524);
+  static Color surfaceContainerHigh = const Color(0xFF1A2438);
+  static Color primary = const Color(0xFF7DD3FC);
+  static Color onPrimary = const Color(0xFF001F2E);
+  static Color onSurface = const Color(0xFFE0E8F0);
+  static Color onSurfaceVariant = const Color(0xFFA0B4C4);
+  static Color outline = const Color(0xFF4A6070);
+
+  static void sync(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    background = scheme.surface;
+    surface = scheme.surfaceContainer;
+    surfaceContainerHigh = scheme.surfaceContainerHigh;
+    primary = scheme.primary;
+    onPrimary = scheme.onPrimary;
+    onSurface = scheme.onSurface;
+    onSurfaceVariant = scheme.onSurfaceVariant;
+    outline = scheme.outline;
+  }
+}
+
+TextStyle _glacierTextStyle({
+  required Color color,
+  required double size,
+  required FontWeight weight,
+  double height = 1.2,
+}) {
+  return GoogleFonts.inter(
+    color: color,
+    fontSize: size,
+    fontWeight: weight,
+    height: height,
+  );
 }

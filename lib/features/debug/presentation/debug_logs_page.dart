@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/debug_log_store.dart';
 import '../../../core/widgets/studio_chrome.dart';
@@ -56,9 +57,9 @@ class _DebugLogsPageState extends State<DebugLogsPage> {
 
   void _copyToClipboard(String text) {
     Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('✓ 已复制到剪贴板')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('✓ 已复制到剪贴板')));
   }
 
   @override
@@ -87,6 +88,11 @@ class _DebugLogsPageState extends State<DebugLogsPage> {
               DebugLogStore().clearLogs();
               setState(() {});
             },
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_rounded),
+            tooltip: '设置',
+            onPressed: () => context.push('/settings'),
           ),
         ],
       ),
@@ -151,7 +157,8 @@ class _DebugLogsPageState extends State<DebugLogsPage> {
                           horizontal: 8,
                         ),
                         child: GestureDetector(
-                          onLongPress: () => _copyToClipboard(log.formattedMessage),
+                          onLongPress: () =>
+                              _copyToClipboard(log.formattedMessage),
                           child: SelectableText(
                             log.formattedMessage,
                             style: TextStyle(

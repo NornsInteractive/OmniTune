@@ -239,6 +239,66 @@ class ITunesClient {
     }
   }
 
+  Future<List<ITunesTrack>> searchTracksWithCountry({
+    String? artist,
+    String? title,
+    required String country,
+    int limit = 15,
+  }) async {
+    try {
+      final searchTerm =
+          artist != null &&
+              artist.trim().isNotEmpty &&
+              title != null &&
+              title.trim().isNotEmpty
+          ? '${artist.trim()} ${title.trim()}'
+          : title ?? '';
+
+      if (searchTerm.isEmpty) {
+        DebugLogger.warning('iTunes', '搜索词为空');
+        return const [];
+      }
+
+      final response = await _dio.get(
+        '/search',
+        queryParameters: {
+          'term': searchTerm,
+          'entity': 'song',
+          'limit': limit.clamp(1, 40),
+          'country': country,
+        },
+      );
+
+      if (response.statusCode != 200) {
+        DebugLogger.warning('iTunes', '搜索失败: HTTP ${response.statusCode}');
+        return const [];
+      }
+
+      Map<String, dynamic> data;
+      if (response.data is Map) {
+        data = response.data as Map<String, dynamic>;
+      } else if (response.data is String) {
+        data = jsonDecode(response.data as String) as Map<String, dynamic>;
+      } else {
+        return const [];
+      }
+
+      final results = data['results'] as List<dynamic>? ?? const [];
+      return results
+          .whereType<Map<String, dynamic>>()
+          .map(ITunesTrack.fromJson)
+          .where(
+            (track) =>
+                track.trackName.trim().isNotEmpty &&
+                track.artistName.trim().isNotEmpty,
+          )
+          .toList(growable: false);
+    } catch (e, stack) {
+      DebugLogger.error('iTunes', '【国家多结果搜索异常】', e.toString(), stack);
+      return const [];
+    }
+  }
+
   /// 关闭客户端
   void close() {
     _dio.close();

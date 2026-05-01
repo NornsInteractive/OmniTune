@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 class CustomThemeColors {
   const CustomThemeColors({
     this.primaryColorSeed,
-    this.borderRadius = 24.0,
-    this.interfaceCompactness = 0.5,
+    this.borderRadius = 25.0,
+    this.interfaceCompactness = 0.8,
   });
 
   /// 主题颜色种子（hex 颜色值，如 '#FF5722'）
@@ -36,9 +36,9 @@ class CustomThemeColors {
   factory CustomThemeColors.fromJson(Map<String, dynamic> json) {
     return CustomThemeColors(
       primaryColorSeed: json['primaryColorSeed'] as String?,
-      borderRadius: (json['borderRadius'] as num?)?.toDouble() ?? 24.0,
+      borderRadius: (json['borderRadius'] as num?)?.toDouble() ?? 25.0,
       interfaceCompactness:
-          (json['interfaceCompactness'] as num?)?.toDouble() ?? 0.5,
+          (json['interfaceCompactness'] as num?)?.toDouble() ?? 0.8,
     );
   }
 
@@ -56,24 +56,24 @@ class CustomThemeColors {
     if (hex == null || hex.isEmpty) {
       return null;
     }
-    
+
     try {
       var cleanHex = hex.trim();
       if (cleanHex.startsWith('#')) {
         cleanHex = cleanHex.substring(1);
       }
       cleanHex = cleanHex.toUpperCase();
-      
+
       // 验证格式
       if (!RegExp(r'^[0-9A-F]{6}([0-9A-F]{2})?$').hasMatch(cleanHex)) {
         return null;
       }
-      
+
       // 只保留6位RGB格式（去掉alpha通道）
       if (cleanHex.length == 8) {
         cleanHex = cleanHex.substring(2);
       }
-      
+
       return '#$cleanHex';
     } catch (e) {
       return null;
@@ -92,20 +92,20 @@ class CustomThemeColors {
         hex = hex.substring(1);
       }
       hex = hex.toUpperCase();
-      
+
       // 验证hex格式
       if (!RegExp(r'^[0-9A-F]{6}([0-9A-F]{2})?$').hasMatch(hex)) {
         return null;
       }
-      
+
       // 解析hex值
       final value = int.parse(hex, radix: 16);
-      
+
       // 如果只有6位（RGB），添加完全不透明的alpha
       if (hex.length == 6) {
         return Color((value & 0xFFFFFF) | 0xFF000000);
       }
-      
+
       // 8位（ARGB），直接使用
       return Color(value);
     } catch (e) {

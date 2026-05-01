@@ -108,6 +108,19 @@ class SambaMusicSource implements MusicSource {
     }
   }
 
+  @override
+  Future<Uint8List?> readBinaryFile(String path) async {
+    try {
+      await connect();
+      final file = await _smb.file(_remoteFilePath(path));
+      final stream = await _smb.openRead(file);
+      final bytes = await _collectBytes(stream);
+      return Uint8List.fromList(bytes);
+    } catch (_) {
+      return null;
+    }
+  }
+
   SmbConnect get _smb {
     final connection = _connection;
     if (connection == null) {

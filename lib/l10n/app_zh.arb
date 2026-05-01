@@ -1,8 +1,9 @@
 {
   "@@locale": "zh",
   "appTitle": "Flux Music",
+  "homeTabLabel": "首页",
   "albumsTabLabel": "专辑",
-  "collectionTabLabel": "资料库",
+  "collectionTabLabel": "音乐库",
   "settingsTabLabel": "设置",
   "settingsPageTitle": "设置",
   "openSettingsAction": "打开设置",
@@ -285,6 +286,21 @@
   "albumsEmptyDescription": "先执行一次扫描，把远程音乐库整理成专辑视图。",
   "tracksLabel": "首",
   "collectionHeadline": "我的音乐资料库",
+  "homeGreetingMorning": "早上好",
+  "homeGreetingAfternoon": "下午好",
+  "homeGreetingEvening": "晚上好",
+  "homeWelcomeDescriptionReady": "当前已连接 {sourceCount} 个音乐音源，你的云端音乐库已经准备就绪。",
+  "@homeWelcomeDescriptionReady": {
+    "placeholders": {
+      "sourceCount": {
+        "type": "int"
+      }
+    }
+  },
+  "homeWelcomeDescriptionPending": "音源已经连接完成，执行一次扫描后就能生成专辑和歌曲集合。",
+  "homeSourcesSectionTitle": "云端音源",
+  "homeRecentAlbumsSectionTitle": "最近加入",
+  "homeRecentAlbumsEmptyDescription": "扫描音源之后，新发现的专辑会出现在这里。",
   "collectionDescription": "浏览 {sourceName}，扫描全部歌曲，并在全部歌曲、我喜欢和我收藏之间快速切换。",
   "@collectionDescription": {
     "placeholders": {
@@ -308,13 +324,15 @@
   },
   "favoritesCollectionTitle": "我的收藏",
   "likedCollectionTitle": "我喜欢",
+  "favoritesCollectionDescription": "你收藏的歌曲会显示在这里。",
+  "likedCollectionDescription": "你标记为喜欢的歌曲会显示在这里。",
   "allSongsCollectionTitle": "所有歌曲",
   "favoritesEmptyTitle": "还没有收藏歌曲",
   "likedEmptyTitle": "还没有喜欢的歌曲",
   "allSongsEmptyTitle": "还没有扫描到歌曲",
   "collectionEmptyDescription": "这个列表现在还是空的，可以先收藏喜欢的歌曲，或者重新扫描一次。",
   "scanLibraryHint": "执行一次扫描后，这里会把所有已保存音源中的音乐文件整理成歌曲和专辑集合。",
-  "browserTitle": "远程浏览",
+  "browserTitle": "文件浏览",
   "currentPathLabel": "当前位置",
   "upAction": "上一级",
   "refreshAction": "刷新",
@@ -324,6 +342,7 @@
   "unsupportedFileMessage": "这个文件可以显示，但当前还不能直接播放。",
   "loadFailedMessage": "当前音源加载失败。",
   "retryAction": "重试",
+  "resetToDefaultAction": "恢复默认值",
   "playerEmptyTitle": "还没有选择歌曲",
   "playerEmptyDescription": "请先从音源浏览器中选择一个音乐文件开始播放。",
   "lyricsEmptyLabel": "当前还没有找到这首歌对应的同步歌词。",

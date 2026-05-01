@@ -15,6 +15,7 @@ import '../../../core/models/source_profile.dart';
 import '../../../core/models/source_protocol.dart';
 import '../../../core/storage/background_image_store.dart';
 import '../../../core/storage/library_preferences_repository.dart';
+import '../../../core/widgets/glacier_dialog.dart';
 import '../../../core/widgets/studio_chrome.dart';
 import '../../debug/application/debug_mode_provider.dart';
 import '../../library/application/library_catalog_controller.dart';
@@ -50,127 +51,232 @@ class SettingsPage extends ConsumerWidget {
         ref.watch(sourcesControllerProvider).valueOrNull ??
         const <SourceProfile>[];
     final browser = ref.watch(libraryControllerProvider).valueOrNull;
-    final appBarBackground = colorScheme.surfaceContainerLowest;
-    final settingsToolbarHeight =
-        ((theme.appBarTheme.toolbarHeight ?? kToolbarHeight) * 0.82)
-            .clamp(40.0, 48.0)
-            .toDouble();
+    final appSettingsController = ref.read(
+      appSettingsControllerProvider.notifier,
+    );
+    final sourcesController = ref.read(sourcesControllerProvider.notifier);
+    final libraryController = ref.read(libraryControllerProvider.notifier);
+    final materialL10n = MaterialLocalizations.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final dividerColor = colorScheme.outlineVariant.withValues(
+      alpha: isDark ? 0.5 : 0.62,
+    );
+    final sectionBorderColor = colorScheme.outlineVariant.withValues(
+      alpha: isDark ? 0.34 : 0.5,
+    );
+    final sectionBackground = colorScheme.surfaceContainerHigh.withValues(
+      alpha: isDark ? 0.62 : 0.88,
+    );
+    final shellBackground = colorScheme.surface;
+    final selectedSourceId = browser?.selectedSource?.id;
+    const defaultAlbumPageSize = 9;
+    const defaultMemoryCacheTrackLimit = 3;
+
+    Widget section({
+      required String title,
+      required List<Widget> children,
+      Widget? trailing,
+    }) {
+      final sectionRadius = studioRadiusOf(context, 16);
+      return Container(
+        decoration: BoxDecoration(
+          color: sectionBackground,
+          borderRadius: BorderRadius.circular(sectionRadius),
+          border: Border.all(color: sectionBorderColor),
+        ),
+        padding: studioPaddingOf(context, const EdgeInsets.all(20)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                if (trailing != null) trailing,
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...children,
+          ],
+        ),
+      );
+    }
+
+    Widget divider() => Container(height: 1, color: dividerColor);
+
+    Widget resetButton({required VoidCallback onPressed, bool enabled = true}) {
+      return TextButton(
+        onPressed: enabled ? onPressed : null,
+        style: TextButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          minimumSize: const Size(0, 30),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        child: Text(l10n.resetToDefaultAction),
+      );
+    }
+
+    Widget settingRow({
+      required String title,
+      required String subtitle,
+      required Widget trailing,
+      VoidCallback? onTap,
+    }) {
+      final rowRadius = studioRadiusOf(context, 10);
+      final row = Padding(
+        padding: studioPaddingOf(
+          context,
+          const EdgeInsets.symmetric(vertical: 2),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: colorScheme.onSurface,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            trailing,
+          ],
+        ),
+      );
+      if (onTap == null) {
+        return row;
+      }
+      return InkWell(
+        borderRadius: BorderRadius.circular(rowRadius),
+        onTap: onTap,
+        child: row,
+      );
+    }
 
     return Scaffold(
-      backgroundColor: appBarBackground,
-      appBar: AppBar(
-        title: Text(l10n.settingsPageTitle),
-        toolbarHeight: settingsToolbarHeight,
-        backgroundColor: appBarBackground,
-        foregroundColor: colorScheme.onSurface,
-        surfaceTintColor: appBarBackground,
-      ),
-      body: StudioBackdrop(
-        maxContentWidth: 1280,
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+      backgroundColor: shellBackground,
+      body: Container(
+        decoration: BoxDecoration(
+          color: shellBackground,
+          gradient: RadialGradient(
+            center: Alignment.topCenter,
+            radius: 1.2,
+            colors: [
+              colorScheme.primary.withValues(alpha: isDark ? 0.14 : 0.08),
+              shellBackground,
+            ],
+          ),
+        ),
         child: SafeArea(
-          top: false,
           child: Align(
             alignment: Alignment.topCenter,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1180),
+              constraints: const BoxConstraints(maxWidth: 960),
               child: ListView(
                 padding: studioListPaddingOf(
                   context,
-                  const EdgeInsets.fromLTRB(4, 12, 4, 32),
+                  const EdgeInsets.fromLTRB(16, 4, 16, 28),
                 ),
                 children: [
-                  DefaultTextStyle.merge(
-                    style: TextStyle(color: colorScheme.onPrimaryContainer),
-                    child: IconTheme.merge(
-                      data: IconThemeData(
-                        color: colorScheme.onPrimaryContainer,
-                      ),
-                      child: StudioPanel(
-                        radius: 40,
-                        tint: colorScheme.primaryContainer,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Wrap(
-                              spacing: studioListGapOf(context),
-                              runSpacing: studioListGapOf(context),
-                              children: [
-                                StudioPill(
-                                  icon: Icons.tune_rounded,
-                                  label: l10n.settingsPageTitle.toUpperCase(),
-                                  prominent: true,
-                                ),
-                                StudioPill(
-                                  icon: Icons.cloud_done_rounded,
-                                  label: l10n.savedSourcesCountLabel(
-                                    sources.length,
-                                  ),
-                                ),
-                                StudioPill(
-                                  icon: Icons.language_rounded,
-                                  label: _localeLabel(
-                                    l10n,
-                                    preferences.localePreference,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            StudioGap(height: 20),
-                            Text(
-                              l10n.settingsCenterHeadline,
-                              style: theme.textTheme.headlineMedium?.copyWith(
-                                color: colorScheme.onPrimaryContainer,
+                  SizedBox(
+                    height: 56,
+                    child: Row(
+                      children: [
+                        Material(
+                          color: colorScheme.surfaceContainerHigh.withValues(
+                            alpha: isDark ? 0.8 : 0.92,
+                          ),
+                          borderRadius: BorderRadius.circular(999),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(999),
+                            onTap: () => context.pop(),
+                            child: SizedBox(
+                              width: 40,
+                              height: 40,
+                              child: Icon(
+                                Icons.arrow_back_rounded,
+                                color: colorScheme.primary,
                               ),
                             ),
-                            StudioGap(height: 12),
-                            Text(
-                              l10n.settingsCenterDescription,
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                color: colorScheme.onPrimaryContainer
-                                    .withValues(alpha: 0.76),
-                              ),
-                            ),
-                            StudioGap(height: 20),
-                            Wrap(
-                              spacing: studioListGapOf(context),
-                              runSpacing: studioListGapOf(context),
-                              children: [
-                                _MetaPill(
-                                  icon: Icons.language_rounded,
-                                  label: _localeLabel(
-                                    l10n,
-                                    preferences.localePreference,
-                                  ),
-                                ),
-                                _MetaPill(
-                                  icon: Icons.palette_outlined,
-                                  label: _themeLabel(
-                                    l10n,
-                                    preferences.themePreference,
-                                  ),
-                                ),
-                                _MetaPill(
-                                  icon: Icons.offline_bolt_outlined,
-                                  label: l10n.playbackCacheTitle,
-                                ),
-                              ],
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 10),
+                        Text(
+                          l10n.settingsPageTitle,
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            color: colorScheme.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  SizedBox(height: studioListSpacingOf(context, 16)),
-                  _SettingsSection(
+                  const SizedBox(height: 14),
+                  section(
                     title: l10n.appearanceSettingsTitle,
                     children: [
-                      _SettingTile(
-                        icon: Icons.language_rounded,
+                      settingRow(
                         title: l10n.languageSettingTitle,
                         subtitle: _localeLabel(
                           l10n,
                           preferences.localePreference,
+                        ),
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colorScheme.surfaceContainerHigh,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: colorScheme.outlineVariant.withValues(
+                                alpha: isDark ? 0.75 : 0.95,
+                              ),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _localeLabel(
+                                  l10n,
+                                  preferences.localePreference,
+                                ),
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.onSurface,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                size: 18,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ],
+                          ),
                         ),
                         onTap: () => _showSelectionDialog<AppLocalePreference>(
                           context: context,
@@ -202,180 +308,486 @@ class SettingsPage extends ConsumerWidget {
                               icon: Icons.public_rounded,
                             ),
                           ],
-                          onSelected: (value) {
-                            return ref
-                                .read(appSettingsControllerProvider.notifier)
-                                .setLocalePreference(value);
+                          onSelected: appSettingsController.setLocalePreference,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      divider(),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  l10n.themeSettingTitle,
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  _themeLabel(
+                                    l10n,
+                                    preferences.themePreference,
+                                  ),
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: colorScheme.surfaceContainerHigh,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: colorScheme.outlineVariant.withValues(
+                                  alpha: isDark ? 0.75 : 0.95,
+                                ),
+                              ),
+                            ),
+                            padding: const EdgeInsets.all(4),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                for (final value in AppThemePreference.values)
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 2,
+                                    ),
+                                    child: Material(
+                                      color:
+                                          preferences.themePreference == value
+                                          ? colorScheme.primary.withValues(
+                                              alpha: 0.2,
+                                            )
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(8),
+                                        onTap: () {
+                                          appSettingsController
+                                              .setThemePreference(value);
+                                        },
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 7,
+                                          ),
+                                          child: Text(
+                                            _themeLabel(l10n, value),
+                                            style: theme.textTheme.labelMedium
+                                                ?.copyWith(
+                                                  color:
+                                                      preferences
+                                                              .themePreference ==
+                                                          value
+                                                      ? colorScheme.primary
+                                                      : colorScheme
+                                                            .onSurfaceVariant,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      divider(),
+                      const SizedBox(height: 14),
+                      Text(
+                        l10n.interfaceSizeSettingTitle,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        l10n.interfaceSizeDialogDescription,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Slider(
+                              value: preferences.interfaceScaleFactor,
+                              min: AppDisplayPreferences.minInterfaceScale,
+                              max: AppDisplayPreferences.maxInterfaceScale,
+                              divisions: 50,
+                              onChanged:
+                                  appSettingsController.setInterfaceScale,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            l10n.scalePercentLabel(
+                              _scalePercent(preferences.interfaceScaleFactor),
+                            ),
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: resetButton(
+                          enabled:
+                              (preferences.interfaceScaleFactor -
+                                      AppDisplayPreferences
+                                          .defaultInterfaceScale)
+                                  .abs() >
+                              0.0001,
+                          onPressed: () {
+                            appSettingsController.setInterfaceScale(
+                              AppDisplayPreferences.defaultInterfaceScale,
+                            );
                           },
                         ),
                       ),
-                      _SettingTile(
-                        icon: Icons.dark_mode_outlined,
-                        title: l10n.themeSettingTitle,
-                        subtitle: _themeLabel(
-                          l10n,
-                          preferences.themePreference,
+                      const SizedBox(height: 8),
+                      divider(),
+                      const SizedBox(height: 14),
+                      Text(
+                        l10n.fontSizeSettingTitle,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
                         ),
-                        onTap: () => _showSelectionDialog<AppThemePreference>(
-                          context: context,
-                          title: l10n.themeSettingTitle,
-                          selectedValue: preferences.themePreference,
-                          options: [
-                            _DialogOption(
-                              value: AppThemePreference.system,
-                              label: _themeLabel(
-                                l10n,
-                                AppThemePreference.system,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        l10n.fontSizeDialogDescription,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Slider(
+                              value: preferences.fontScaleFactor,
+                              min: AppDisplayPreferences.minFontScale,
+                              max: AppDisplayPreferences.maxFontScale,
+                              divisions: 57,
+                              onChanged: appSettingsController.setFontScale,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            l10n.scalePercentLabel(
+                              _scalePercent(preferences.fontScaleFactor),
+                            ),
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: resetButton(
+                          enabled:
+                              (preferences.fontScaleFactor -
+                                      AppDisplayPreferences.defaultFontScale)
+                                  .abs() >
+                              0.0001,
+                          onPressed: () {
+                            appSettingsController.setFontScale(
+                              AppDisplayPreferences.defaultFontScale,
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      (() {
+                        final isZh =
+                            Localizations.localeOf(
+                              context,
+                            ).languageCode.toLowerCase() ==
+                            'zh';
+                        final albumPageTitle = isZh
+                            ? '专辑每页数量'
+                            : 'Albums per page';
+                        final albumPageDescription = isZh
+                            ? '设置专辑列表分页时每页最多显示的专辑数量（默认 9）。'
+                            : 'Set the maximum number of albums shown on each page (default 9).';
+                        final albumPageValue = isZh
+                            ? '每页 ${preferences.albumPageSize} 条'
+                            : '${preferences.albumPageSize} per page';
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              albumPageTitle,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
                               ),
-                              icon: Icons.brightness_auto_rounded,
                             ),
-                            _DialogOption(
-                              value: AppThemePreference.light,
-                              label: _themeLabel(
-                                l10n,
-                                AppThemePreference.light,
+                            const SizedBox(height: 2),
+                            Text(
+                              albumPageDescription,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
                               ),
-                              icon: Icons.light_mode_rounded,
                             ),
-                            _DialogOption(
-                              value: AppThemePreference.dark,
-                              label: _themeLabel(l10n, AppThemePreference.dark),
-                              icon: Icons.dark_mode_rounded,
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Slider(
+                                    value: preferences.albumPageSize.toDouble(),
+                                    min: 1,
+                                    max: 60,
+                                    divisions: 59,
+                                    onChanged: (value) {
+                                      appSettingsController.setAlbumPageSize(
+                                        value.round(),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  albumPageValue,
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    color: colorScheme.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: resetButton(
+                                enabled:
+                                    preferences.albumPageSize !=
+                                    defaultAlbumPageSize,
+                                onPressed: () {
+                                  appSettingsController.setAlbumPageSize(
+                                    defaultAlbumPageSize,
+                                  );
+                                },
+                              ),
+                            ),
+                            const SizedBox(height: 8),
                           ],
-                          onSelected: (value) {
-                            return ref
-                                .read(appSettingsControllerProvider.notifier)
-                                .setThemePreference(value);
-                          },
-                        ),
-                      ),
-                      _SettingTile(
-                        icon: Icons.dashboard_customize_outlined,
-                        title: l10n.interfaceSizeSettingTitle,
-                        subtitle: l10n.interfaceScaleSummary(
-                          _scalePercent(preferences.interfaceScaleFactor),
-                        ),
-                        onTap: () => _showScaleDialog(
-                          context: context,
-                          title: l10n.interfaceSizeSettingTitle,
-                          description: l10n.interfaceSizeDialogDescription,
-                          min: AppDisplayPreferences.minInterfaceScale,
-                          max: AppDisplayPreferences.maxInterfaceScale,
-                          divisions: 50,
-                          initialValue: preferences.interfaceScaleFactor,
-                          onSaved: (value) {
-                            return ref
-                                .read(appSettingsControllerProvider.notifier)
-                                .setInterfaceScale(value);
-                          },
-                        ),
-                      ),
-                      _SettingTile(
-                        icon: Icons.format_size_rounded,
-                        title: l10n.fontSizeSettingTitle,
-                        subtitle: l10n.fontScaleSummary(
-                          _scalePercent(preferences.fontScaleFactor),
-                        ),
-                        onTap: () => _showScaleDialog(
-                          context: context,
-                          title: l10n.fontSizeSettingTitle,
-                          description: l10n.fontSizeDialogDescription,
-                          min: AppDisplayPreferences.minFontScale,
-                          max: AppDisplayPreferences.maxFontScale,
-                          divisions: 57,
-                          initialValue: preferences.fontScaleFactor,
-                          onSaved: (value) {
-                            return ref
-                                .read(appSettingsControllerProvider.notifier)
-                                .setFontScale(value);
-                          },
-                        ),
-                      ),
-                      _SettingTile(
-                        icon: Icons.palette_rounded,
+                        );
+                      })(),
+                      divider(),
+                      const SizedBox(height: 14),
+                      settingRow(
                         title: l10n.themeAccentColorSettingTitle,
                         subtitle: accentSummary,
-                        trailing: _ColorPreview(color: accentColor),
-                        onTap: () async {
-                          final colorHex = await _showColorPickerDialog(
-                            context: context,
-                            currentColor: accentHex ?? '',
-                          );
-                          if (colorHex != null && colorHex.isNotEmpty) {
-                            debugPrint(
-                              '🎨 [ColorPicker] Selected color: $colorHex',
-                            );
-                            final updated = preferences.customThemeColors
-                                .copyWith(primaryColorSeed: colorHex);
-                            debugPrint(
-                              '🎨 [ColorPicker] Updated CustomThemeColors: ${updated.primaryColorSeed}',
-                            );
-                            await ref
-                                .read(appSettingsControllerProvider.notifier)
-                                .setCustomThemeColors(updated);
-                            debugPrint(
-                              '🎨 [ColorPicker] Color saved to storage',
-                            );
-                          } else {
-                            debugPrint(
-                              '🎨 [ColorPicker] Cancelled or empty: ${colorHex ?? "null"}',
-                            );
-                          }
-                        },
+                        trailing: Wrap(
+                          spacing: 8,
+                          children: [
+                            for (final color in const <Color>[
+                              Color(0xFF7DD3FC),
+                              Color(0xFFC8A0F0),
+                              Color(0xFF34D399),
+                              Color(0xFFFB7185),
+                            ])
+                              InkWell(
+                                borderRadius: BorderRadius.circular(999),
+                                onTap: () async {
+                                  await appSettingsController
+                                      .setCustomThemeColors(
+                                        preferences.customThemeColors.copyWith(
+                                          primaryColorSeed: _hexFromColor(
+                                            color,
+                                          ),
+                                        ),
+                                      );
+                                },
+                                child: Container(
+                                  width: 24,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: color,
+                                    border: Border.all(
+                                      color:
+                                          (accentColor.toARGB32() & 0xFFFFFF) ==
+                                              (color.toARGB32() & 0xFFFFFF)
+                                          ? Colors.white
+                                          : Colors.transparent,
+                                      width: 2,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            InkWell(
+                              borderRadius: BorderRadius.circular(999),
+                              onTap: () async {
+                                final colorHex = await _showColorPickerDialog(
+                                  context: context,
+                                  currentColor: accentHex ?? '',
+                                );
+                                if (colorHex == null || colorHex.isEmpty) {
+                                  return;
+                                }
+                                await appSettingsController
+                                    .setCustomThemeColors(
+                                      preferences.customThemeColors.copyWith(
+                                        primaryColorSeed: colorHex,
+                                      ),
+                                    );
+                              },
+                              child: Container(
+                                width: 24,
+                                height: 24,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: colorScheme.surfaceContainerHigh,
+                                  border: Border.all(
+                                    color: colorScheme.outline,
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.add_rounded,
+                                  size: 14,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      _SettingTile(
-                        icon: Icons.rounded_corner,
+                      const SizedBox(height: 14),
+                      divider(),
+                      const SizedBox(height: 14),
+                      settingRow(
                         title: l10n.themeBorderRadiusSettingTitle,
                         subtitle:
                             '${preferences.customThemeColors.borderRadius.toStringAsFixed(1)}px',
-                        onTap: () async {
-                          final updated = preferences.customThemeColors
-                              .copyWith(
-                                borderRadius:
-                                    await _showBorderRadiusSlider(
-                                      context: context,
-                                      initialValue: preferences
-                                          .customThemeColors
+                        trailing: SizedBox(
+                          width: 190,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Slider(
+                                value: CustomThemeColors.normalizeBorderRadius(
+                                  preferences.customThemeColors.borderRadius,
+                                ),
+                                min: 12,
+                                max: 32,
+                                divisions: 40,
+                                onChanged: (value) {
+                                  appSettingsController.setCustomThemeColors(
+                                    preferences.customThemeColors.copyWith(
+                                      borderRadius:
+                                          CustomThemeColors.normalizeBorderRadius(
+                                            value,
+                                          ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              resetButton(
+                                enabled:
+                                    (preferences
+                                                .customThemeColors
+                                                .borderRadius -
+                                            const CustomThemeColors()
+                                                .borderRadius)
+                                        .abs() >
+                                    0.0001,
+                                onPressed: () {
+                                  appSettingsController.setCustomThemeColors(
+                                    preferences.customThemeColors.copyWith(
+                                      borderRadius: const CustomThemeColors()
                                           .borderRadius,
-                                    ) ??
-                                    preferences.customThemeColors.borderRadius,
-                              );
-                          await ref
-                              .read(appSettingsControllerProvider.notifier)
-                              .setCustomThemeColors(updated);
-                        },
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                      _SettingTile(
-                        icon: Icons.density_medium_rounded,
+                      const SizedBox(height: 14),
+                      divider(),
+                      const SizedBox(height: 14),
+                      settingRow(
                         title: l10n.themeCompactnessSettingTitle,
                         subtitle:
                             '${(preferences.customThemeColors.interfaceCompactness * 100).toStringAsFixed(0)}%',
-                        onTap: () async {
-                          final updated = preferences.customThemeColors
-                              .copyWith(
-                                interfaceCompactness:
-                                    await _showCompactnessSlider(
-                                      context: context,
-                                      initialValue: preferences
-                                          .customThemeColors
-                                          .interfaceCompactness,
-                                    ) ??
-                                    preferences
-                                        .customThemeColors
-                                        .interfaceCompactness,
-                              );
-                          await ref
-                              .read(appSettingsControllerProvider.notifier)
-                              .setCustomThemeColors(updated);
-                        },
+                        trailing: SizedBox(
+                          width: 190,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Slider(
+                                value: CustomThemeColors.normalizeCompactness(
+                                  preferences
+                                      .customThemeColors
+                                      .interfaceCompactness,
+                                ),
+                                min: 0.5,
+                                max: 1.5,
+                                divisions: 20,
+                                onChanged: (value) {
+                                  appSettingsController.setCustomThemeColors(
+                                    preferences.customThemeColors.copyWith(
+                                      interfaceCompactness:
+                                          CustomThemeColors.normalizeCompactness(
+                                            value,
+                                          ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              resetButton(
+                                enabled:
+                                    (preferences
+                                                .customThemeColors
+                                                .interfaceCompactness -
+                                            const CustomThemeColors()
+                                                .interfaceCompactness)
+                                        .abs() >
+                                    0.0001,
+                                onPressed: () {
+                                  appSettingsController.setCustomThemeColors(
+                                    preferences.customThemeColors.copyWith(
+                                      interfaceCompactness:
+                                          const CustomThemeColors()
+                                              .interfaceCompactness,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                      _SettingTile(
-                        icon: Icons.wallpaper_rounded,
+                      const SizedBox(height: 14),
+                      divider(),
+                      const SizedBox(height: 14),
+                      settingRow(
                         title: l10n.backgroundImageSettingTitle,
                         subtitle: preferences.backgroundImageSource == null
                             ? l10n.backgroundImageDefaultSummary
                             : l10n.backgroundImageConfiguredSummary,
+                        trailing: Icon(
+                          Icons.chevron_right_rounded,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                         onTap: () => _showBackgroundImageDialog(
                           context: context,
                           ref: ref,
@@ -384,52 +796,278 @@ class SettingsPage extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  SizedBox(height: studioListSpacingOf(context, 16)),
-                  _SettingsSection(
-                    title: l10n.librarySettingsTitle,
+                  const SizedBox(height: 14),
+                  section(
+                    title: l10n.sourceManagementSettingTitle,
+                    trailing: FilledButton.tonalIcon(
+                      onPressed: () => showSourceTypePicker(context),
+                      icon: const Icon(Icons.add_rounded, size: 16),
+                      label: Text(l10n.addSourceAction),
+                    ),
                     children: [
-                      _SettingTile(
-                        icon: Icons.storage_rounded,
-                        title: l10n.sourceManagementSettingTitle,
-                        subtitle: browser?.selectedSource == null
-                            ? l10n.sourceManagementEmptySummary
-                            : l10n.sourceManagementSummary(
-                                browser!.selectedSource!.name,
-                                sources.length,
+                      if (sources.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Text(
+                            l10n.sourceManagementEmptySummary,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        )
+                      else
+                        for (
+                          var index = 0;
+                          index < sources.length;
+                          index++
+                        ) ...[
+                          Material(
+                            color: colorScheme.surfaceContainerHigh.withValues(
+                              alpha: isDark ? 0.52 : 0.85,
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(10),
+                              onTap: () async {
+                                await libraryController.selectSource(
+                                  sources[index].id,
+                                );
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 9,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 38,
+                                      height: 38,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: colorScheme.primary.withValues(
+                                          alpha: 0.2,
+                                        ),
+                                      ),
+                                      child: Icon(
+                                        _protocolIcon(sources[index].protocol),
+                                        color: colorScheme.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            sources[index].name,
+                                            style: theme.textTheme.titleSmall
+                                                ?.copyWith(
+                                                  color: colorScheme.onSurface,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '${_protocolLabel(l10n, sources[index].protocol)} · ${sources[index].hostLabel}',
+                                            style: theme.textTheme.bodySmall
+                                                ?.copyWith(
+                                                  color: colorScheme
+                                                      .onSurfaceVariant,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (selectedSourceId == sources[index].id)
+                                      Padding(
+                                        padding: EdgeInsets.only(right: 2),
+                                        child: Icon(
+                                          Icons.check_circle_rounded,
+                                          color: colorScheme.primary,
+                                          size: 18,
+                                        ),
+                                      ),
+                                    IconButton(
+                                      tooltip: l10n.editSourceAction,
+                                      onPressed: () {
+                                        context.push(
+                                          '/settings/source/${sources[index].id}',
+                                        );
+                                      },
+                                      icon: Icon(
+                                        Icons.edit_outlined,
+                                        color: colorScheme.onSurfaceVariant,
+                                        size: 19,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      tooltip: materialL10n.deleteButtonTooltip,
+                                      onPressed: () async {
+                                        final confirmed =
+                                            await showDialog<bool>(
+                                              context: context,
+                                              builder: (dialogContext) {
+                                                return GlacierDialog(
+                                                  title: Text(
+                                                    materialL10n
+                                                        .deleteButtonTooltip,
+                                                  ),
+                                                  content: Text(
+                                                    sources[index].name,
+                                                  ),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () =>
+                                                          Navigator.of(
+                                                            dialogContext,
+                                                          ).pop(false),
+                                                      child: Text(
+                                                        materialL10n
+                                                            .cancelButtonLabel,
+                                                      ),
+                                                    ),
+                                                    FilledButton(
+                                                      onPressed: () =>
+                                                          Navigator.of(
+                                                            dialogContext,
+                                                          ).pop(true),
+                                                      child: Text(
+                                                        materialL10n
+                                                            .deleteButtonTooltip,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                );
+                                              },
+                                            ) ??
+                                            false;
+                                        if (!confirmed) {
+                                          return;
+                                        }
+                                        await sourcesController.deleteProfile(
+                                          sources[index].id,
+                                        );
+                                        ref.invalidate(
+                                          libraryControllerProvider,
+                                        );
+                                        ref.invalidate(
+                                          libraryCatalogControllerProvider,
+                                        );
+                                      },
+                                      icon: Icon(
+                                        Icons.delete_outline_rounded,
+                                        color: colorScheme.error,
+                                        size: 19,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                        onTap: () => _showSourceManagementDialog(
-                          pageContext: context,
-                          ref: ref,
-                          sources: sources,
-                          selectedSource: browser?.selectedSource,
-                        ),
-                      ),
+                            ),
+                          ),
+                          if (index != sources.length - 1)
+                            const SizedBox(height: 10),
+                        ],
                     ],
                   ),
-                  SizedBox(height: studioListSpacingOf(context, 16)),
-                  _SettingsSection(
+                  const SizedBox(height: 14),
+                  section(
                     title: l10n.playbackCacheTitle,
                     children: [
-                      _SettingTile(
-                        icon: Icons.offline_bolt_outlined,
-                        title: l10n.cacheSettingsEntryTitle,
-                        subtitle: l10n.cacheSettingsSummary(
-                          cacheSettings.enablePersistentCache
-                              ? l10n.cacheStorageModeLocal
-                              : l10n.cacheStorageModeMemory,
-                          cacheSettings.memoryCacheTrackLimit,
-                        ),
-                        onTap: () => _showCacheSettingsDialog(
-                          context: context,
-                          ref: ref,
-                          initialSettings: cacheSettings,
+                      settingRow(
+                        title: l10n.persistentPlaybackCacheLabel,
+                        subtitle: l10n.persistentPlaybackCacheDescription,
+                        trailing: Switch.adaptive(
+                          value: cacheSettings.enablePersistentCache,
+                          onChanged: (value) {
+                            ref
+                                .read(
+                                  playbackCacheSettingsControllerProvider
+                                      .notifier,
+                                )
+                                .setPersistentCacheEnabled(value);
+                          },
                         ),
                       ),
-                      _SettingTile(
-                        icon: Icons.delete_sweep_outlined,
+                      const SizedBox(height: 14),
+                      divider(),
+                      const SizedBox(height: 14),
+                      Text(
+                        l10n.memoryCacheTrackLimitLabel,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        l10n.memoryCacheTrackLimitDescription,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Slider(
+                              min: 1,
+                              max: 12,
+                              divisions: 11,
+                              value: cacheSettings.memoryCacheTrackLimit
+                                  .toDouble()
+                                  .clamp(1, 12),
+                              onChanged: (value) {
+                                ref
+                                    .read(
+                                      playbackCacheSettingsControllerProvider
+                                          .notifier,
+                                    )
+                                    .setMemoryCacheTrackLimit(value.round());
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            l10n.memoryCacheTrackLimitValue(
+                              cacheSettings.memoryCacheTrackLimit,
+                            ),
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: resetButton(
+                          enabled:
+                              cacheSettings.memoryCacheTrackLimit !=
+                              defaultMemoryCacheTrackLimit,
+                          onPressed: () {
+                            ref
+                                .read(
+                                  playbackCacheSettingsControllerProvider
+                                      .notifier,
+                                )
+                                .setMemoryCacheTrackLimit(
+                                  defaultMemoryCacheTrackLimit,
+                                );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      divider(),
+                      const SizedBox(height: 14),
+                      settingRow(
                         title: l10n.clearCachedFilesTitle,
                         subtitle: l10n.clearCachedFilesDescription,
-                        destructive: true,
+                        trailing: Icon(
+                          Icons.chevron_right_rounded,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                         onTap: () => _showCacheManagementDialog(
                           context: context,
                           sourceNames: {
@@ -440,41 +1078,30 @@ class SettingsPage extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  SizedBox(height: studioListSpacingOf(context, 16)),
-                  _SettingsSection(
+                  const SizedBox(height: 14),
+                  section(
                     title: l10n.debugSettingsTitle,
                     children: [
-                      Padding(
-                        padding: studioListPaddingOf(
-                          context,
-                          const EdgeInsets.symmetric(
-                            horizontal: 16.0,
-                            vertical: 8.0,
-                          ),
-                        ),
-                        child: SwitchListTile.adaptive(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(l10n.debugModeLabel),
-                          subtitle: Text(l10n.debugModeDescription),
-                          value: preferences.enableDebugMode,
-                          onChanged: (value) {
-                            // 启用或禁用调试模式
-                            ref
-                                .read(debugModeProvider.notifier)
-                                .setEnabled(value);
-                            ref
-                                .read(appSettingsControllerProvider.notifier)
-                                .setDebugMode(value);
-                            if (value) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(l10n.debugModeEnabledMessage),
-                                  duration: const Duration(seconds: 3),
-                                ),
-                              );
-                            }
-                          },
-                        ),
+                      SwitchListTile.adaptive(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(l10n.debugModeLabel),
+                        subtitle: Text(l10n.debugModeDescription),
+                        value: preferences.enableDebugMode,
+                        onChanged: (value) {
+                          ref
+                              .read(debugModeProvider.notifier)
+                              .setEnabled(value);
+                          appSettingsController.setDebugMode(value);
+                          if (!value) {
+                            return;
+                          }
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(l10n.debugModeEnabledMessage),
+                              duration: const Duration(seconds: 3),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -503,7 +1130,7 @@ class SettingsPage extends ConsumerWidget {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setState) {
-            return AlertDialog(
+            return GlacierDialog(
               title: Text(l10n.cacheSettingsEntryTitle),
               content: SizedBox(
                 width: 460,
@@ -641,7 +1268,7 @@ class SettingsPage extends ConsumerWidget {
               });
             }
 
-            return AlertDialog(
+            return GlacierDialog(
               title: Text(l10n.backgroundImageDialogTitle),
               content: SizedBox(
                 width: 560,
@@ -779,7 +1406,7 @@ class SettingsPage extends ConsumerWidget {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setState) {
-            return AlertDialog(
+            return GlacierDialog(
               title: Text(title),
               content: SizedBox(
                 width: 460,
@@ -884,13 +1511,14 @@ class SettingsPage extends ConsumerWidget {
               syncHexField(color.toColor());
             }
 
+            final isDark = dialogTheme.brightness == Brightness.dark;
             // 生成实时主题预览
             final previewScheme = ColorScheme.fromSeed(
               seedColor: selectedColor,
-              brightness: Brightness.light,
+              brightness: isDark ? Brightness.dark : Brightness.light,
             );
 
-            return AlertDialog(
+            return GlacierDialog(
               title: Text(l10n.themeColorDialogTitle),
               content: SizedBox(
                 width: 420,
@@ -912,12 +1540,16 @@ class SettingsPage extends ConsumerWidget {
                       },
                     ),
                     const SizedBox(height: 14),
-                    // 调试：显示实时的 ColorScheme 预览
                     Container(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       child: Row(
                         children: [
-                          const Text('主题预览:'),
+                          Text(
+                            l10n.themeColorPresetLabel,
+                            style: dialogTheme.textTheme.bodyMedium?.copyWith(
+                              color: dialogColorScheme.onSurfaceVariant,
+                            ),
+                          ),
                           const SizedBox(width: 12),
                           Container(
                             width: 24,
@@ -925,20 +1557,30 @@ class SettingsPage extends ConsumerWidget {
                             decoration: BoxDecoration(
                               color: previewScheme.primary,
                               shape: BoxShape.circle,
-                              border: Border.all(color: Colors.grey),
+                              border: Border.all(
+                                color: dialogColorScheme.outlineVariant,
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 14),
-                    StudioPanel(
+                    Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 14,
                         vertical: 12,
                       ),
-                      radius: 20,
-                      tint: dialogColorScheme.surfaceContainerHighest,
+                      decoration: BoxDecoration(
+                        color: dialogColorScheme.surfaceContainerHigh
+                            .withValues(alpha: 0.72),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: dialogColorScheme.outlineVariant.withValues(
+                            alpha: 0.52,
+                          ),
+                        ),
+                      ),
                       child: Row(
                         children: [
                           _ColorPreview(color: selectedColor, size: 34),
@@ -952,8 +1594,6 @@ class SettingsPage extends ConsumerWidget {
                               ),
                               textCapitalization: TextCapitalization.characters,
                               onChanged: (value) {
-                                // 优先使用自定义的hex解析器确保一致性
-                                // 如果自定义解析失败，尝试flutter_colorpicker的函数
                                 Color? color = _parseHexColor(value);
                                 color ??= colorFromHex(
                                   value,
@@ -1063,7 +1703,7 @@ class SettingsPage extends ConsumerWidget {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setState) {
-            return AlertDialog(
+            return GlacierDialog(
               title: Text(l10n.themeBorderRadiusDialogTitle),
               content: SizedBox(
                 width: 400,
@@ -1130,7 +1770,7 @@ class SettingsPage extends ConsumerWidget {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setState) {
-            return AlertDialog(
+            return GlacierDialog(
               title: Text(l10n.themeCompactnessDialogTitle),
               content: SizedBox(
                 width: 400,
@@ -1208,7 +1848,7 @@ class SettingsPage extends ConsumerWidget {
     return showDialog<void>(
       context: pageContext,
       builder: (dialogContext) {
-        return AlertDialog(
+        return GlacierDialog(
           title: Text(l10n.sourceManagementSettingTitle),
           content: SizedBox(
             width: 520,
@@ -1300,7 +1940,8 @@ class SettingsPage extends ConsumerWidget {
     return showDialog<void>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
+        final scheme = Theme.of(dialogContext).colorScheme;
+        return GlacierDialog(
           title: Text(title),
           content: SizedBox(
             width: 420,
@@ -1318,11 +1959,40 @@ class SettingsPage extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     for (final option in options) ...[
-                      Card(
+                      Container(
+                        decoration: BoxDecoration(
+                          color: selectedValue == option.value
+                              ? scheme.primary.withValues(alpha: 0.12)
+                              : scheme.surfaceContainerHigh.withValues(
+                                  alpha: 0.55,
+                                ),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: selectedValue == option.value
+                                ? scheme.primary.withValues(alpha: 0.38)
+                                : scheme.outlineVariant.withValues(alpha: 0.5),
+                          ),
+                        ),
                         child: RadioListTile<T>(
                           value: option.value,
-                          secondary: Icon(option.icon),
-                          title: Text(option.label),
+                          activeColor: scheme.primary,
+                          secondary: Icon(
+                            option.icon,
+                            color: selectedValue == option.value
+                                ? scheme.primary
+                                : scheme.onSurfaceVariant,
+                          ),
+                          title: Text(
+                            option.label,
+                            style: TextStyle(
+                              color: selectedValue == option.value
+                                  ? scheme.primary
+                                  : scheme.onSurface,
+                              fontWeight: selectedValue == option.value
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -1353,6 +2023,16 @@ class SettingsPage extends ConsumerWidget {
     };
   }
 
+  IconData _protocolIcon(SourceProtocol protocol) {
+    return switch (protocol) {
+      SourceProtocol.webdav => Icons.dns_rounded,
+      SourceProtocol.sftp => Icons.terminal_rounded,
+      SourceProtocol.ftp => Icons.swap_vert_circle_rounded,
+      SourceProtocol.samba => Icons.lan_rounded,
+      SourceProtocol.cloudDrive => Icons.cloud_queue_rounded,
+    };
+  }
+
   String _protocolLabel(AppLocalizations l10n, SourceProtocol value) {
     return switch (value) {
       SourceProtocol.webdav => l10n.webdavProtocol,
@@ -1373,13 +2053,13 @@ class _SettingsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StudioPanel(
-      radius: 30,
-      tint: Theme.of(context).colorScheme.surfaceContainerLow,
+      radius: 20,
+      tint: const Color(0xFF0F1524),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title, style: Theme.of(context).textTheme.titleLarge),
-          SizedBox(height: studioListSpacingOf(context, 12)),
+          SizedBox(height: studioListSpacingOf(context, 10)),
           for (var index = 0; index < children.length; index++) ...[
             children[index],
             if (index != children.length - 1)
@@ -1414,13 +2094,13 @@ class _SettingTile extends StatelessWidget {
     final accentColor = destructive
         ? colorScheme.error
         : colorScheme.onSurfaceVariant;
-    final radius = studioRadiusOf(context, 24);
-    final iconBoxSize = studioListIconBoxSizeOf(context);
+    final radius = studioRadiusOf(context, 14);
+    final iconBoxSize = studioListIconBoxSizeOf(context).clamp(34.0, 40.0);
 
     return StudioPanel(
       padding: EdgeInsets.zero,
-      radius: 24,
-      tint: colorScheme.surface,
+      radius: 14,
+      tint: const Color(0xFF141C2E),
       child: Material(
         color: colorScheme.surface.withValues(alpha: 0),
         borderRadius: BorderRadius.circular(radius),
@@ -1429,7 +2109,10 @@ class _SettingTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(radius),
           onTap: onTap,
           child: Padding(
-            padding: studioListItemPaddingOf(context),
+            padding: studioListPaddingOf(
+              context,
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            ),
             child: Row(
               children: [
                 Container(
@@ -2144,7 +2827,7 @@ class _CacheManagementDialogState
         final itemIds = items.map((item) => item.trackId).toSet();
         final selectedIds = _selectedTrackIds.where(itemIds.contains).toSet();
 
-        return AlertDialog(
+        return GlacierDialog(
           title: Text(l10n.clearCachedFilesTitle),
           content: SizedBox(
             width: 560,

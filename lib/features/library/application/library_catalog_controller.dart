@@ -586,8 +586,7 @@ class LibraryCatalogController extends _$LibraryCatalogController {
     String? autoScrapedLocalCoverPath;
     String? autoScrapedLyrics;
 
-    if (scrapingMetadata != null &&
-        scrapingMetadata.status == ScrapingStatus.completed) {
+    if (scrapingMetadata != null && _hasSavedScrapingData(scrapingMetadata)) {
       DebugLogger.success(
         'LibraryCatalogController._mapSong',
         '应用刮削数据到歌曲: ${entry.name}',
@@ -651,8 +650,7 @@ class LibraryCatalogController extends _$LibraryCatalogController {
     var appliedCount = 0;
     final result = tracks.map((track) {
       final cachedMetadata = IsarManager.getMetadata(track.id);
-      if (cachedMetadata != null &&
-          cachedMetadata.status == ScrapingStatus.completed) {
+      if (cachedMetadata != null && _hasSavedScrapingData(cachedMetadata)) {
         appliedCount++;
         // 应用缓存的刮削数据
         return LibrarySong(
@@ -801,15 +799,14 @@ class LibraryCatalogController extends _$LibraryCatalogController {
       if (cachedMetadata != null) {
         DebugLogger.info(
           'LibraryCatalogController.refreshSongMetadata',
-          '元数据状态: ${cachedMetadata.status}, 是否为completed: ${cachedMetadata.status == ScrapingStatus.completed}',
+          '元数据状态: ${cachedMetadata.status}, 是否有可展示字段: ${_hasSavedScrapingData(cachedMetadata)}',
         );
       }
 
-      if (cachedMetadata == null ||
-          cachedMetadata.status != ScrapingStatus.completed) {
+      if (cachedMetadata == null || !_hasSavedScrapingData(cachedMetadata)) {
         DebugLogger.warning(
           'LibraryCatalogController.refreshSongMetadata',
-          '缓存元数据不存在或未完成',
+          '缓存元数据不存在或暂无可展示字段',
         );
         return;
       }
@@ -912,6 +909,22 @@ class LibraryCatalogController extends _$LibraryCatalogController {
       normalized = '$normalized/';
     }
     return normalized;
+  }
+
+  bool _hasSavedScrapingData(ScrapingMetadata metadata) {
+    bool hasText(String? value) => value?.trim().isNotEmpty == true;
+    return hasText(metadata.manuallyScrapedTitle) ||
+        hasText(metadata.manuallyScrapedArtist) ||
+        hasText(metadata.manuallyScrapedAlbum) ||
+        hasText(metadata.manuallyScrapedCoverUrl) ||
+        hasText(metadata.manuallyScrapedLocalCoverPath) ||
+        hasText(metadata.manuallyScrapedLyrics) ||
+        hasText(metadata.autoScrapedTitle) ||
+        hasText(metadata.autoScrapedArtist) ||
+        hasText(metadata.autoScrapedAlbum) ||
+        hasText(metadata.autoScrapedCoverUrl) ||
+        hasText(metadata.autoScrapedLocalCoverPath) ||
+        hasText(metadata.autoScrapedLyrics);
   }
 
   bool _isExcludedPath(String path, List<String> excludedDirectories) {

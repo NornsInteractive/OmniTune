@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:ftpconnect/ftpconnect.dart';
 import 'package:just_audio/just_audio.dart';
@@ -109,6 +110,17 @@ class FtpMusicSource implements MusicSource {
       await connect();
       final file = await _downloadRemotePath(path);
       return utf8.decode(await file.readAsBytes(), allowMalformed: true);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<Uint8List?> readBinaryFile(String path) async {
+    try {
+      await connect();
+      final file = await _downloadRemotePath(path);
+      return await file.readAsBytes();
     } catch (_) {
       return null;
     }

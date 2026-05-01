@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../../../core/models/playable_track.dart';
 import '../../../core/models/remote_entry.dart';
 import '../../../core/models/source_profile.dart';
@@ -55,6 +57,8 @@ abstract class MusicSource {
   Future<PlayableTrack> buildPlayableTrack(RemoteEntry entry);
 
   Future<String?> readTextFile(String path);
+
+  Future<Uint8List?> readBinaryFile(String path);
 }
 
 abstract class MusicSourceFactory {

@@ -1,6 +1,9 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:music/l10n/app_localizations.dart';
 
 import '../../../../core/widgets/studio_chrome.dart';
@@ -13,30 +16,16 @@ class MiniPlayer extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    _GlacierPalette.sync(context);
     final l10n = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final playerState = ref.watch(playerControllerProvider);
     final controller = ref.read(playerControllerProvider.notifier);
-    final panelRadius = studioRadiusOf(context, 24);
-    final coverSize = studioSpacingOf(context, 56).clamp(44.0, 72.0).toDouble();
-    final controlSize = studioSpacingOf(
-      context,
-      36,
-    ).clamp(32.0, 44.0).toDouble();
-    final playSize = studioSpacingOf(context, 40).clamp(36.0, 48.0).toDouble();
 
     if (!playerState.hasTrack) {
       return const SizedBox.shrink();
     }
 
     final track = playerState.currentTrack!;
-    final duration = playerState.duration ?? Duration.zero;
-    final progress = duration.inMilliseconds <= 0
-        ? 0.0
-        : playerState.position.inMilliseconds / duration.inMilliseconds;
-
-    // 优先从播放列表中获取当前歌曲(包含最新的刮削数据)，否则使用 PlayableTrack
     final displaySong =
         playerState.hasPlaylist &&
             playerState.currentIndex >= 0 &&
@@ -56,156 +45,236 @@ class MiniPlayer extends ConsumerWidget {
       displayArtist,
       displayAlbum,
       track.sourceName,
-    ].whereType<String>().where((item) => item.isNotEmpty).join(' · ');
+    ].whereType<String>().where((value) => value.isNotEmpty).join(' · ');
+
+    final duration = playerState.duration ?? Duration.zero;
+    final progress = duration.inMilliseconds <= 0
+        ? 0.0
+        : playerState.position.inMilliseconds / duration.inMilliseconds;
+    final cardRadius = studioRadiusOf(context, 20);
+    final coverRadius = studioRadiusOf(context, 14);
+    final coverSize = studioListSpacingOf(context, 44).clamp(40.0, 52.0);
+    final outerBottom = studioSpacingOf(context, 4).clamp(2.0, 8.0);
+    final innerVertical = studioSpacingOf(context, 8).clamp(6.0, 12.0);
 
     return Padding(
-      padding: studioPaddingOf(context, const EdgeInsets.fromLTRB(0, 0, 0, 10)),
-      child: StudioPanel(
-        padding: EdgeInsets.zero,
-        radius: 24,
-        tint: colorScheme.surfaceContainerLow,
-        child: Material(
-          color: colorScheme.surface.withValues(alpha: 0),
-          borderRadius: BorderRadius.circular(panelRadius),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(panelRadius),
-            onTap: () => context.push('/player'),
-            child: Padding(
-              padding: studioPaddingOf(
-                context,
-                const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      padding: EdgeInsets.fromLTRB(12, 0, 12, outerBottom),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(cardRadius),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+          child: Container(
+            decoration: BoxDecoration(
+              color: _GlacierPalette.surface.withValues(alpha: 0.78),
+              borderRadius: BorderRadius.circular(cardRadius),
+              border: Border.all(
+                color: _GlacierPalette.primary.withValues(alpha: 0.12),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => context.push('/player'),
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    10,
+                    innerVertical,
+                    10,
+                    innerVertical,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      CoverArtImage(
-                        title: displayTitle,
-                        subtitle: subtitle,
-                        size: coverSize,
-                        borderRadius: 18,
-                        localCoverPath: displayLocalCoverPath,
-                        coverUrl: displayCoverUrl,
-                      ),
-                      const StudioGap(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              displayTitle,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.titleMedium,
-                            ),
-                            const StudioGap(height: 3),
-                            Text(
-                              subtitle.isEmpty ? track.sourceName : subtitle,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const StudioGap(width: 8),
-                      IconButton(
-                        tooltip: l10n.previousTrackAction,
-                        onPressed: playerState.canPlayPrevious
-                            ? controller.playPrevious
-                            : null,
-                        iconSize: 22,
-                        visualDensity: VisualDensity.compact,
-                        padding: studioPaddingOf(
-                          context,
-                          const EdgeInsets.all(6),
-                        ),
-                        constraints: BoxConstraints(
-                          minWidth: controlSize,
-                          minHeight: controlSize,
-                        ),
-                        icon: const Icon(Icons.skip_previous_rounded),
-                      ),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: IconButton(
-                          tooltip: playerState.isPlaying
-                              ? l10n.pauseAction
-                              : l10n.playAction,
-                          onPressed: controller.togglePlayPause,
-                          iconSize: 24,
-                          padding: studioPaddingOf(
-                            context,
-                            const EdgeInsets.all(8),
+                      Row(
+                        children: [
+                          CoverArtImage(
+                            title: displayTitle,
+                            subtitle: subtitle,
+                            size: coverSize,
+                            borderRadius: coverRadius,
+                            localCoverPath: displayLocalCoverPath,
+                            coverUrl: displayCoverUrl,
                           ),
-                          constraints: BoxConstraints(
-                            minWidth: playSize,
-                            minHeight: playSize,
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  displayTitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    color: _GlacierPalette.onSurface,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  subtitle.isEmpty
+                                      ? track.sourceName
+                                      : subtitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    color: _GlacierPalette.onSurfaceVariant,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          icon: Icon(
-                            playerState.isPlaying
+                          const SizedBox(width: 6),
+                          _MiniControlButton(
+                            tooltip: l10n.previousTrackAction,
+                            icon: Icons.skip_previous_rounded,
+                            onPressed: playerState.canPlayPrevious
+                                ? controller.playPrevious
+                                : null,
+                          ),
+                          const SizedBox(width: 4),
+                          _MiniPlayButton(
+                            tooltip: playerState.isPlaying
+                                ? l10n.pauseAction
+                                : l10n.playAction,
+                            icon: playerState.isPlaying
                                 ? Icons.pause_rounded
                                 : Icons.play_arrow_rounded,
-                            color: colorScheme.onPrimaryContainer,
+                            onPressed: controller.togglePlayPause,
                           ),
-                        ),
+                          const SizedBox(width: 4),
+                          _MiniControlButton(
+                            tooltip: l10n.nextTrackAction,
+                            icon: Icons.skip_next_rounded,
+                            onPressed: playerState.canPlayNext
+                                ? controller.playNext
+                                : null,
+                          ),
+                          const SizedBox(width: 4),
+                          _MiniControlButton(
+                            tooltip: l10n.openPlayerAction,
+                            icon: Icons.expand_less_rounded,
+                            onPressed: () => context.push('/player'),
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        tooltip: l10n.nextTrackAction,
-                        onPressed: playerState.canPlayNext
-                            ? controller.playNext
-                            : null,
-                        iconSize: 22,
-                        visualDensity: VisualDensity.compact,
-                        padding: studioPaddingOf(
-                          context,
-                          const EdgeInsets.all(6),
+                      const SizedBox(height: 6),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(999),
+                        child: PlaybackTimeline(
+                          progress: progress.isNaN ? 0 : progress.clamp(0, 1),
+                          cacheSegments: playerState.cacheSegments,
+                          height: 3,
+                          backgroundColor: _GlacierPalette.surfaceContainerHigh,
+                          cacheColor: _GlacierPalette.outline.withValues(
+                            alpha: 0.4,
+                          ),
+                          progressColor: _GlacierPalette.primary,
                         ),
-                        constraints: BoxConstraints(
-                          minWidth: controlSize,
-                          minHeight: controlSize,
-                        ),
-                        icon: const Icon(Icons.skip_next_rounded),
-                      ),
-                      IconButton(
-                        tooltip: l10n.openPlayerAction,
-                        onPressed: () => context.push('/player'),
-                        iconSize: 22,
-                        visualDensity: VisualDensity.compact,
-                        padding: studioPaddingOf(
-                          context,
-                          const EdgeInsets.all(6),
-                        ),
-                        constraints: BoxConstraints(
-                          minWidth: controlSize,
-                          minHeight: controlSize,
-                        ),
-                        icon: const Icon(Icons.expand_less_rounded),
                       ),
                     ],
                   ),
-                  const StudioGap(height: 10),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(999),
-                    child: PlaybackTimeline(
-                      progress: progress.isNaN ? 0 : progress.clamp(0, 1),
-                      cacheSegments: playerState.cacheSegments,
-                      height: 4,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
         ),
       ),
     );
+  }
+}
+
+class _MiniControlButton extends StatelessWidget {
+  const _MiniControlButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onPressed != null;
+    final itemRadius = studioRadiusOf(context, 16);
+
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(itemRadius),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(itemRadius),
+          onTap: onPressed,
+          child: SizedBox(
+            width: 30,
+            height: 30,
+            child: Icon(
+              icon,
+              size: 18,
+              color: enabled
+                  ? _GlacierPalette.onSurface
+                  : _GlacierPalette.onSurfaceVariant.withValues(alpha: 0.4),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniPlayButton extends StatelessWidget {
+  const _MiniPlayButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final itemRadius = studioRadiusOf(context, 16);
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: _GlacierPalette.primary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(itemRadius),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(itemRadius),
+          onTap: onPressed,
+          child: SizedBox(
+            width: 34,
+            height: 34,
+            child: Icon(icon, size: 21, color: _GlacierPalette.primary),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GlacierPalette {
+  static Color surface = const Color(0xFF0F1524);
+  static Color surfaceContainerHigh = const Color(0xFF1A2438);
+  static Color primary = const Color(0xFF7DD3FC);
+  static Color onSurface = const Color(0xFFE0E8F0);
+  static Color onSurfaceVariant = const Color(0xFFA0B4C4);
+  static Color outline = const Color(0xFF4A6070);
+
+  static void sync(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    surface = scheme.surfaceContainer;
+    surfaceContainerHigh = scheme.surfaceContainerHigh;
+    primary = scheme.primary;
+    onSurface = scheme.onSurface;
+    onSurfaceVariant = scheme.onSurfaceVariant;
+    outline = scheme.outline;
   }
 }

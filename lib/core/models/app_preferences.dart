@@ -12,7 +12,7 @@ final class AppDisplayPreferences {
 
   static const double minFontScale = 0.5;
   static const double maxFontScale = 2;
-  static const double defaultFontScale = 0.85;
+  static const double defaultFontScale = 0.8;
 
   static ThemeMode themeModeFor(AppThemePreference value) {
     return switch (value) {

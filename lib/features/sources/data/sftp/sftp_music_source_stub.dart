@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../../../../core/models/playable_track.dart';
 import '../../../../core/models/remote_entry.dart';
 import '../../../../core/models/source_profile.dart';
@@ -31,6 +33,9 @@ class SftpMusicSource implements MusicSource {
 
   @override
   Future<String?> readTextFile(String path) async => null;
+
+  @override
+  Future<Uint8List?> readBinaryFile(String path) async => null;
 }
 
 class SftpMusicSourceFactory implements MusicSourceFactory {

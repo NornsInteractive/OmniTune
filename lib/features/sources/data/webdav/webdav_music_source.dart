@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as p;
@@ -11,7 +12,8 @@ import '../../domain/music_source.dart';
 import 'webdav_playback_cache_base.dart';
 import 'webdav_remote_client.dart';
 
-typedef WebDavRemoteClientFactory = WebDavRemoteClient Function(SourceProfile profile);
+typedef WebDavRemoteClientFactory =
+    WebDavRemoteClient Function(SourceProfile profile);
 typedef WebDavPlaybackCacheFactory = WebDavPlaybackCache Function();
 
 class WebDavMusicSource implements MusicSource {
@@ -75,7 +77,11 @@ class WebDavMusicSource implements MusicSource {
             sourceId: profile.id,
             name: file.name,
             path: file.path,
-            kind: _resolveKind(isDirectory: file.isDirectory, mimeType: file.mimeType, fileName: file.name),
+            kind: _resolveKind(
+              isDirectory: file.isDirectory,
+              mimeType: file.mimeType,
+              fileName: file.name,
+            ),
             mimeType: file.mimeType,
             size: file.size,
             modifiedAt: file.modifiedAt,
@@ -91,14 +97,21 @@ class WebDavMusicSource implements MusicSource {
       return left.name.toLowerCase().compareTo(right.name.toLowerCase());
     });
 
-    return DirectoryListing(entries: entries, diagnostics: _buildDiagnostics(path, entries.length));
+    return DirectoryListing(
+      entries: entries,
+      diagnostics: _buildDiagnostics(path, entries.length),
+    );
   }
 
   @override
   Future<PlayableTrack> buildPlayableTrack(RemoteEntry entry) async {
     entry.ensurePlayable();
 
-    final folderSegments = p.posix.dirname(entry.path).split('/').where((segment) => segment.isNotEmpty).toList();
+    final folderSegments = p.posix
+        .dirname(entry.path)
+        .split('/')
+        .where((segment) => segment.isNotEmpty)
+        .toList();
 
     // 快速检查缓存（不等待完整的磁盘验证）
     // 超时时间为 1 秒，避免阻塞
@@ -118,7 +131,9 @@ class WebDavMusicSource implements MusicSource {
         audioSource: cachedAudioSource,
         sourceSizeBytes: entry.size,
         albumTitle: folderSegments.isEmpty ? profile.name : folderSegments.last,
-        artistName: folderSegments.length >= 2 ? folderSegments[folderSegments.length - 2] : profile.name,
+        artistName: folderSegments.length >= 2
+            ? folderSegments[folderSegments.length - 2]
+            : profile.name,
       );
     }
 
@@ -134,10 +149,16 @@ class WebDavMusicSource implements MusicSource {
       title: entry.title,
       sourceName: profile.name,
       remotePath: entry.path,
-      audioSource: _WebDavStreamAudioSource(client: _client, entry: entry, playbackCache: _playbackCache),
+      audioSource: _WebDavStreamAudioSource(
+        client: _client,
+        entry: entry,
+        playbackCache: _playbackCache,
+      ),
       sourceSizeBytes: entry.size,
       albumTitle: folderSegments.isEmpty ? profile.name : folderSegments.last,
-      artistName: folderSegments.length >= 2 ? folderSegments[folderSegments.length - 2] : profile.name,
+      artistName: folderSegments.length >= 2
+          ? folderSegments[folderSegments.length - 2]
+          : profile.name,
     );
   }
 
@@ -153,7 +174,26 @@ class WebDavMusicSource implements MusicSource {
     return content;
   }
 
-  RemoteEntryKind _resolveKind({required bool isDirectory, required String? mimeType, required String fileName}) {
+  @override
+  Future<Uint8List?> readBinaryFile(String path) async {
+    try {
+      await connect();
+      final result = await _client.openRead(path);
+      final builder = BytesBuilder(copy: false);
+      await for (final chunk in result.stream) {
+        builder.add(chunk);
+      }
+      return builder.takeBytes();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  RemoteEntryKind _resolveKind({
+    required bool isDirectory,
+    required String? mimeType,
+    required String fileName,
+  }) {
     if (isDirectory) {
       return RemoteEntryKind.directory;
     }
@@ -172,7 +212,8 @@ class WebDavMusicSource implements MusicSource {
     return DirectoryDiagnostics(
       protocolLabel: profile.protocol.label,
       requestedPath: path,
-      attemptedPaths: debug?.attempts.map((attempt) => attempt.path).toList() ?? [path],
+      attemptedPaths:
+          debug?.attempts.map((attempt) => attempt.path).toList() ?? [path],
       entryCount: entryCount,
       details: debug?.describe() ?? const [],
     );
@@ -180,7 +221,11 @@ class WebDavMusicSource implements MusicSource {
 }
 
 class _WebDavStreamAudioSource extends StreamAudioSource {
-  _WebDavStreamAudioSource({required this.client, required this.entry, required this.playbackCache});
+  _WebDavStreamAudioSource({
+    required this.client,
+    required this.entry,
+    required this.playbackCache,
+  });
 
   final WebDavRemoteClient client;
   final RemoteEntry entry;
@@ -189,14 +234,19 @@ class _WebDavStreamAudioSource extends StreamAudioSource {
   @override
   Future<StreamAudioResponse> request([int? start, int? end]) async {
     final requestedStart = start ?? 0;
-    final cachedRange = await playbackCache.readCachedRange(entry: entry, start: requestedStart, end: end);
+    final cachedRange = await playbackCache.readCachedRange(
+      entry: entry,
+      start: requestedStart,
+      end: end,
+    );
 
     if (cachedRange != null) {
       final cachedSourceLength = entry.size;
       final cachedContentLength = cachedRange.bytes.length;
       final cacheSatisfiesRequest = end != null
           ? cachedRange.endExclusive >= end
-          : (cachedSourceLength != null && cachedRange.endExclusive >= cachedSourceLength);
+          : (cachedSourceLength != null &&
+                cachedRange.endExclusive >= cachedSourceLength);
 
       if (cacheSatisfiesRequest) {
         return StreamAudioResponse(
@@ -204,11 +254,19 @@ class _WebDavStreamAudioSource extends StreamAudioSource {
           contentLength: cachedContentLength,
           offset: requestedStart,
           stream: Stream<List<int>>.value(cachedRange.bytes),
-          contentType: _resolvePlaybackContentType('', fallbackMimeType: entry.mimeType, fileName: entry.name),
+          contentType: _resolvePlaybackContentType(
+            '',
+            fallbackMimeType: entry.mimeType,
+            fileName: entry.name,
+          ),
         );
       }
 
-      final networkResult = await client.openRead(entry.path, start: cachedRange.endExclusive, end: end);
+      final networkResult = await client.openRead(
+        entry.path,
+        start: cachedRange.endExclusive,
+        end: end,
+      );
       final sourceLength = networkResult.sourceLength ?? entry.size;
       final resolvedContentLength = _resolvedContentLength(
         requestedStart: requestedStart,
@@ -320,7 +378,9 @@ class _WebDavStreamAudioSource extends StreamAudioSource {
       _ =>
         normalizedFallback.isNotEmpty
             ? normalizedFallback
-            : (normalizedHeader.isNotEmpty ? normalizedHeader : 'application/octet-stream'),
+            : (normalizedHeader.isNotEmpty
+                  ? normalizedHeader
+                  : 'application/octet-stream'),
     };
   }
 
@@ -343,7 +403,10 @@ class _WebDavStreamAudioSource extends StreamAudioSource {
   }
 }
 
-Stream<List<int>> _concatStreams(Stream<List<int>> first, Stream<List<int>> second) async* {
+Stream<List<int>> _concatStreams(
+  Stream<List<int>> first,
+  Stream<List<int>> second,
+) async* {
   await for (final chunk in first) {
     yield chunk;
   }
@@ -362,6 +425,9 @@ class WebDavMusicSourceFactory implements MusicSourceFactory {
 
   @override
   MusicSource create(SourceProfile profile) {
-    return WebDavMusicSource(profile, playbackCacheFactory: playbackCacheFactory);
+    return WebDavMusicSource(
+      profile,
+      playbackCacheFactory: playbackCacheFactory,
+    );
   }
 }

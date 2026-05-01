@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dartssh2/dartssh2.dart';
 import 'package:just_audio/just_audio.dart';
@@ -116,6 +117,21 @@ class SftpMusicSource implements MusicSource {
       try {
         final bytes = await file.readBytes();
         return utf8.decode(bytes, allowMalformed: true);
+      } finally {
+        await file.close();
+      }
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<Uint8List?> readBinaryFile(String path) async {
+    try {
+      await connect();
+      final file = await _sftp.open(_remoteFilePath(path));
+      try {
+        return await file.readBytes();
       } finally {
         await file.close();
       }

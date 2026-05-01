@@ -104,6 +104,12 @@ abstract class AppLocalizations {
   /// **'Flux Music'**
   String get appTitle;
 
+  /// No description provided for @homeTabLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get homeTabLabel;
+
   /// No description provided for @albumsTabLabel.
   ///
   /// In en, this message translates to:
@@ -1184,6 +1190,54 @@ abstract class AppLocalizations {
   /// **'Your music library'**
   String get collectionHeadline;
 
+  /// No description provided for @homeGreetingMorning.
+  ///
+  /// In en, this message translates to:
+  /// **'Good morning'**
+  String get homeGreetingMorning;
+
+  /// No description provided for @homeGreetingAfternoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Good afternoon'**
+  String get homeGreetingAfternoon;
+
+  /// No description provided for @homeGreetingEvening.
+  ///
+  /// In en, this message translates to:
+  /// **'Good evening'**
+  String get homeGreetingEvening;
+
+  /// No description provided for @homeWelcomeDescriptionReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected to {sourceCount} music sources. Your cloud library is ready to play.'**
+  String homeWelcomeDescriptionReady(int sourceCount);
+
+  /// No description provided for @homeWelcomeDescriptionPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Your sources are connected. Run a scan to build albums and song collections.'**
+  String get homeWelcomeDescriptionPending;
+
+  /// No description provided for @homeSourcesSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud sources'**
+  String get homeSourcesSectionTitle;
+
+  /// No description provided for @homeRecentAlbumsSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently added'**
+  String get homeRecentAlbumsSectionTitle;
+
+  /// No description provided for @homeRecentAlbumsEmptyDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Once you scan your sources, newly discovered albums will show up here.'**
+  String get homeRecentAlbumsEmptyDescription;
+
   /// No description provided for @collectionDescription.
   ///
   /// In en, this message translates to:
@@ -1216,6 +1270,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Liked'**
   String get likedCollectionTitle;
+
+  /// No description provided for @favoritesCollectionDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Your bookmarked songs live here.'**
+  String get favoritesCollectionDescription;
+
+  /// No description provided for @likedCollectionDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Songs you marked as liked live here.'**
+  String get likedCollectionDescription;
 
   /// No description provided for @allSongsCollectionTitle.
   ///
@@ -1256,7 +1322,7 @@ abstract class AppLocalizations {
   /// No description provided for @browserTitle.
   ///
   /// In en, this message translates to:
-  /// **'Remote browser'**
+  /// **'File browser'**
   String get browserTitle;
 
   /// No description provided for @currentPathLabel.
@@ -1312,6 +1378,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Retry'**
   String get retryAction;
+
+  /// No description provided for @resetToDefaultAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to default'**
+  String get resetToDefaultAction;
 
   /// No description provided for @playerEmptyTitle.
   ///

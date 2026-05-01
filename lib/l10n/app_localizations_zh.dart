@@ -12,10 +12,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appTitle => 'Flux Music';
 
   @override
+  String get homeTabLabel => '首页';
+
+  @override
   String get albumsTabLabel => '专辑';
 
   @override
-  String get collectionTabLabel => '资料库';
+  String get collectionTabLabel => '音乐库';
 
   @override
   String get settingsTabLabel => '设置';
@@ -599,6 +602,32 @@ class AppLocalizationsZh extends AppLocalizations {
   String get collectionHeadline => '我的音乐资料库';
 
   @override
+  String get homeGreetingMorning => '早上好';
+
+  @override
+  String get homeGreetingAfternoon => '下午好';
+
+  @override
+  String get homeGreetingEvening => '晚上好';
+
+  @override
+  String homeWelcomeDescriptionReady(int sourceCount) {
+    return '当前已连接 $sourceCount 个音乐音源，你的云端音乐库已经准备就绪。';
+  }
+
+  @override
+  String get homeWelcomeDescriptionPending => '音源已经连接完成，执行一次扫描后就能生成专辑和歌曲集合。';
+
+  @override
+  String get homeSourcesSectionTitle => '云端音源';
+
+  @override
+  String get homeRecentAlbumsSectionTitle => '最近加入';
+
+  @override
+  String get homeRecentAlbumsEmptyDescription => '扫描音源之后，新发现的专辑会出现在这里。';
+
+  @override
   String collectionDescription(Object sourceName) {
     return '浏览 $sourceName，扫描全部歌曲，并在全部歌曲、我喜欢和我收藏之间快速切换。';
   }
@@ -623,6 +652,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get likedCollectionTitle => '我喜欢';
 
   @override
+  String get favoritesCollectionDescription => '你收藏的歌曲会显示在这里。';
+
+  @override
+  String get likedCollectionDescription => '你标记为喜欢的歌曲会显示在这里。';
+
+  @override
   String get allSongsCollectionTitle => '所有歌曲';
 
   @override
@@ -641,7 +676,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scanLibraryHint => '执行一次扫描后，这里会把所有已保存音源中的音乐文件整理成歌曲和专辑集合。';
 
   @override
-  String get browserTitle => '远程浏览';
+  String get browserTitle => '文件浏览';
 
   @override
   String get currentPathLabel => '当前位置';
@@ -669,6 +704,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get retryAction => '重试';
+
+  @override
+  String get resetToDefaultAction => '恢复默认值';
 
   @override
   String get playerEmptyTitle => '还没有选择歌曲';

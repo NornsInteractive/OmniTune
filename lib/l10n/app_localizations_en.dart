@@ -12,6 +12,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appTitle => 'Flux Music';
 
   @override
+  String get homeTabLabel => 'Home';
+
+  @override
   String get albumsTabLabel => 'Albums';
 
   @override
@@ -630,6 +633,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String get collectionHeadline => 'Your music library';
 
   @override
+  String get homeGreetingMorning => 'Good morning';
+
+  @override
+  String get homeGreetingAfternoon => 'Good afternoon';
+
+  @override
+  String get homeGreetingEvening => 'Good evening';
+
+  @override
+  String homeWelcomeDescriptionReady(int sourceCount) {
+    return 'Connected to $sourceCount music sources. Your cloud library is ready to play.';
+  }
+
+  @override
+  String get homeWelcomeDescriptionPending =>
+      'Your sources are connected. Run a scan to build albums and song collections.';
+
+  @override
+  String get homeSourcesSectionTitle => 'Cloud sources';
+
+  @override
+  String get homeRecentAlbumsSectionTitle => 'Recently added';
+
+  @override
+  String get homeRecentAlbumsEmptyDescription =>
+      'Once you scan your sources, newly discovered albums will show up here.';
+
+  @override
   String collectionDescription(Object sourceName) {
     return 'Browse $sourceName, scan all songs, and jump between all songs, liked songs, and favorites.';
   }
@@ -654,6 +685,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get likedCollectionTitle => 'Liked';
 
   @override
+  String get favoritesCollectionDescription =>
+      'Your bookmarked songs live here.';
+
+  @override
+  String get likedCollectionDescription =>
+      'Songs you marked as liked live here.';
+
+  @override
   String get allSongsCollectionTitle => 'All songs';
 
   @override
@@ -674,7 +713,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Run a scan to index every music file from all saved sources into albums and song collections.';
 
   @override
-  String get browserTitle => 'Remote browser';
+  String get browserTitle => 'File browser';
 
   @override
   String get currentPathLabel => 'Current path';
@@ -704,6 +743,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get retryAction => 'Retry';
+
+  @override
+  String get resetToDefaultAction => 'Reset to default';
 
   @override
   String get playerEmptyTitle => 'No track selected';

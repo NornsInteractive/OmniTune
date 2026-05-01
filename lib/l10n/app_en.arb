@@ -1,6 +1,7 @@
 {
   "@@locale": "en",
   "appTitle": "Flux Music",
+  "homeTabLabel": "Home",
   "albumsTabLabel": "Albums",
   "collectionTabLabel": "Collection",
   "settingsTabLabel": "Settings",
@@ -285,6 +286,21 @@
   "albumsEmptyDescription": "Run a scan to collect albums from your remote music source.",
   "tracksLabel": "tracks",
   "collectionHeadline": "Your music library",
+  "homeGreetingMorning": "Good morning",
+  "homeGreetingAfternoon": "Good afternoon",
+  "homeGreetingEvening": "Good evening",
+  "homeWelcomeDescriptionReady": "Connected to {sourceCount} music sources. Your cloud library is ready to play.",
+  "@homeWelcomeDescriptionReady": {
+    "placeholders": {
+      "sourceCount": {
+        "type": "int"
+      }
+    }
+  },
+  "homeWelcomeDescriptionPending": "Your sources are connected. Run a scan to build albums and song collections.",
+  "homeSourcesSectionTitle": "Cloud sources",
+  "homeRecentAlbumsSectionTitle": "Recently added",
+  "homeRecentAlbumsEmptyDescription": "Once you scan your sources, newly discovered albums will show up here.",
   "collectionDescription": "Browse {sourceName}, scan all songs, and jump between all songs, liked songs, and favorites.",
   "@collectionDescription": {
     "placeholders": {
@@ -308,13 +324,15 @@
   },
   "favoritesCollectionTitle": "Favorites",
   "likedCollectionTitle": "Liked",
+  "favoritesCollectionDescription": "Your bookmarked songs live here.",
+  "likedCollectionDescription": "Songs you marked as liked live here.",
   "allSongsCollectionTitle": "All songs",
   "favoritesEmptyTitle": "No favorites yet",
   "likedEmptyTitle": "No liked songs yet",
   "allSongsEmptyTitle": "No scanned songs yet",
   "collectionEmptyDescription": "This section is empty right now. Pick songs you love or run another scan.",
   "scanLibraryHint": "Run a scan to index every music file from all saved sources into albums and song collections.",
-  "browserTitle": "Remote browser",
+  "browserTitle": "File browser",
   "currentPathLabel": "Current path",
   "upAction": "Up",
   "refreshAction": "Refresh",
@@ -324,6 +342,7 @@
   "unsupportedFileMessage": "This file can be listed, but it is not playable yet.",
   "loadFailedMessage": "Unable to load the current source.",
   "retryAction": "Retry",
+  "resetToDefaultAction": "Reset to default",
   "playerEmptyTitle": "No track selected",
   "playerEmptyDescription": "Choose a music file from your source browser to start playback.",
   "lyricsEmptyLabel": "No synced lyrics were found for this track yet.",

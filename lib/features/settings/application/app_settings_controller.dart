@@ -28,6 +28,14 @@ class AppSettingsController extends AsyncNotifier<LibraryPreferences> {
     await _save((preferences) => preferences.copyWith(fontScaleFactor: value));
   }
 
+  Future<void> setAlbumPageSize(int value) async {
+    await _save((preferences) => preferences.copyWith(albumPageSize: value));
+  }
+
+  Future<void> setAlbumViewGrid(bool value) async {
+    await _save((preferences) => preferences.copyWith(albumViewGrid: value));
+  }
+
   Future<void> setDebugMode(bool value) async {
     await _save((preferences) => preferences.copyWith(enableDebugMode: value));
   }

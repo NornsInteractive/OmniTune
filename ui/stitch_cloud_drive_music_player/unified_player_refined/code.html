@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Glacier Music - Now Playing</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "error-container": "#3d1414",
+                        "on-tertiary-container": "#e8d0ff",
+                        "on-primary-fixed": "#001f2e",
+                        "tertiary-fixed": "#e8d0ff",
+                        "background": "#0a0e1a",
+                        "on-error": "#1a0000",
+                        "surface-container-highest": "#202c42",
+                        "error": "#ff6b6b",
+                        "inverse-primary": "#0a4c6e",
+                        "tertiary-fixed-dim": "#c8a0f0",
+                        "secondary-fixed-dim": "#88b4cc",
+                        "primary-fixed": "#c8eaff",
+                        "surface-container": "#141c2e",
+                        "on-surface-variant": "#a0b4c4",
+                        "surface-container-lowest": "#0a0e1a",
+                        "outline": "#4a6070",
+                        "on-secondary-fixed-variant": "#2a4a5e",
+                        "primary": "#7dd3fc",
+                        "on-primary": "#001f2e",
+                        "on-error-container": "#ffb3b3",
+                        "surface-tint": "#7dd3fc",
+                        "surface-bright": "#1a2438",
+                        "secondary-fixed": "#c0d8e8",
+                        "inverse-surface": "#e0e8f0",
+                        "surface-dim": "#0f1524",
+                        "primary-fixed-dim": "#7dd3fc",
+                        "on-primary-fixed-variant": "#004d73",
+                        "on-tertiary-fixed": "#1a002e",
+                        "surface-container-high": "#1a2438",
+                        "outline-variant": "#2a3a48",
+                        "on-secondary-container": "#c0d8e8",
+                        "surface-variant": "#1a2438",
+                        "secondary": "#88b4cc",
+                        "on-secondary": "#001f2e",
+                        "primary-container": "#0e4d6e",
+                        "on-primary-container": "#c8eaff",
+                        "on-tertiary-fixed-variant": "#4d2a73",
+                        "inverse-on-surface": "#0a0e1a",
+                        "on-tertiary": "#1a002e",
+                        "tertiary": "#c8a0f0",
+                        "surface": "#0f1524",
+                        "on-surface": "#e0e8f0",
+                        "on-secondary-fixed": "#0d1f2b",
+                        "on-background": "#e0e8f0",
+                        "tertiary-container": "#3d2060",
+                        "surface-container-low": "#111828",
+                        "secondary-container": "#1a3a4e"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Inter"],
+                        "display": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: theme('colors.background');
+            color: theme('colors.on-surface');
+            font-family: theme('fontFamily.body');
+        }
+        .glass-panel {
+            background: rgba(15, 21, 36, 0.6);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(125, 211, 252, 0.1);
+        }
+        .glass-elevated {
+            background: rgba(15, 21, 36, 0.75);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(125, 211, 252, 0.15);
+            box-shadow: 0 0 30px rgba(125, 211, 252, 0.05);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center relative overflow-hidden bg-background">
+<!-- Ambient Background Glow -->
+<div class="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+<div class="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-[128px]"></div>
+<div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-tertiary/10 rounded-full blur-[128px]"></div>
+</div>
+<!-- Main Container -->
+<main class="relative z-10 w-full max-w-md mx-auto h-[884px] md:h-[850px] md:rounded-[2rem] md:border md:border-primary/10 glass-elevated flex flex-col px-5 pt-8 pb-4 overflow-hidden">
+<!-- Header area -->
+<header class="flex justify-between items-center w-full mb-6">
+<button class="p-2 rounded-full hover:bg-primary/10 transition-colors text-on-surface-variant hover:text-primary">
+<span class="material-symbols-outlined">expand_more</span>
+</button>
+<div class="text-center">
+<h2 class="text-[11px] font-medium tracking-widest uppercase text-primary mb-1">Now Playing</h2>
+<p class="text-sm font-semibold text-on-surface">Frozen Echoes</p>
+</div>
+<button class="p-2 rounded-full hover:bg-primary/10 transition-colors text-on-surface-variant hover:text-primary">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</header>
+<!-- Artwork Card (Tappable area for lyrics) -->
+<div class="relative w-full aspect-square mb-6 group cursor-pointer transition-transform active:scale-[0.98] duration-300">
+<!-- Artwork -->
+<div class="absolute inset-0 rounded-2xl overflow-hidden glass-panel shadow-[0_0_40px_rgba(125,211,252,0.15)] group-hover:shadow-[0_0_50px_rgba(125,211,252,0.25)] transition-shadow duration-500 z-10">
+<img alt="Album Cover" class="w-full h-full object-cover opacity-90 transition-opacity duration-500 group-hover:opacity-100" data-alt="abstract glacial ice formations with deep blue and soft purple lighting, ethereal and cold atmosphere, high contrast" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC3OTVpiuCM2kECuVSsiD9E9cgkcc0NP6_nqZlSgm-dULik7y-WfCzfOJ-UUP3FEK4FDMPdMpc-g-79nymgQchjpRJ5FLIRp0D7XDBTSp82Ea8vURxm4GwoHhrRTtNINK1zf_o7YepHVnFvGYsFlJnkdrc9BhYXmPvr2HsIQgpL2L9qhsWslKdq5CsDdR1clrQ7JuDBToXNJgAyTUO0ToXQvgHeZfDkJG60tWv0DxA10b-bFBkYOmki0haoEyiUzejXa_RWVfmTyEw"/>
+<!-- Inner glow border -->
+<div class="absolute inset-0 border border-primary/20 rounded-2xl pointer-events-none"></div>
+</div>
+<!-- Lyrics Hint Overlay (appears on hover) -->
+<div class="absolute inset-0 z-20 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 bg-background/40 backdrop-blur-sm rounded-2xl transition-all duration-300">
+<span class="material-symbols-outlined text-primary text-4xl mb-2">lyrics</span>
+<span class="text-sm font-medium text-on-surface">Tap for lyrics</span>
+</div>
+</div>
+<!-- Track Info -->
+<div class="flex justify-between items-end mb-6 w-full">
+<div class="flex flex-col">
+<h1 class="text-2xl font-bold font-headline text-on-surface mb-1">Crystalline Silence</h1>
+<p class="text-on-surface-variant text-base">Aurora Waves</p>
+</div>
+<button class="p-2 rounded-full hover:bg-primary/10 transition-colors text-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">favorite</span>
+</button>
+</div>
+<!-- Progress Bar -->
+<div class="w-full mb-6">
+<div class="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden mb-2 cursor-pointer relative group">
+<!-- Hover highlight -->
+<div class="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<!-- Progress -->
+<div class="h-full bg-primary relative w-[45%]">
+<!-- Glow on progress -->
+<div class="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 bg-primary blur-sm rounded-full"></div>
+</div>
+</div>
+<div class="flex justify-between text-xs text-on-surface-variant font-medium">
+<span>1:45</span>
+<span>-2:30</span>
+</div>
+</div>
+<!-- Playback Controls -->
+<div class="w-full flex items-center justify-between px-2 mt-auto mb-2">
+<button class="p-3 text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[22px]">shuffle</span>
+</button>
+<button class="p-3 text-on-surface hover:text-primary transition-colors active:scale-90">
+<span class="material-symbols-outlined text-[32px]" style="font-variation-settings: 'FILL' 1;">skip_previous</span>
+</button>
+<!-- Play Button -->
+<button class="w-16 h-16 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center text-primary shadow-[0_0_20px_rgba(125,211,252,0.15)] hover:bg-primary/20 hover:shadow-[0_0_30px_rgba(125,211,252,0.25)] transition-all active:scale-95">
+<span class="material-symbols-outlined text-[36px]" style="font-variation-settings: 'FILL' 1;">pause</span>
+</button>
+<button class="p-3 text-on-surface hover:text-primary transition-colors active:scale-90">
+<span class="material-symbols-outlined text-[32px]" style="font-variation-settings: 'FILL' 1;">skip_next</span>
+</button>
+<button class="p-3 text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[22px]">repeat</span>
+</button>
+</div>
+</main>
+</body></html>

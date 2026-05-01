@@ -12,8 +12,8 @@ class DebugLogger {
 
   DebugLogger._internal();
 
-  /// 是否启用调试模式，默认始终启用以捕获刮削错误
-  static bool _debugEnabled = true;
+  /// 是否启用调试模式，默认关闭，按设置页手动开启
+  static bool _debugEnabled = false;
 
   /// 设置调试模式开关
   static void setDebugEnabled(bool enabled) {
@@ -54,7 +54,12 @@ class DebugLogger {
   }
 
   /// 记录错误
-  static void error(String tag, String message, [Object? error, StackTrace? stackTrace]) {
+  static void error(
+    String tag,
+    String message, [
+    Object? error,
+    StackTrace? stackTrace,
+  ]) {
     if (_debugEnabled) {
       var text = '❌ [$tag] $message';
       debugPrint(text);
@@ -73,7 +78,13 @@ class DebugLogger {
   }
 
   /// 记录网络请求
-  static void network(String tag, String method, String url, {int? statusCode, Object? response}) {
+  static void network(
+    String tag,
+    String method,
+    String url, {
+    int? statusCode,
+    Object? response,
+  }) {
     if (_debugEnabled) {
       var text = '🌐 [$tag] $method $url';
       debugPrint(text);

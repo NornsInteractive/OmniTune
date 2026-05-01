@@ -73,6 +73,7 @@ GoRouter appRouter(Ref ref) {
           ),
         ],
       ),
+      GoRoute(path: '/home', redirect: (context, state) => '/albums'),
       GoRoute(
         path: '/settings',
         builder: (context, state) => const SettingsPage(),

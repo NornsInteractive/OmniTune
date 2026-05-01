@@ -12,13 +12,14 @@ import '../../../core/models/app_preferences.dart';
 import '../../../core/models/library_song.dart';
 import '../../../core/models/playable_track.dart';
 import '../../../core/models/remote_entry.dart';
+import '../../../core/models/scraping_preferences.dart';
 import '../../../core/models/source_profile.dart';
 import '../../../core/storage/library_preferences_repository.dart';
 import '../../../core/storage/player_session_repository.dart';
 import '../../../core/utils/chinese_text_localizer.dart';
 import '../../../core/utils/debug_logger.dart';
 import '../../settings/application/app_settings_controller.dart';
-import '../../scraper/application/scraper_chain.dart';
+import '../../scraper/application/scraping_provider.dart' as scraping;
 import '../../scraper/domain/metadata_scraper.dart';
 import '../../sources/application/source_session_manager.dart';
 import '../../sources/application/sources_controller.dart';
@@ -191,6 +192,7 @@ class PlayerController extends _$PlayerController {
   bool _restoreStarted = false;
   DateTime _lastPositionPersistedAt = DateTime.fromMillisecondsSinceEpoch(0);
   int _playRequestSerial = 0;
+  final Set<String> _inFlightAutoScrapeSongIds = <String>{};
 
   @override
   PlayerViewState build() {
@@ -222,8 +224,12 @@ class PlayerController extends _$PlayerController {
     try {
       _replacePlaylist(const [], currentIndex: -1);
       unawaited(_sessionRepository.clear());
-      await _playRemoteEntry(profile: profile, entry: entry);
-      unawaited(_scrapeCurrentEntryAsync(entry));
+      _scheduleAutoScrapeForEntry(entry);
+      await _playRemoteEntry(
+        profile: profile,
+        entry: entry,
+        onTrackStarted: () => _scheduleAutoScrapeForEntry(entry),
+      );
     } catch (error) {
       _syncState(errorMessage: error.toString());
       rethrow;
@@ -238,6 +244,7 @@ class PlayerController extends _$PlayerController {
       final nextPlaylist = _playlistForSong(song, playlist);
       final nextIndex = nextPlaylist.indexWhere((item) => item.id == song.id);
       _replacePlaylist(nextPlaylist, currentIndex: nextIndex);
+      _scheduleAutoScrapeForSong(song);
       await _playQueueIndex(nextIndex);
     } catch (error) {
       _syncState(errorMessage: error.toString());
@@ -313,6 +320,44 @@ class PlayerController extends _$PlayerController {
     }
   }
 
+  Future<void> reorderPlaylist(int oldIndex, int newIndex) async {
+    if (oldIndex < 0 ||
+        oldIndex >= _playlist.length ||
+        newIndex < 0 ||
+        newIndex > _playlist.length) {
+      return;
+    }
+    if (oldIndex == newIndex || oldIndex + 1 == newIndex) {
+      return;
+    }
+
+    final currentSongId =
+        (_currentIndex >= 0 && _currentIndex < _playlist.length)
+        ? _playlist[_currentIndex].id
+        : null;
+    final nextPlaylist = List<LibrarySong>.of(_playlist);
+    final moved = nextPlaylist.removeAt(oldIndex);
+    final insertIndex = oldIndex < newIndex ? newIndex - 1 : newIndex;
+    nextPlaylist.insert(insertIndex, moved);
+
+    final nextCurrentIndex = currentSongId == null
+        ? -1
+        : nextPlaylist.indexWhere((song) => song.id == currentSongId);
+    _replacePlaylist(nextPlaylist, currentIndex: nextCurrentIndex);
+    unawaited(_persistSession());
+  }
+
+  void refreshSongMetadata(String songId) {
+    if (songId.trim().isEmpty) {
+      return;
+    }
+    final metadata = IsarManager.getMetadata(songId);
+    if (metadata == null || !_hasSavedScrapingData(metadata)) {
+      return;
+    }
+    _applyScrapingMetadataToCurrentSong(songId, metadata);
+  }
+
   void cyclePlaybackMode() {
     _playbackMode = switch (_playbackMode) {
       PlayerPlaybackMode.list => PlayerPlaybackMode.shuffle,
@@ -331,6 +376,9 @@ class PlayerController extends _$PlayerController {
 
   Future<void> togglePlayPause() async {
     await _service.togglePlayPause();
+    if (_service.isPlaying) {
+      _scheduleAutoScrapeForCurrentTrack();
+    }
     _syncState();
     unawaited(_persistSession());
   }
@@ -345,6 +393,9 @@ class PlayerController extends _$PlayerController {
     await _service.seek(position);
     if (!_service.isPlaying) {
       await _service.togglePlayPause();
+    }
+    if (_service.isPlaying) {
+      _scheduleAutoScrapeForCurrentTrack();
     }
     _syncState();
     unawaited(_persistSession(positionOverride: position));
@@ -441,6 +492,7 @@ class PlayerController extends _$PlayerController {
   Future<void> _playRemoteEntry({
     required SourceProfile profile,
     required RemoteEntry entry,
+    void Function()? onTrackStarted,
   }) async {
     final requestSerial = ++_playRequestSerial;
     _lyrics = const [];
@@ -468,8 +520,10 @@ class PlayerController extends _$PlayerController {
       _lyrics = scrapedLyrics;
     }
 
-    // 立即播放，不等待歌词加载
-    await _service.playTrack(track);
+    // 立即播放，不等待歌词加载；playTrack 会先同步写入 currentTrack。
+    final playFuture = _service.playTrack(track);
+    onTrackStarted?.call();
+    await playFuture;
     _syncState();
     unawaited(_persistSession(positionOverride: Duration.zero));
 
@@ -496,8 +550,12 @@ class PlayerController extends _$PlayerController {
 
     final song = _playlist[index];
     final profile = await _profileForSong(song);
-    await _playRemoteEntry(profile: profile, entry: song.toRemoteEntry());
-    unawaited(_scrapeCurrentSongAsync(song));
+    _scheduleAutoScrapeForSong(song);
+    await _playRemoteEntry(
+      profile: profile,
+      entry: song.toRemoteEntry(),
+      onTrackStarted: () => _scheduleAutoScrapeForSong(song),
+    );
   }
 
   Future<void> _loadQueueIndex(
@@ -519,8 +577,7 @@ class PlayerController extends _$PlayerController {
     var displaySong = song;
     try {
       final scrapingMetadata = IsarManager.getMetadata(song.id);
-      if (scrapingMetadata != null &&
-          scrapingMetadata.status == ScrapingStatus.completed) {
+      if (scrapingMetadata != null && _hasSavedScrapingData(scrapingMetadata)) {
         // 应用刮削数据到显示
         displaySong = LibrarySong(
           id: song.id,
@@ -875,7 +932,7 @@ class PlayerController extends _$PlayerController {
   }) {
     try {
       final metadata = IsarManager.getMetadata(metadataId);
-      if (metadata == null || metadata.status != ScrapingStatus.completed) {
+      if (metadata == null || !_hasSavedScrapingData(metadata)) {
         return track;
       }
 
@@ -1040,7 +1097,7 @@ class PlayerController extends _$PlayerController {
     _service.updateCurrentTrack(updatedTrack);
 
     final scrapedLyrics = _parseLyrics(updatedTrack.displayLyrics);
-    if (_lyrics.isEmpty && scrapedLyrics.isNotEmpty) {
+    if (scrapedLyrics.isNotEmpty) {
       _lyrics = scrapedLyrics;
     }
 
@@ -1050,48 +1107,16 @@ class PlayerController extends _$PlayerController {
     }
   }
 
-  ScrapingMetadata _buildCompletedScrapingMetadata({
-    required RemoteEntry entry,
-    required ScrapedMetadata scrapedMetadata,
-  }) {
-    return ScrapingMetadata(
-      id: entry.uniqueId,
-      sourceId: entry.sourceId,
-      filePath: entry.path,
-      filenameWithoutExt: p.posix.basenameWithoutExtension(entry.name),
-      originalFileName: entry.name,
-      manuallyScrapedTitle: null,
-      manuallyScrapedArtist: null,
-      manuallyScrapedAlbum: null,
-      manuallyScrapedCoverUrl: null,
-      manuallyScrapedLocalCoverPath: null,
-      manuallyScrapedLyrics: null,
-      manualScrapedAt: null,
-      autoScrapedTitle: scrapedMetadata.title,
-      autoScrapedArtist: scrapedMetadata.artist,
-      autoScrapedAlbum: scrapedMetadata.album,
-      autoScrapedCoverUrl: scrapedMetadata.coverUrl,
-      autoScrapedLocalCoverPath: scrapedMetadata.localCoverPath,
-      autoScrapedLyrics: scrapedMetadata.lyrics,
-      autoScrapedAt: DateTime.now(),
-      status: ScrapingStatus.completed,
-      errorMessage: null,
-      retryCount: 0,
-    );
-  }
-
   void _applyScrapingMetadataToCurrentSong(
     String songId,
     ScrapingMetadata metadata,
   ) {
-    if (_currentIndex < 0 || _currentIndex >= _playlist.length) {
+    final songIndex = _playlist.indexWhere((song) => song.id == songId);
+    if (songIndex < 0) {
       return;
     }
 
-    final currentSong = _playlist[_currentIndex];
-    if (currentSong.id != songId) {
-      return;
-    }
+    final currentSong = _playlist[songIndex];
 
     final updatedSong = LibrarySong(
       id: currentSong.id,
@@ -1140,16 +1165,15 @@ class PlayerController extends _$PlayerController {
     );
 
     _playlist = List<LibrarySong>.unmodifiable([
-      ..._playlist.sublist(0, _currentIndex),
+      ..._playlist.sublist(0, songIndex),
       updatedSong,
-      if (_currentIndex + 1 < _playlist.length)
-        ..._playlist.sublist(_currentIndex + 1),
+      if (songIndex + 1 < _playlist.length) ..._playlist.sublist(songIndex + 1),
     ]);
 
     _applyScrapingMetadataToCurrentTrack(songId, metadata, syncState: false);
 
     final scrapedLyrics = _parseLyrics(updatedSong.displayLyrics);
-    if (_lyrics.isEmpty && scrapedLyrics.isNotEmpty) {
+    if (scrapedLyrics.isNotEmpty) {
       _lyrics = scrapedLyrics;
     }
 
@@ -1164,16 +1188,39 @@ class PlayerController extends _$PlayerController {
   /// 异步刮削当前播放的歌曲
   /// 不会阻塞播放流程，在后台执行
   Future<void> _scrapeCurrentSongAsync(LibrarySong song) async {
+    final requestSerial = _playRequestSerial;
+    final currentTrackAtStart = _service.currentTrack;
+    if (currentTrackAtStart == null || currentTrackAtStart.id != song.id) {
+      DebugLogger.info(
+        'PlayerController._scrapeCurrentSongAsync',
+        '跳过非当前播放歌曲刮削: ${song.displayTitle}',
+      );
+      return;
+    }
+    if (!_inFlightAutoScrapeSongIds.add(song.id)) {
+      DebugLogger.info(
+        'PlayerController._scrapeCurrentSongAsync',
+        '刮削已在进行中，跳过重复任务: ${song.displayTitle}',
+      );
+      return;
+    }
+
     try {
       DebugLogger.scraping(
         'PlayerController._scrapeCurrentSongAsync',
         '开始刮削歌曲: ${song.displayTitle}',
       );
 
+      if (requestSerial != _playRequestSerial ||
+          _service.currentTrack?.id != song.id) {
+        return;
+      }
+
       // 1. 检查缓存中是否已有此歌曲的刮削结果
       final cachedMetadata = IsarManager.getMetadata(song.id);
       if (cachedMetadata != null &&
-          cachedMetadata.status == ScrapingStatus.completed) {
+          cachedMetadata.status == ScrapingStatus.completed &&
+          _hasSavedScrapingData(cachedMetadata)) {
         DebugLogger.success(
           'PlayerController._scrapeCurrentSongAsync',
           '使用缓存的刮削结果: ${song.id}',
@@ -1182,11 +1229,32 @@ class PlayerController extends _$PlayerController {
         return;
       }
 
+      if (requestSerial != _playRequestSerial ||
+          _service.currentTrack?.id != song.id) {
+        return;
+      }
+
       // 2. 执行刮削
-      final entry = song.toRemoteEntry();
+      final extracted = TrackMetadataExtractor.extractFromFilename(
+        song.fileName,
+      );
+      final queryArtist = _firstNonEmpty(
+        extracted.$1,
+        song.artistName == song.sourceName ? null : song.artistName,
+      );
       final scrapedMetadata = await ref
-          .read(scraperChainProvider)
-          .scrape(entry);
+          .read(scraping.musicBrainzScraperProvider)
+          .scrapeTrackInfo(
+            title: extracted.$2,
+            artist: queryArtist,
+            onUpdate: (metadata) async {
+              await _persistAutoScrapeUpdateForSong(
+                song: song,
+                scrapedMetadata: metadata,
+                status: ScrapingStatus.scraping,
+              );
+            },
+          );
 
       if (scrapedMetadata == null) {
         DebugLogger.warning(
@@ -1196,68 +1264,58 @@ class PlayerController extends _$PlayerController {
         return;
       }
 
-      // 3. 保存到数据库 (IsarManager)
-      final metadata = ScrapingMetadata(
+      if (requestSerial != _playRequestSerial ||
+          _service.currentTrack?.id != song.id) {
+        return;
+      }
+
+      final metadata = _mergeAutoScrapingMetadata(
         id: song.id,
         sourceId: song.sourceId,
-        filePath: song.remotePath,
-        filenameWithoutExt: song.fileName,
-        originalFileName: song.fileName,
-        manuallyScrapedTitle: null,
-        manuallyScrapedArtist: null,
-        manuallyScrapedAlbum: null,
-        manuallyScrapedCoverUrl: null,
-        manuallyScrapedLocalCoverPath: null,
-        manuallyScrapedLyrics: null,
-        manualScrapedAt: null,
-        autoScrapedTitle: scrapedMetadata.title,
-        autoScrapedArtist: scrapedMetadata.artist,
-        autoScrapedAlbum: scrapedMetadata.album,
-        autoScrapedCoverUrl: scrapedMetadata.coverUrl,
-        autoScrapedLocalCoverPath: scrapedMetadata.localCoverPath,
-        autoScrapedLyrics: scrapedMetadata.lyrics,
-        autoScrapedAt: DateTime.now(),
+        remotePath: song.remotePath,
+        fileName: song.fileName,
+        originalArtist: song.artistName,
+        scrapedMetadata: scrapedMetadata,
         status: ScrapingStatus.completed,
-        errorMessage: null,
-        retryCount: 0,
       );
-
       await IsarManager.saveMetadata(metadata);
+      _applyScrapingMetadataToCurrentSong(song.id, metadata);
+      _applyScrapingMetadataToCurrentTrack(song.id, metadata);
+      _refreshLibrarySongMetadata(song.id);
       DebugLogger.success(
         'PlayerController._scrapeCurrentSongAsync',
-        '刮削完成并已保存到数据库: ${song.displayTitle}',
+        '刮削完成并已分阶段回显: ${song.displayTitle}',
       );
-
-      // 4. 如果当前播放的就是这首歌，立即更新播放器显示的元数据
-      _applyScrapingMetadataToCurrentSong(song.id, metadata);
-
-      // 5. 异步更新库列表中的歌曲（不等待，避免阻塞）
-      // 使用控制器的增量更新方法，而不是 invalidate，避免列表消失
-      try {
-        final libraryCatalogNotifier = ref.read(
-          libraryCatalogControllerProvider.notifier,
-        );
-        libraryCatalogNotifier.refreshSongMetadata(song.id);
-        DebugLogger.info(
-          'PlayerController._scrapeCurrentSongAsync',
-          '✅ 已触发库列表元数据刷新: ${song.id}',
-        );
-      } catch (e) {
-        DebugLogger.warning(
-          'PlayerController._scrapeCurrentSongAsync',
-          '更新库列表失败: $e',
-        );
-      }
     } catch (e) {
       DebugLogger.warning(
         'PlayerController._scrapeCurrentSongAsync',
         '刮削失败: $e',
       );
       // 不抛出异常，继续播放
+    } finally {
+      _inFlightAutoScrapeSongIds.remove(song.id);
     }
   }
 
   Future<void> _scrapeCurrentEntryAsync(RemoteEntry entry) async {
+    final requestSerial = _playRequestSerial;
+    final currentTrackAtStart = _service.currentTrack;
+    if (currentTrackAtStart == null ||
+        currentTrackAtStart.id != entry.uniqueId) {
+      DebugLogger.info(
+        'PlayerController._scrapeCurrentEntryAsync',
+        '跳过非当前播放文件刮削: ${entry.name}',
+      );
+      return;
+    }
+    if (!_inFlightAutoScrapeSongIds.add(entry.uniqueId)) {
+      DebugLogger.info(
+        'PlayerController._scrapeCurrentEntryAsync',
+        '刮削已在进行中，跳过重复任务: ${entry.name}',
+      );
+      return;
+    }
+
     try {
       DebugLogger.scraping(
         'PlayerController._scrapeCurrentEntryAsync',
@@ -1266,7 +1324,8 @@ class PlayerController extends _$PlayerController {
 
       final cachedMetadata = IsarManager.getMetadata(entry.uniqueId);
       if (cachedMetadata != null &&
-          cachedMetadata.status == ScrapingStatus.completed) {
+          cachedMetadata.status == ScrapingStatus.completed &&
+          _hasSavedScrapingData(cachedMetadata)) {
         DebugLogger.success(
           'PlayerController._scrapeCurrentEntryAsync',
           '使用缓存的刮削结果: ${entry.uniqueId}',
@@ -1275,9 +1334,24 @@ class PlayerController extends _$PlayerController {
         return;
       }
 
+      if (requestSerial != _playRequestSerial ||
+          _service.currentTrack?.id != entry.uniqueId) {
+        return;
+      }
+
       final scrapedMetadata = await ref
-          .read(scraperChainProvider)
-          .scrape(entry);
+          .read(scraping.musicBrainzScraperProvider)
+          .scrapeTrackInfo(
+            title: TrackMetadataExtractor.extractFromFilename(entry.name).$2,
+            artist: TrackMetadataExtractor.extractFromFilename(entry.name).$1,
+            onUpdate: (metadata) async {
+              await _persistAutoScrapeUpdateForEntry(
+                entry: entry,
+                scrapedMetadata: metadata,
+                status: ScrapingStatus.scraping,
+              );
+            },
+          );
       if (scrapedMetadata == null) {
         DebugLogger.warning(
           'PlayerController._scrapeCurrentEntryAsync',
@@ -1286,9 +1360,15 @@ class PlayerController extends _$PlayerController {
         return;
       }
 
-      final metadata = _buildCompletedScrapingMetadata(
+      if (requestSerial != _playRequestSerial ||
+          _service.currentTrack?.id != entry.uniqueId) {
+        return;
+      }
+
+      final metadata = _mergeAutoScrapingMetadataForEntry(
         entry: entry,
         scrapedMetadata: scrapedMetadata,
+        status: ScrapingStatus.completed,
       );
       await IsarManager.saveMetadata(metadata);
       _applyScrapingMetadataToCurrentTrack(entry.uniqueId, metadata);
@@ -1302,6 +1382,230 @@ class PlayerController extends _$PlayerController {
         'PlayerController._scrapeCurrentEntryAsync',
         '文件浏览器播放项刮削失败: $e',
       );
+    } finally {
+      _inFlightAutoScrapeSongIds.remove(entry.uniqueId);
+    }
+  }
+
+  bool _hasSavedScrapingData(ScrapingMetadata metadata) {
+    bool hasText(String? value) => value?.trim().isNotEmpty == true;
+    return hasText(metadata.manuallyScrapedTitle) ||
+        hasText(metadata.manuallyScrapedArtist) ||
+        hasText(metadata.manuallyScrapedAlbum) ||
+        hasText(metadata.manuallyScrapedCoverUrl) ||
+        hasText(metadata.manuallyScrapedLocalCoverPath) ||
+        hasText(metadata.manuallyScrapedLyrics) ||
+        hasText(metadata.autoScrapedTitle) ||
+        hasText(metadata.autoScrapedArtist) ||
+        hasText(metadata.autoScrapedAlbum) ||
+        hasText(metadata.autoScrapedCoverUrl) ||
+        hasText(metadata.autoScrapedLocalCoverPath) ||
+        hasText(metadata.autoScrapedLyrics);
+  }
+
+  void _scheduleAutoScrapeForSong(LibrarySong song) {
+    unawaited(_scrapeSongWhenCurrent(song));
+  }
+
+  void _scheduleAutoScrapeForEntry(RemoteEntry entry) {
+    unawaited(_scrapeEntryWhenCurrent(entry));
+  }
+
+  Future<void> _scrapeSongWhenCurrent(LibrarySong song) async {
+    for (var attempt = 0; attempt < 24; attempt++) {
+      if (_service.currentTrack?.id == song.id) {
+        if (_shouldRetryAutoScrape(song.id)) {
+          await _scrapeCurrentSongAsync(song);
+        }
+        return;
+      }
+      await Future<void>.delayed(_autoScrapeRetryDelay(attempt));
+    }
+    DebugLogger.info(
+      'PlayerController._scrapeSongWhenCurrent',
+      '等待当前播放歌曲切换超时，跳过自动刮削: ${song.displayTitle}',
+    );
+  }
+
+  Future<void> _scrapeEntryWhenCurrent(RemoteEntry entry) async {
+    for (var attempt = 0; attempt < 24; attempt++) {
+      if (_service.currentTrack?.id == entry.uniqueId) {
+        if (_shouldRetryAutoScrape(entry.uniqueId)) {
+          await _scrapeCurrentEntryAsync(entry);
+        }
+        return;
+      }
+      await Future<void>.delayed(_autoScrapeRetryDelay(attempt));
+    }
+    DebugLogger.info(
+      'PlayerController._scrapeEntryWhenCurrent',
+      '等待当前播放文件切换超时，跳过自动刮削: ${entry.name}',
+    );
+  }
+
+  Duration _autoScrapeRetryDelay(int attempt) {
+    return attempt < 6
+        ? const Duration(milliseconds: 250)
+        : const Duration(milliseconds: 500);
+  }
+
+  void _scheduleAutoScrapeForCurrentTrack() {
+    final currentTrack = _service.currentTrack;
+    if (currentTrack == null) {
+      return;
+    }
+
+    final currentSongIndex = _playlist.indexWhere(
+      (song) => song.id == currentTrack.id,
+    );
+    if (currentSongIndex >= 0) {
+      _scheduleAutoScrapeForSong(_playlist[currentSongIndex]);
+      return;
+    }
+
+    final fileName = p.posix.basename(currentTrack.remotePath);
+    if (fileName.trim().isEmpty) {
+      return;
+    }
+    _scheduleAutoScrapeForEntry(
+      RemoteEntry(
+        sourceId: currentTrack.sourceId,
+        name: fileName,
+        path: currentTrack.remotePath,
+        kind: RemoteEntryKind.audio,
+        size: currentTrack.sourceSizeBytes,
+      ),
+    );
+  }
+
+  bool _shouldRetryAutoScrape(String trackId) {
+    if (_service.currentTrack?.id != trackId) {
+      return false;
+    }
+    if (_inFlightAutoScrapeSongIds.contains(trackId)) {
+      return false;
+    }
+    final metadata = IsarManager.getMetadata(trackId);
+    if (metadata == null) {
+      return true;
+    }
+    return !(metadata.status == ScrapingStatus.completed &&
+        _hasSavedScrapingData(metadata));
+  }
+
+  Future<void> _persistAutoScrapeUpdateForSong({
+    required LibrarySong song,
+    required ScrapedMetadata scrapedMetadata,
+    required ScrapingStatus status,
+  }) async {
+    final metadata = _mergeAutoScrapingMetadata(
+      id: song.id,
+      sourceId: song.sourceId,
+      remotePath: song.remotePath,
+      fileName: song.fileName,
+      originalArtist: song.artistName,
+      scrapedMetadata: scrapedMetadata,
+      status: status,
+    );
+    await IsarManager.saveMetadata(metadata);
+    _applyScrapingMetadataToCurrentSong(song.id, metadata);
+    _applyScrapingMetadataToCurrentTrack(song.id, metadata);
+    _refreshLibrarySongMetadata(song.id);
+  }
+
+  Future<void> _persistAutoScrapeUpdateForEntry({
+    required RemoteEntry entry,
+    required ScrapedMetadata scrapedMetadata,
+    required ScrapingStatus status,
+  }) async {
+    final metadata = _mergeAutoScrapingMetadataForEntry(
+      entry: entry,
+      scrapedMetadata: scrapedMetadata,
+      status: status,
+    );
+    await IsarManager.saveMetadata(metadata);
+    _applyScrapingMetadataToCurrentTrack(entry.uniqueId, metadata);
+  }
+
+  ScrapingMetadata _mergeAutoScrapingMetadata({
+    required String id,
+    required String sourceId,
+    required String remotePath,
+    required String fileName,
+    required String? originalArtist,
+    required ScrapedMetadata scrapedMetadata,
+    required ScrapingStatus status,
+  }) {
+    final existing = IsarManager.getMetadata(id);
+    final metadata =
+        existing ??
+        ScrapingMetadata(
+          id: id,
+          sourceId: sourceId,
+          filePath: remotePath,
+          filenameWithoutExt: p.posix.basenameWithoutExtension(fileName),
+          originalFileName: fileName,
+          originalArtist: originalArtist,
+        );
+
+    metadata.autoScrapedTitle = _firstNonEmpty(
+      scrapedMetadata.title,
+      metadata.autoScrapedTitle,
+    );
+    metadata.autoScrapedArtist = _firstNonEmpty(
+      scrapedMetadata.artist,
+      metadata.autoScrapedArtist,
+      originalArtist,
+    );
+    metadata.autoScrapedAlbum = _firstNonEmpty(
+      scrapedMetadata.album,
+      metadata.autoScrapedAlbum,
+    );
+    metadata.autoScrapedCoverUrl = _firstNonEmpty(
+      scrapedMetadata.coverUrl,
+      metadata.autoScrapedCoverUrl,
+    );
+    metadata.autoScrapedLocalCoverPath = _firstNonEmpty(
+      scrapedMetadata.localCoverPath,
+      metadata.autoScrapedLocalCoverPath,
+    );
+    metadata.autoScrapedLyrics = _firstNonEmpty(
+      scrapedMetadata.lyrics,
+      metadata.autoScrapedLyrics,
+    );
+    metadata.autoScrapedAt = DateTime.now();
+    metadata.status = status;
+    metadata.errorMessage = null;
+    metadata.updatedAt = DateTime.now();
+    metadata.lastAttemptAt = DateTime.now();
+    return metadata;
+  }
+
+  ScrapingMetadata _mergeAutoScrapingMetadataForEntry({
+    required RemoteEntry entry,
+    required ScrapedMetadata scrapedMetadata,
+    required ScrapingStatus status,
+  }) {
+    return _mergeAutoScrapingMetadata(
+      id: entry.uniqueId,
+      sourceId: entry.sourceId,
+      remotePath: entry.path,
+      fileName: entry.name,
+      originalArtist: null,
+      scrapedMetadata: scrapedMetadata,
+      status: status,
+    );
+  }
+
+  void _refreshLibrarySongMetadata(String songId) {
+    try {
+      final libraryCatalogNotifier = ref.read(
+        libraryCatalogControllerProvider.notifier,
+      );
+      libraryCatalogNotifier.refreshSongMetadata(songId);
+      DebugLogger.info('PlayerController', '✅ 已触发库列表元数据刷新: $songId');
+    } catch (e) {
+      DebugLogger.warning('PlayerController', '更新库列表失败: $e');
     }
   }
 }

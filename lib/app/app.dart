@@ -17,25 +17,41 @@ class MusicApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
-    final preferences = ref.watch(appSettingsControllerProvider).valueOrNull ?? const LibraryPreferences();
+    final preferences =
+        ref.watch(appSettingsControllerProvider).valueOrNull ??
+        const LibraryPreferences();
 
     final customColors = preferences.customThemeColors;
-    final seedColor = customColors.getSeedColor() ?? ThemeData(useMaterial3: true).colorScheme.primary;
+    final seedColor =
+        customColors.getSeedColor() ??
+        ThemeData(useMaterial3: true).colorScheme.primary;
 
-    debugPrint('🎨 [App] Current theme seed color: ${customColors.primaryColorSeed}');
-    debugPrint('🎨 [App] Parsed seed color from getSeedColor(): ${seedColor.toString()}');
+    debugPrint(
+      '🎨 [App] Current theme seed color: ${customColors.primaryColorSeed}',
+    );
+    debugPrint(
+      '🎨 [App] Parsed seed color from getSeedColor(): ${seedColor.toString()}',
+    );
 
     // 构建亮色方案
-    final lightScheme = _buildColorScheme(seedColor: seedColor, brightness: Brightness.light);
+    final lightScheme = _buildColorScheme(
+      seedColor: seedColor,
+      brightness: Brightness.light,
+    );
 
     // 构建深色方案
-    final darkScheme = _buildColorScheme(seedColor: seedColor, brightness: Brightness.dark);
+    final darkScheme = _buildColorScheme(
+      seedColor: seedColor,
+      brightness: Brightness.dark,
+    );
 
     return MaterialApp.router(
       onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
-      themeMode: AppDisplayPreferences.themeModeFor(preferences.themePreference),
+      themeMode: AppDisplayPreferences.themeModeFor(
+        preferences.themePreference,
+      ),
       theme: _buildTheme(
         colorScheme: lightScheme,
         brightness: Brightness.light,
@@ -65,7 +81,9 @@ class MusicApp extends ConsumerWidget {
         final mediaQuery = MediaQuery.of(context);
         return ExceptionHandlerWidget(
           child: MediaQuery(
-            data: mediaQuery.copyWith(textScaler: TextScaler.linear(preferences.fontScaleFactor)),
+            data: mediaQuery.copyWith(
+              textScaler: TextScaler.linear(preferences.fontScaleFactor),
+            ),
             child: child ?? const SizedBox.shrink(),
           ),
         );
@@ -82,9 +100,19 @@ class MusicApp extends ConsumerWidget {
     required Alignment backgroundImageAlignment,
   }) {
     final scaleFactor = interfaceScaleFactor.clamp(0.5, 2).toDouble();
-    final compactness = customColors.interfaceCompactness.clamp(0.5, 1.5).toDouble();
-    final layoutScale = (interfaceScaleFactor * compactness).clamp(0.5, 2).toDouble();
-    final radius = customColors.borderRadius;
+    final compactness = customColors.interfaceCompactness
+        .clamp(0.5, 1.5)
+        .toDouble();
+    final layoutScale = (interfaceScaleFactor * compactness)
+        .clamp(0.5, 2)
+        .toDouble();
+    final radius = AppDisplayPreferences.getBorderRadiusValue(
+      customColors.borderRadius,
+    );
+    final controlRadius = AppDisplayPreferences.getResponsiveBorderRadius(
+      radius,
+      -8,
+    );
 
     final baseTheme = ThemeData(
       useMaterial3: true,
@@ -114,18 +142,61 @@ class MusicApp extends ConsumerWidget {
     return baseTheme.copyWith(
       scaffoldBackgroundColor: colorScheme.surface,
       textTheme: textTheme.copyWith(
-        displayLarge: appTextStyle(textTheme.displayLarge, 34, FontWeight.w800, letterSpacing: -0.8),
-        displayMedium: appTextStyle(textTheme.displayMedium, 30, FontWeight.w800, letterSpacing: -0.7),
-        displaySmall: appTextStyle(textTheme.displaySmall, 26, FontWeight.w800, letterSpacing: -0.6),
-        headlineLarge: appTextStyle(textTheme.headlineLarge, 24, FontWeight.w800, letterSpacing: -0.4),
-        headlineMedium: appTextStyle(textTheme.headlineMedium, 22, FontWeight.w700),
-        headlineSmall: appTextStyle(textTheme.headlineSmall, 20, FontWeight.w700),
+        displayLarge: appTextStyle(
+          textTheme.displayLarge,
+          34,
+          FontWeight.w800,
+          letterSpacing: -0.8,
+        ),
+        displayMedium: appTextStyle(
+          textTheme.displayMedium,
+          30,
+          FontWeight.w800,
+          letterSpacing: -0.7,
+        ),
+        displaySmall: appTextStyle(
+          textTheme.displaySmall,
+          26,
+          FontWeight.w800,
+          letterSpacing: -0.6,
+        ),
+        headlineLarge: appTextStyle(
+          textTheme.headlineLarge,
+          24,
+          FontWeight.w800,
+          letterSpacing: -0.4,
+        ),
+        headlineMedium: appTextStyle(
+          textTheme.headlineMedium,
+          22,
+          FontWeight.w700,
+        ),
+        headlineSmall: appTextStyle(
+          textTheme.headlineSmall,
+          20,
+          FontWeight.w700,
+        ),
         titleLarge: appTextStyle(textTheme.titleLarge, 18, FontWeight.w700),
         titleMedium: appTextStyle(textTheme.titleMedium, 16, FontWeight.w700),
         titleSmall: appTextStyle(textTheme.titleSmall, 14, FontWeight.w700),
-        bodyLarge: appTextStyle(textTheme.bodyLarge, 16, FontWeight.w600, height: 1.4),
-        bodyMedium: appTextStyle(textTheme.bodyMedium, 14, FontWeight.w500, height: 1.38),
-        bodySmall: appTextStyle(textTheme.bodySmall, 12, FontWeight.w500, height: 1.36),
+        bodyLarge: appTextStyle(
+          textTheme.bodyLarge,
+          16,
+          FontWeight.w600,
+          height: 1.4,
+        ),
+        bodyMedium: appTextStyle(
+          textTheme.bodyMedium,
+          14,
+          FontWeight.w500,
+          height: 1.38,
+        ),
+        bodySmall: appTextStyle(
+          textTheme.bodySmall,
+          12,
+          FontWeight.w500,
+          height: 1.36,
+        ),
         labelLarge: appTextStyle(textTheme.labelLarge, 12, FontWeight.w700),
         labelMedium: appTextStyle(textTheme.labelMedium, 11, FontWeight.w700),
         labelSmall: appTextStyle(textTheme.labelSmall, 10, FontWeight.w700),
@@ -149,7 +220,9 @@ class MusicApp extends ConsumerWidget {
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radius),
-          side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.16)),
+          side: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.16),
+          ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -157,22 +230,30 @@ class MusicApp extends ConsumerWidget {
         fillColor: colorScheme.surface,
         hintStyle: GoogleFonts.notoSans(color: colorScheme.onSurfaceVariant),
         helperStyle: GoogleFonts.notoSans(color: colorScheme.onSurfaceVariant),
-        contentPadding: AppDisplayPreferences.inputContentPaddingFor(layoutScale),
+        contentPadding: AppDisplayPreferences.inputContentPaddingFor(
+          layoutScale,
+        ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radius - 8),
-          borderSide: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.2)),
+          borderRadius: BorderRadius.circular(controlRadius),
+          borderSide: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.2),
+          ),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radius - 8),
-          borderSide: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.2)),
+          borderRadius: BorderRadius.circular(controlRadius),
+          borderSide: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.2),
+          ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radius - 8),
+          borderRadius: BorderRadius.circular(controlRadius),
           borderSide: BorderSide(color: colorScheme.primary, width: 1.4),
         ),
       ),
       listTileTheme: ListTileThemeData(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius - 8)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(controlRadius),
+        ),
         iconColor: colorScheme.primary,
       ),
       navigationBarTheme: NavigationBarThemeData(
@@ -182,36 +263,75 @@ class MusicApp extends ConsumerWidget {
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           return GoogleFonts.notoSans(
             fontSize: 10 * scaleFactor,
-            fontWeight: states.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w600,
+            fontWeight: states.contains(WidgetState.selected)
+                ? FontWeight.w700
+                : FontWeight.w600,
           );
         }),
         height: (44 * scaleFactor).clamp(40, 48).toDouble(),
       ),
       segmentedButtonTheme: SegmentedButtonThemeData(
         style: ButtonStyle(
-          padding: WidgetStatePropertyAll(AppDisplayPreferences.segmentedButtonPaddingFor(layoutScale)),
-          side: WidgetStatePropertyAll(BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.2))),
-          shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius - 10))),
+          padding: WidgetStatePropertyAll(
+            AppDisplayPreferences.segmentedButtonPaddingFor(layoutScale),
+          ),
+          side: WidgetStatePropertyAll(
+            BorderSide(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.2),
+            ),
+          ),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(
+                AppDisplayPreferences.getResponsiveBorderRadius(radius, -10),
+              ),
+            ),
+          ),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           elevation: 0,
           padding: AppDisplayPreferences.buttonPaddingFor(layoutScale),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius - 8)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(controlRadius),
+          ),
           textStyle: GoogleFonts.notoSans(fontWeight: FontWeight.w700),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           padding: AppDisplayPreferences.buttonPaddingFor(layoutScale),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius - 8)),
-          side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.2)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(controlRadius),
+          ),
+          side: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.2),
+          ),
           textStyle: GoogleFonts.notoSans(fontWeight: FontWeight.w700),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(textStyle: GoogleFonts.notoSans(fontWeight: FontWeight.w700)),
+        style: TextButton.styleFrom(
+          textStyle: GoogleFonts.notoSans(fontWeight: FontWeight.w700),
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          padding: EdgeInsets.all((12 * compactness).clamp(8.0, 16.0)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(controlRadius),
+          ),
+        ),
+      ),
+      chipTheme: baseTheme.chipTheme.copyWith(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(controlRadius),
+        ),
+        padding: EdgeInsets.symmetric(
+          horizontal: (10 * compactness).clamp(8.0, 14.0),
+          vertical: (6 * compactness).clamp(4.0, 10.0),
+        ),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: colorScheme.primaryContainer,
@@ -222,19 +342,40 @@ class MusicApp extends ConsumerWidget {
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: colorScheme.inverseSurface,
-        contentTextStyle: GoogleFonts.notoSans(color: colorScheme.onInverseSurface, fontWeight: FontWeight.w600),
+        contentTextStyle: GoogleFonts.notoSans(
+          color: colorScheme.onInverseSurface,
+          fontWeight: FontWeight.w600,
+        ),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: colorScheme.surfaceContainerLow,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radius),
-          side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.18)),
+          side: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.18),
+          ),
+        ),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(controlRadius),
+        ),
+      ),
+      menuTheme: MenuThemeData(
+        style: MenuStyle(
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(controlRadius),
+            ),
+          ),
         ),
       ),
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: colorScheme.surfaceContainerLow,
         modalBackgroundColor: colorScheme.surfaceContainerLow,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(radius + 4))),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(radius + 4)),
+        ),
       ),
       extensions: [
         StudioThemeData(
@@ -246,7 +387,10 @@ class MusicApp extends ConsumerWidget {
     );
   }
 
-  ColorScheme _buildColorScheme({required Color seedColor, required Brightness brightness}) {
+  ColorScheme _buildColorScheme({
+    required Color seedColor,
+    required Brightness brightness,
+  }) {
     // 首先使用 fromSeed 获得一个协调的基础色系统
     final baseScheme = ColorScheme.fromSeed(
       seedColor: seedColor,

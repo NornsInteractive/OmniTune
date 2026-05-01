@@ -1,6 +1,9 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:music/l10n/app_localizations.dart';
 
 import '../core/widgets/studio_chrome.dart';
@@ -15,193 +18,204 @@ class MusicAppShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final debugModeEnabled = ref.watch(debugModeProvider);
-    final l10n = AppLocalizations.of(context)!;
-    final colorScheme = Theme.of(context).colorScheme;
+    _GlacierPalette.sync(context);
 
     return Scaffold(
       extendBody: true,
-      backgroundColor: colorScheme.surface.withValues(alpha: 0),
-      body: StudioBackdrop(
-        maxContentWidth: 1480,
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                Expanded(child: navigationShell),
-                const StudioGap(height: 4),
-                const MiniPlayer(),
-                StudioPanel(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 10,
-                  ),
-                  radius: 18,
-                  tint: colorScheme.surfaceContainerLow,
-                  child: SizedBox(
-                    height: studioListSpacingOf(
-                      context,
-                      44,
-                    ).clamp(42.0, 56.0).toDouble(),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(
-                          child: _ShellDestination(
-                            label: l10n.albumsTabLabel,
-                            selected: navigationShell.currentIndex == 0,
-                            icon: navigationShell.currentIndex == 0
-                                ? Icons.album_rounded
-                                : Icons.album_outlined,
-                            onTap: () {
-                              navigationShell.goBranch(
-                                0,
-                                initialLocation:
-                                    navigationShell.currentIndex == 0,
-                              );
-                            },
-                          ),
-                        ),
-                        const StudioGap(width: 8),
-                        Expanded(
-                          child: _ShellDestination(
-                            label: l10n.collectionTabLabel,
-                            selected: navigationShell.currentIndex == 1,
-                            icon: navigationShell.currentIndex == 1
-                                ? Icons.library_music_rounded
-                                : Icons.library_music_outlined,
-                            onTap: () {
-                              navigationShell.goBranch(
-                                1,
-                                initialLocation:
-                                    navigationShell.currentIndex == 1,
-                              );
-                            },
-                          ),
-                        ),
-                        const StudioGap(width: 8),
-                        Expanded(
-                          child: _ShellDestination(
-                            label: l10n.browserTitle,
-                            selected: navigationShell.currentIndex == 2,
-                            icon: navigationShell.currentIndex == 2
-                                ? Icons.folder_rounded
-                                : Icons.folder_outlined,
-                            onTap: () {
-                              navigationShell.goBranch(
-                                2,
-                                initialLocation:
-                                    navigationShell.currentIndex == 2,
-                              );
-                            },
-                          ),
-                        ),
-                        if (debugModeEnabled) ...[
-                          const StudioGap(width: 8),
-                          Expanded(
-                            child: _ShellDestination(
-                              label: '日志',
-                              selected: navigationShell.currentIndex == 3,
-                              icon: navigationShell.currentIndex == 3
-                                  ? Icons.terminal_rounded
-                                  : Icons.terminal_outlined,
-                              onTap: () {
-                                navigationShell.goBranch(
-                                  3,
-                                  initialLocation:
-                                      navigationShell.currentIndex == 3,
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
+      backgroundColor: _GlacierPalette.background,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          _AmbientGlow(
+            alignment: Alignment(-0.72, -0.88),
+            size: 420,
+            color: _GlacierPalette.primary.withValues(alpha: 0.3),
+          ),
+          _AmbientGlow(
+            alignment: Alignment(0.9, -0.16),
+            size: 360,
+            color: _GlacierPalette.tertiary.withValues(alpha: 0.22),
+          ),
+          Column(
+            children: [
+              Expanded(child: navigationShell),
+              const MiniPlayer(),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  12,
+                  0,
+                  12,
+                  studioSpacingOf(context, 4).clamp(2.0, 8.0),
                 ),
-                const StudioGap(height: 4),
-              ],
-            ),
-            Positioned(
-              top: 0,
-              right: 0,
-              child: SafeArea(
-                minimum: studioPaddingOf(
-                  context,
-                  const EdgeInsets.only(top: 8, right: 4),
-                ),
-                child: StudioPanel(
-                  padding: EdgeInsets.zero,
-                  radius: 20,
-                  tint: colorScheme.surfaceContainerLow,
-                  child: IconButton(
-                    tooltip: l10n.openSettingsAction,
-                    onPressed: () => context.push('/settings'),
-                    icon: const Icon(Icons.tune_rounded),
-                  ),
+                child: _GlacierNavigationBar(
+                  navigationShell: navigationShell,
+                  debugModeEnabled: debugModeEnabled,
                 ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
 
-class _ShellDestination extends StatelessWidget {
-  const _ShellDestination({
+class _GlacierNavigationBar extends StatelessWidget {
+  const _GlacierNavigationBar({
+    required this.navigationShell,
+    required this.debugModeEnabled,
+  });
+
+  final StatefulNavigationShell navigationShell;
+  final bool debugModeEnabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final shellRadius = studioRadiusOf(context, 22);
+    final buttonRadius = studioRadiusOf(context, 14);
+    final verticalPadding = studioSpacingOf(context, 7).clamp(5.0, 11.0);
+    final destinations = <_NavDestination>[
+      _NavDestination(
+        label: l10n.albumsTabLabel,
+        icon: Icons.album_outlined,
+        selectedIcon: Icons.album_rounded,
+        selected: navigationShell.currentIndex == 0,
+        onTap: () => _goBranch(0),
+      ),
+      _NavDestination(
+        label: l10n.collectionTabLabel,
+        icon: Icons.library_music_outlined,
+        selectedIcon: Icons.library_music_rounded,
+        selected: navigationShell.currentIndex == 1,
+        onTap: () => _goBranch(1),
+      ),
+      _NavDestination(
+        label: l10n.browserTitle,
+        icon: Icons.search_rounded,
+        selectedIcon: Icons.search_rounded,
+        selected: navigationShell.currentIndex == 2,
+        onTap: () => _goBranch(2),
+      ),
+      if (debugModeEnabled)
+        _NavDestination(
+          label: 'Logs',
+          icon: Icons.terminal_outlined,
+          selectedIcon: Icons.terminal_rounded,
+          selected: navigationShell.currentIndex == 3,
+          onTap: () => _goBranch(3),
+        ),
+    ];
+
+    return ClipRRect(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(shellRadius)),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+        child: Container(
+          padding: EdgeInsets.fromLTRB(
+            12,
+            verticalPadding,
+            12,
+            verticalPadding + MediaQuery.paddingOf(context).bottom * 0.2,
+          ),
+          decoration: BoxDecoration(
+            color: _GlacierPalette.surface.withValues(alpha: 0.78),
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(shellRadius),
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x33000000),
+                blurRadius: 28,
+                offset: Offset(0, -8),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              for (var index = 0; index < destinations.length; index++) ...[
+                Expanded(
+                  child: _NavButton(
+                    destination: destinations[index],
+                    buttonRadius: buttonRadius,
+                  ),
+                ),
+                if (index != destinations.length - 1) const SizedBox(width: 6),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _goBranch(int index) {
+    navigationShell.goBranch(
+      index,
+      initialLocation: navigationShell.currentIndex == index,
+    );
+  }
+}
+
+class _NavDestination {
+  const _NavDestination({
     required this.label,
-    required this.selected,
     required this.icon,
+    required this.selectedIcon,
+    required this.selected,
     required this.onTap,
   });
 
   final String label;
-  final bool selected;
   final IconData icon;
+  final IconData selectedIcon;
+  final bool selected;
   final VoidCallback onTap;
+}
+
+class _NavButton extends StatelessWidget {
+  const _NavButton({required this.destination, required this.buttonRadius});
+
+  final _NavDestination destination;
+  final double buttonRadius;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final foreground = destination.selected
+        ? _GlacierPalette.primary
+        : _GlacierPalette.onSurfaceVariant;
 
     return Material(
-      color: selected
-          ? colorScheme.primaryContainer
-          : colorScheme.surface.withValues(alpha: 0),
-      borderRadius: BorderRadius.circular(14),
+      color: destination.selected
+          ? _GlacierPalette.primary.withValues(alpha: 0.1)
+          : Colors.transparent,
+      borderRadius: BorderRadius.circular(buttonRadius),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
+        borderRadius: BorderRadius.circular(buttonRadius),
+        onTap: destination.onTap,
         child: Padding(
-          padding: studioPaddingOf(
-            context,
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                icon,
-                size: 19,
-                color: selected
-                    ? colorScheme.onPrimaryContainer
-                    : colorScheme.onSurfaceVariant,
+                destination.selected
+                    ? destination.selectedIcon
+                    : destination.icon,
+                size: 21,
+                color: foreground,
               ),
-              const StudioGap(width: 6),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: selected
-                        ? colorScheme.onPrimaryContainer
-                        : colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w700,
-                  ),
+              const SizedBox(height: 3),
+              Text(
+                destination.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: foreground,
+                  fontSize: 10,
+                  fontWeight: destination.selected
+                      ? FontWeight.w700
+                      : FontWeight.w500,
                 ),
               ),
             ],
@@ -209,5 +223,57 @@ class _ShellDestination extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _AmbientGlow extends StatelessWidget {
+  const _AmbientGlow({
+    required this.alignment,
+    required this.size,
+    required this.color,
+  });
+
+  final Alignment alignment;
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Align(
+        alignment: alignment,
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: RadialGradient(
+              colors: [
+                color,
+                color.withValues(alpha: 0.08),
+                Colors.transparent,
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GlacierPalette {
+  static Color background = const Color(0xFF0A0E1A);
+  static Color surface = const Color(0xFF0F1524);
+  static Color primary = const Color(0xFF7DD3FC);
+  static Color tertiary = const Color(0xFFC8A0F0);
+  static Color onSurfaceVariant = const Color(0xFFA0B4C4);
+
+  static void sync(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    background = scheme.surface;
+    surface = scheme.surfaceContainer;
+    primary = scheme.primary;
+    tertiary = scheme.tertiary;
+    onSurfaceVariant = scheme.onSurfaceVariant;
   }
 }

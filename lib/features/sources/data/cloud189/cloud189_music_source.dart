@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as p;
@@ -10,7 +11,8 @@ import '../../../../core/models/source_protocol.dart';
 import '../../domain/music_source.dart';
 import 'cloud189_api_client.dart';
 
-typedef Cloud189RemoteClientFactory = Cloud189RemoteClient Function(SourceProfile profile);
+typedef Cloud189RemoteClientFactory =
+    Cloud189RemoteClient Function(SourceProfile profile);
 
 class Cloud189MusicSource implements MusicSource {
   Cloud189MusicSource(
@@ -82,7 +84,9 @@ class Cloud189MusicSource implements MusicSource {
             sourceId: profile.id,
             name: file.name,
             path: file.path,
-            kind: file.isDirectory ? RemoteEntryKind.directory : _resolveFileKind(file.name, file.mimeType),
+            kind: file.isDirectory
+                ? RemoteEntryKind.directory
+                : _resolveFileKind(file.name, file.mimeType),
             mimeType: file.mimeType,
             size: file.size,
             modifiedAt: file.modifiedAt,
@@ -113,7 +117,11 @@ class Cloud189MusicSource implements MusicSource {
   Future<PlayableTrack> buildPlayableTrack(RemoteEntry entry) async {
     entry.ensurePlayable();
 
-    final folderSegments = p.posix.dirname(entry.path).split('/').where((segment) => segment.isNotEmpty).toList();
+    final folderSegments = p.posix
+        .dirname(entry.path)
+        .split('/')
+        .where((segment) => segment.isNotEmpty)
+        .toList();
 
     await connect();
     return PlayableTrack(
@@ -125,7 +133,9 @@ class Cloud189MusicSource implements MusicSource {
       audioSource: _Cloud189StreamAudioSource(client: _client, entry: entry),
       sourceSizeBytes: entry.size,
       albumTitle: folderSegments.isEmpty ? profile.name : folderSegments.last,
-      artistName: folderSegments.length >= 2 ? folderSegments[folderSegments.length - 2] : profile.name,
+      artistName: folderSegments.length >= 2
+          ? folderSegments[folderSegments.length - 2]
+          : profile.name,
     );
   }
 
@@ -142,6 +152,21 @@ class Cloud189MusicSource implements MusicSource {
       return content;
     } catch (_) {
       _textFileCache[path] = null;
+      return null;
+    }
+  }
+
+  @override
+  Future<Uint8List?> readBinaryFile(String path) async {
+    try {
+      await connect();
+      final result = await _client.openRead(path);
+      final builder = BytesBuilder(copy: false);
+      await for (final chunk in result.stream) {
+        builder.add(chunk);
+      }
+      return builder.takeBytes();
+    } catch (_) {
       return null;
     }
   }
@@ -195,8 +220,11 @@ Cloud189RemoteClient _defaultClientFactory(
   Cloud189SMSVerificationResolver? smsVerificationResolver,
 }) {
   final metadata = profile.metadata;
-  final enableDebugLogging = metadata[Cloud189Constants.debugLoggingMetadataKey] == 'true';
-  final authMode = Cloud189AuthMode.fromStorageValue(metadata[Cloud189Constants.authModeMetadataKey]);
+  final enableDebugLogging =
+      metadata[Cloud189Constants.debugLoggingMetadataKey] == 'true';
+  final authMode = Cloud189AuthMode.fromStorageValue(
+    metadata[Cloud189Constants.authModeMetadataKey],
+  );
   if (authMode == Cloud189AuthMode.openListPassword) {
     return DioOpenListCloud189RemoteClient(
       username: profile.username,
@@ -207,7 +235,9 @@ Cloud189RemoteClient _defaultClientFactory(
   }
 
   if (authMode == Cloud189AuthMode.cloudTV) {
-    final tvLoginMode = Cloud189TVLoginMode.fromValue(metadata[Cloud189Constants.tvLoginModeMetadataKey]);
+    final tvLoginMode = Cloud189TVLoginMode.fromValue(
+      metadata[Cloud189Constants.tvLoginModeMetadataKey],
+    );
     final deviceId = metadata['cloud189.deviceId'] ?? '';
     return DioCloud189TVRemoteClient(
       tvLoginMode: tvLoginMode,
@@ -223,7 +253,8 @@ Cloud189RemoteClient _defaultClientFactory(
     refreshToken: profile.password,
     clientId: appKey.isEmpty ? Cloud189Constants.openListAppId : appKey,
     clientSecret: metadata[Cloud189Constants.appSecretMetadataKey] ?? '',
-    authorizationCode: metadata[Cloud189Constants.authorizationCodeMetadataKey] ?? '',
+    authorizationCode:
+        metadata[Cloud189Constants.authorizationCodeMetadataKey] ?? '',
     redirectUri: metadata[Cloud189Constants.redirectUriMetadataKey] ?? '',
     enableDebugLogging: enableDebugLogging,
   );
