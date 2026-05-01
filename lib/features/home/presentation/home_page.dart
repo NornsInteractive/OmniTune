@@ -10,6 +10,7 @@ import '../../../core/models/library_album.dart';
 import '../../../core/models/library_song.dart';
 import '../../../core/models/source_profile.dart';
 import '../../../core/models/source_protocol.dart';
+import '../../../core/widgets/studio_chrome.dart';
 import '../../library/application/library_catalog_controller.dart';
 import '../../library/application/library_controller.dart';
 import '../../player/application/player_controller.dart';
@@ -1374,9 +1375,10 @@ class _AlbumArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final effectiveRadius = studioRadiusOf(context, borderRadius);
     if (fallbackImageUrl != null && fallbackImageUrl!.isNotEmpty) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
+        borderRadius: BorderRadius.circular(effectiveRadius),
         child: Image.network(
           fallbackImageUrl!,
           fit: BoxFit.cover,

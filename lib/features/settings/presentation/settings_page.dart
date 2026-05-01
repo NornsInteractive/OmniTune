@@ -1772,70 +1772,95 @@ class SettingsPage extends ConsumerWidget {
     required List<_DialogOption<T>> options,
     required Future<void> Function(T value) onSelected,
   }) {
-    return showDialog<void>(
+    final materialL10n = MaterialLocalizations.of(context);
+    return showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (dialogContext) {
         final scheme = Theme.of(dialogContext).colorScheme;
-        return GlacierDialog(
-          title: Text(title),
-          content: SizedBox(
-            width: 420,
-            child: SingleChildScrollView(
-              child: RadioGroup<T>(
-                groupValue: selectedValue,
-                onChanged: (value) async {
-                  if (value == null) {
-                    return;
-                  }
-                  Navigator.of(dialogContext).pop();
-                  await onSelected(value);
-                },
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (final option in options) ...[
-                      Container(
-                        decoration: BoxDecoration(
-                          color: selectedValue == option.value
-                              ? scheme.primary.withValues(alpha: 0.12)
-                              : scheme.surfaceContainerHigh.withValues(
-                                  alpha: 0.55,
+        return _SettingsBottomSheetFrame(
+          title: title,
+          cancelLabel: materialL10n.cancelButtonLabel,
+          confirmLabel: materialL10n.okButtonLabel,
+          onCancel: () => Navigator.of(dialogContext).pop(),
+          onConfirm: () => Navigator.of(dialogContext).pop(),
+          showFooter: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final option in options) ...[
+                StudioPanel(
+                  padding: EdgeInsets.zero,
+                  radius: 18,
+                  tint: selectedValue == option.value
+                      ? scheme.primaryContainer
+                      : scheme.surfaceContainerLow,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(
+                        studioRadiusOf(dialogContext, 18),
+                      ),
+                      onTap: () async {
+                        Navigator.of(dialogContext).pop();
+                        await onSelected(option.value);
+                      },
+                      child: Padding(
+                        padding: studioListItemPaddingOf(dialogContext),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: studioListIconBoxSizeOf(dialogContext),
+                              height: studioListIconBoxSizeOf(dialogContext),
+                              decoration: BoxDecoration(
+                                color: selectedValue == option.value
+                                    ? scheme.surface.withValues(alpha: 0.72)
+                                    : scheme.primaryContainer,
+                                borderRadius: BorderRadius.circular(
+                                  studioRadiusOf(dialogContext, 14),
                                 ),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: selectedValue == option.value
-                                ? scheme.primary.withValues(alpha: 0.38)
-                                : scheme.outlineVariant.withValues(alpha: 0.5),
-                          ),
-                        ),
-                        child: RadioListTile<T>(
-                          value: option.value,
-                          activeColor: scheme.primary,
-                          secondary: Icon(
-                            option.icon,
-                            color: selectedValue == option.value
-                                ? scheme.primary
-                                : scheme.onSurfaceVariant,
-                          ),
-                          title: Text(
-                            option.label,
-                            style: TextStyle(
-                              color: selectedValue == option.value
-                                  ? scheme.primary
-                                  : scheme.onSurface,
-                              fontWeight: selectedValue == option.value
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
+                              ),
+                              child: Icon(
+                                option.icon,
+                                color: selectedValue == option.value
+                                    ? scheme.primary
+                                    : scheme.onPrimaryContainer,
+                              ),
                             ),
-                          ),
+                            SizedBox(width: studioListGapOf(dialogContext)),
+                            Expanded(
+                              child: Text(
+                                option.label,
+                                style: Theme.of(dialogContext)
+                                    .textTheme
+                                    .titleSmall
+                                    ?.copyWith(
+                                      color: selectedValue == option.value
+                                          ? scheme.onPrimaryContainer
+                                          : scheme.onSurface,
+                                      fontWeight: selectedValue == option.value
+                                          ? FontWeight.w700
+                                          : FontWeight.w600,
+                                    ),
+                              ),
+                            ),
+                            if (selectedValue == option.value)
+                              Icon(
+                                Icons.check_circle_rounded,
+                                size: 18,
+                                color: scheme.primary,
+                              ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 10),
-                    ],
-                  ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
+                SizedBox(height: studioListGapOf(dialogContext)),
+              ],
+            ],
           ),
         );
       },

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../../core/storage/cover_art_cache_manager.dart';
+import '../../../../core/widgets/studio_chrome.dart';
 import 'generated_cover_art.dart';
 
 class CoverArtImage extends StatefulWidget {
@@ -12,6 +13,8 @@ class CoverArtImage extends StatefulWidget {
     required this.subtitle,
     required this.size,
     required this.borderRadius,
+    this.clipBorderRadius,
+    this.showFrame = true,
     this.localCoverPath,
     this.coverUrl,
   });
@@ -20,6 +23,8 @@ class CoverArtImage extends StatefulWidget {
   final String subtitle;
   final double size;
   final double borderRadius;
+  final BorderRadiusGeometry? clipBorderRadius;
+  final bool showFrame;
   final String? localCoverPath;
   final String? coverUrl;
 
@@ -83,10 +88,13 @@ class _CoverArtImageState extends State<CoverArtImage> {
 
   @override
   Widget build(BuildContext context) {
+    final effectiveBorderRadius = widget.clipBorderRadius != null
+        ? studioBorderRadiusOf(context, widget.clipBorderRadius!)
+        : BorderRadius.circular(studioRadiusOf(context, widget.borderRadius));
     final localPath = _resolvedLocalPath;
     if (localPath != null && localPath.isNotEmpty) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(widget.borderRadius),
+        borderRadius: effectiveBorderRadius,
         child: Image.file(
           File(localPath),
           fit: BoxFit.cover,
@@ -103,8 +111,11 @@ class _CoverArtImageState extends State<CoverArtImage> {
   Widget _remoteOrGenerated() {
     final remoteUrl = _normalize(widget.coverUrl);
     if (remoteUrl != null && remoteUrl.isNotEmpty) {
+      final effectiveBorderRadius = widget.clipBorderRadius != null
+          ? studioBorderRadiusOf(context, widget.clipBorderRadius!)
+          : BorderRadius.circular(studioRadiusOf(context, widget.borderRadius));
       return ClipRRect(
-        borderRadius: BorderRadius.circular(widget.borderRadius),
+        borderRadius: effectiveBorderRadius,
         child: Image.network(
           remoteUrl,
           fit: BoxFit.cover,
@@ -123,6 +134,8 @@ class _CoverArtImageState extends State<CoverArtImage> {
       subtitle: widget.subtitle,
       size: widget.size,
       borderRadius: widget.borderRadius,
+      clipBorderRadius: widget.clipBorderRadius,
+      showFrame: widget.showFrame,
     );
   }
 }

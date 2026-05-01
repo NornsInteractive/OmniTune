@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/widgets/studio_chrome.dart';
+
 class GeneratedCoverArt extends StatelessWidget {
   const GeneratedCoverArt({
     super.key,
@@ -9,17 +11,24 @@ class GeneratedCoverArt extends StatelessWidget {
     required this.subtitle,
     this.size = 220,
     this.borderRadius = 32,
+    this.clipBorderRadius,
+    this.showFrame = true,
   });
 
   final String title;
   final String subtitle;
   final double size;
   final double borderRadius;
+  final BorderRadiusGeometry? clipBorderRadius;
+  final bool showFrame;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final effectiveBorderRadius = clipBorderRadius != null
+        ? studioBorderRadiusOf(context, clipBorderRadius!)
+        : BorderRadius.circular(studioRadiusOf(context, borderRadius));
     final initials = _initials(title);
     final compact = size < 150;
     final micro = size < 110;
@@ -28,7 +37,7 @@ class GeneratedCoverArt extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(borderRadius),
+        borderRadius: effectiveBorderRadius,
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -39,18 +48,22 @@ class GeneratedCoverArt extends StatelessWidget {
           ],
         ),
         border: Border.all(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.18),
+          color: showFrame
+              ? colorScheme.outlineVariant.withValues(alpha: 0.18)
+              : Colors.transparent,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.shadow.withValues(alpha: 0.08),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        boxShadow: showFrame
+            ? [
+                BoxShadow(
+                  color: colorScheme.shadow.withValues(alpha: 0.08),
+                  blurRadius: 22,
+                  offset: const Offset(0, 10),
+                ),
+              ]
+            : const [],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
+        borderRadius: effectiveBorderRadius,
         child: Stack(
           children: [
             Positioned(

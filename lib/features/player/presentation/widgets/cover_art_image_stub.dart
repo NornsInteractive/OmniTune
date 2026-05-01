@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/widgets/studio_chrome.dart';
 import 'generated_cover_art.dart';
 
 class CoverArtImage extends StatelessWidget {
@@ -9,6 +10,8 @@ class CoverArtImage extends StatelessWidget {
     required this.subtitle,
     required this.size,
     required this.borderRadius,
+    this.clipBorderRadius,
+    this.showFrame = true,
     this.localCoverPath,
     this.coverUrl,
   });
@@ -17,15 +20,20 @@ class CoverArtImage extends StatelessWidget {
   final String subtitle;
   final double size;
   final double borderRadius;
+  final BorderRadiusGeometry? clipBorderRadius;
+  final bool showFrame;
   final String? localCoverPath;
   final String? coverUrl;
 
   @override
   Widget build(BuildContext context) {
     final remoteUrl = coverUrl?.trim();
+    final effectiveBorderRadius = clipBorderRadius != null
+        ? studioBorderRadiusOf(context, clipBorderRadius!)
+        : BorderRadius.circular(studioRadiusOf(context, borderRadius));
     if (remoteUrl != null && remoteUrl.isNotEmpty) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
+        borderRadius: effectiveBorderRadius,
         child: Image.network(
           remoteUrl,
           fit: BoxFit.cover,
@@ -44,6 +52,8 @@ class CoverArtImage extends StatelessWidget {
       subtitle: subtitle,
       size: size,
       borderRadius: borderRadius,
+      clipBorderRadius: clipBorderRadius,
+      showFrame: showFrame,
     );
   }
 }

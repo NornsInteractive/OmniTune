@@ -814,6 +814,7 @@ class _LibraryCategoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cardRadius = studioRadiusOf(context, 20);
+    final iconRadius = studioRadiusOf(context, 14);
     return ClipRRect(
       borderRadius: BorderRadius.circular(cardRadius),
       child: BackdropFilter(
@@ -839,7 +840,7 @@ class _LibraryCategoryCard extends StatelessWidget {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
+                      borderRadius: BorderRadius.circular(iconRadius),
                       color: accent.withValues(alpha: 0.12),
                     ),
                     child: Icon(icon, size: 22, color: accent),
@@ -1344,12 +1345,13 @@ class _EntryLeading extends StatelessWidget {
     final icon = entry.kind == RemoteEntryKind.directory
         ? Icons.folder_rounded
         : Icons.description_rounded;
+    final iconRadius = studioRadiusOf(context, 18);
 
     return Container(
       width: 56,
       height: 56,
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(iconRadius),
         color: _GlacierPalette.primary.withValues(alpha: 0.12),
       ),
       child: Icon(icon, color: _GlacierPalette.primary),

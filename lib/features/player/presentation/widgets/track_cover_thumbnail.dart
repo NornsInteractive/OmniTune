@@ -9,6 +9,8 @@ class TrackCoverThumbnail extends StatelessWidget {
     required this.subtitle,
     required this.size,
     required this.borderRadius,
+    this.clipBorderRadius,
+    this.showFrame = true,
     this.localCoverPath,
     this.coverUrl,
     this.isCurrentTrack = false,
@@ -18,6 +20,8 @@ class TrackCoverThumbnail extends StatelessWidget {
   final String subtitle;
   final double size;
   final double borderRadius;
+  final BorderRadiusGeometry? clipBorderRadius;
+  final bool showFrame;
   final String? localCoverPath;
   final String? coverUrl;
   final bool isCurrentTrack;
@@ -37,6 +41,8 @@ class TrackCoverThumbnail extends StatelessWidget {
             subtitle: subtitle,
             size: size,
             borderRadius: borderRadius,
+            clipBorderRadius: clipBorderRadius,
+            showFrame: showFrame,
             localCoverPath: localCoverPath,
             coverUrl: coverUrl,
           ),

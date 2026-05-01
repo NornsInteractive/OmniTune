@@ -502,9 +502,10 @@ class _ArtworkStage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final panelRadius = studioRadiusOf(context, 26);
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(26),
+      borderRadius: BorderRadius.circular(panelRadius),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onToggleLyrics,
@@ -522,7 +523,7 @@ class _ArtworkStage extends StatelessWidget {
                         padding: const EdgeInsets.all(22),
                         decoration: BoxDecoration(
                           color: _GlacierPalette.surface.withValues(alpha: 0.9),
-                          borderRadius: BorderRadius.circular(26),
+                          borderRadius: BorderRadius.circular(panelRadius),
                           border: Border.all(
                             color: _GlacierPalette.primary.withValues(
                               alpha: 0.12,
@@ -551,7 +552,7 @@ class _ArtworkStage extends StatelessWidget {
                           ),
                           DecoratedBox(
                             decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(26),
+                              borderRadius: BorderRadius.circular(panelRadius),
                               border: Border.all(
                                 color: _GlacierPalette.primary.withValues(
                                   alpha: 0.2,

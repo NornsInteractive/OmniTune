@@ -83,7 +83,9 @@
   "sourceManagementSummary": "浏览音源：{sourceName} · 共 {count} 个",
   "@sourceManagementSummary": {
     "placeholders": {
-      "sourceName": {},
+      "sourceName": {
+        "type": "Object"
+      },
       "count": {
         "type": "int"
       }
@@ -128,7 +130,9 @@
   "cacheSettingsSummary": "{storageMode} · 内存保留 {count} 首",
   "@cacheSettingsSummary": {
     "placeholders": {
-      "storageMode": {},
+      "storageMode": {
+        "type": "Object"
+      },
       "count": {
         "type": "int"
       }
@@ -279,7 +283,9 @@
   "albumsDescriptionWithSource": "来自 {sourceName} 的专辑",
   "@albumsDescriptionWithSource": {
     "placeholders": {
-      "sourceName": {}
+      "sourceName": {
+        "type": "Object"
+      }
     }
   },
   "albumsEmptyTitle": "还没有专辑内容",
@@ -304,13 +310,17 @@
   "collectionDescription": "浏览 {sourceName}，扫描全部歌曲，并在全部歌曲、我喜欢和我收藏之间快速切换。",
   "@collectionDescription": {
     "placeholders": {
-      "sourceName": {}
+      "sourceName": {
+        "type": "Object"
+      }
     }
   },
   "collectionDescriptionAllSources": "当前音源为 {browserSourceName}，并把全部 {sourceCount} 个已保存音源扫描到同一个资料库中展示。",
   "@collectionDescriptionAllSources": {
     "placeholders": {
-      "browserSourceName": {},
+      "browserSourceName": {
+        "type": "Object"
+      },
       "sourceCount": {
         "type": "int"
       }
@@ -319,7 +329,9 @@
   "currentScanSourceLabel": "当前扫描音源：{sourceName}",
   "@currentScanSourceLabel": {
     "placeholders": {
-      "sourceName": {}
+      "sourceName": {
+        "type": "Object"
+      }
     }
   },
   "favoritesCollectionTitle": "我的收藏",
@@ -373,7 +385,9 @@
   "addedToPlayNextMessage": "已添加到下一首播放：{title}",
   "@addedToPlayNextMessage": {
     "placeholders": {
-      "title": {}
+      "title": {
+        "type": "Object"
+      }
     }
   },
   "openPlayerAction": "打开播放器",
@@ -437,7 +451,9 @@
   "moreOptionsAction": "更多选项",
   "debugSettingsTitle": "开发者",
   "debugModeLabel": "调试模式",
-  "debugModeDescription": "异常发生时显示错误对话框",  "debugModeEnabledMessage": "🔍 调试模式已启用 - 查看控制台查看详细日志",  "manualScrapingTitle": "手动刮削",
+  "debugModeDescription": "异常发生时显示错误对话框",
+  "debugModeEnabledMessage": "🔍 调试模式已启用 - 查看控制台查看详细日志",
+  "manualScrapingTitle": "手动刮削",
   "manualScrapingActionLabel": "手动刮削",
   "scrapingSongName": "歌名",
   "scrapingArtistName": "艺术家",

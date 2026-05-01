@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
@@ -12,6 +13,7 @@ import '../../../core/models/source_protocol.dart';
 import '../../../core/widgets/glacier_dialog.dart';
 import '../../../core/widgets/studio_chrome.dart';
 import '../../../core/widgets/top_snackbar.dart';
+import '../../library/application/library_catalog_controller.dart';
 import '../../sources/data/cloud189/cloud189_api_client.dart';
 import '../../sources/application/sources_controller.dart';
 import '../application/add_source_controller.dart';
@@ -559,20 +561,21 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
                                                 context,
                                               );
                                               try {
-                                                if (_protocol ==
-                                                    SourceProtocol.cloudDrive) {
-                                                  await controller
-                                                      .saveCloud189Source(
-                                                        _createCloud189Draft(),
-                                                        captchaResolver:
-                                                            _promptCloud189Captcha,
-                                                      );
-                                                } else {
-                                                  await controller
-                                                      .saveWebDavSource(
-                                                        _createWebDavDraft(),
-                                                      );
-                                                }
+                                                final isNewSource = !isEditing;
+                                                final savedProfile =
+                                                    _protocol ==
+                                                        SourceProtocol
+                                                            .cloudDrive
+                                                    ? await controller
+                                                          .saveCloud189Source(
+                                                            _createCloud189Draft(),
+                                                            captchaResolver:
+                                                                _promptCloud189Captcha,
+                                                          )
+                                                    : await controller
+                                                          .saveWebDavSource(
+                                                            _createWebDavDraft(),
+                                                          );
                                                 if (!mounted) {
                                                   return;
                                                 }
@@ -587,6 +590,18 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
                                                 );
                                                 if (!mounted) {
                                                   return;
+                                                }
+                                                if (isNewSource) {
+                                                  unawaited(
+                                                    ref
+                                                        .read(
+                                                          libraryCatalogControllerProvider
+                                                              .notifier,
+                                                        )
+                                                        .rescanSource(
+                                                          savedProfile.id,
+                                                        ),
+                                                  );
                                                 }
                                                 router.pop();
                                               } catch (_) {

@@ -76,8 +76,7 @@ class _AlbumsPageState extends ConsumerState<AlbumsPage> {
             return _AlbumsEmptyState(
               pageTitle: l10n.albumsTabLabel,
               title: l10n.sourceManagementEmptyTitle,
-              description:
-                  'Add a source to start building album views from your cloud library.',
+              description: l10n.sourceManagementEmptySummary,
               onScan: () {
                 ref
                     .read(libraryCatalogControllerProvider.notifier)
@@ -340,8 +339,7 @@ class _AlbumsContent extends ConsumerWidget {
               ),
               child: _EmptyGlassCard(
                 title: l10n.albumsEmptyTitle,
-                description:
-                    'Run a scan for this source and OmniTune will group tracks into album collections here.',
+                description: l10n.albumsEmptyDescription,
               ),
             ),
           )
@@ -970,18 +968,23 @@ class _AlbumGridCard extends StatelessWidget {
               child: Stack(
                 children: [
                   Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(cardRadius),
-                        border: Border.all(
-                          color: _GlacierPalette.outline.withValues(
-                            alpha: 0.45,
+                    child: _AlbumArtwork(
+                      album: album,
+                      size: 200,
+                      borderRadius: 24,
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(cardRadius),
+                          border: Border.all(
+                            color: _GlacierPalette.outline.withValues(
+                              alpha: 0.45,
+                            ),
                           ),
                         ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(0.5),
-                        child: _AlbumArtwork(album: album, size: 200),
                       ),
                     ),
                   ),
@@ -1180,20 +1183,31 @@ class _AlbumListRow extends StatelessWidget {
     return Material(
       color: _GlacierPalette.surface.withValues(alpha: 0.6),
       borderRadius: BorderRadius.circular(cardRadius),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         borderRadius: BorderRadius.circular(cardRadius),
         onTap: onTap,
-        child: Padding(
-          padding: studioListPaddingOf(context, const EdgeInsets.all(12)),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 72,
-                height: 72,
-                child: _AlbumArtwork(album: album, size: 72),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 84,
+              height: 84,
+              child: _AlbumArtwork(
+                album: album,
+                size: 84,
+                borderRadius: 22,
+                clipBorderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(22),
+                  bottomLeft: Radius.circular(22),
+                ),
               ),
-              const SizedBox(width: 14),
-              Expanded(
+            ),
+            Expanded(
+              child: Padding(
+                padding: studioListPaddingOf(
+                  context,
+                  const EdgeInsets.fromLTRB(14, 12, 8, 12),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1232,7 +1246,10 @@ class _AlbumListRow extends StatelessWidget {
                   ],
                 ),
               ),
-              Material(
+            ),
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: Material(
                 color: _GlacierPalette.primary.withValues(alpha: 0.12),
                 shape: const CircleBorder(),
                 child: InkWell(
@@ -1249,8 +1266,8 @@ class _AlbumListRow extends StatelessWidget {
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1361,13 +1378,23 @@ final _albumFolderArtworkProvider =
     });
 
 class _AlbumArtwork extends ConsumerWidget {
-  const _AlbumArtwork({required this.album, required this.size});
+  const _AlbumArtwork({
+    required this.album,
+    required this.size,
+    this.borderRadius = 18,
+    this.clipBorderRadius,
+  });
 
   final LibraryAlbum album;
   final double size;
+  final double borderRadius;
+  final BorderRadiusGeometry? clipBorderRadius;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final effectiveBorderRadius = clipBorderRadius != null
+        ? studioBorderRadiusOf(context, clipBorderRadius!)
+        : BorderRadius.circular(studioRadiusOf(context, borderRadius));
     final leadTrack = album.tracks.isEmpty ? null : album.tracks.first;
     if (leadTrack != null) {
       final folderArtwork = ref.watch(
@@ -1381,16 +1408,20 @@ class _AlbumArtwork extends ConsumerWidget {
       final folderData = folderArtwork.valueOrNull;
       if (folderData != null && folderData.localPath.isNotEmpty) {
         return ClipRRect(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: effectiveBorderRadius,
           child: Image.file(
             File(folderData.localPath),
+            width: size,
+            height: size,
             fit: BoxFit.cover,
             gaplessPlayback: true,
             errorBuilder: (_, _, _) => GeneratedCoverArt(
               title: album.title,
               subtitle: album.artistName,
               size: size,
-              borderRadius: 18,
+              borderRadius: borderRadius,
+              clipBorderRadius: clipBorderRadius,
+              showFrame: false,
             ),
           ),
         );
@@ -1404,7 +1435,9 @@ class _AlbumArtwork extends ConsumerWidget {
         title: leadTrack.displayTitle,
         subtitle: leadTrack.displayArtist,
         size: size,
-        borderRadius: 18,
+        borderRadius: borderRadius,
+        clipBorderRadius: clipBorderRadius,
+        showFrame: false,
         localCoverPath: leadTrack.displayLocalCoverPath,
         coverUrl: leadTrack.displayCoverUrl,
       );
@@ -1414,7 +1447,9 @@ class _AlbumArtwork extends ConsumerWidget {
       title: album.title,
       subtitle: album.artistName,
       size: size,
-      borderRadius: 18,
+      borderRadius: borderRadius,
+      clipBorderRadius: clipBorderRadius,
+      showFrame: false,
     );
   }
 }

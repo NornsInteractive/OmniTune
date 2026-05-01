@@ -287,6 +287,32 @@ double studioRadiusOf(BuildContext context, double radius) {
   return (configuredRadius * radius / 28).clamp(4.0, 56.0).toDouble();
 }
 
+BorderRadius studioBorderRadiusOf(
+  BuildContext context,
+  BorderRadiusGeometry borderRadius,
+) {
+  final textDirection = Directionality.maybeOf(context) ?? TextDirection.ltr;
+  final resolved = borderRadius.resolve(textDirection);
+
+  Radius scaleRadius(Radius radius) {
+    double scale(double value) {
+      if (value == 0) {
+        return 0;
+      }
+      return studioRadiusOf(context, value);
+    }
+
+    return Radius.elliptical(scale(radius.x), scale(radius.y));
+  }
+
+  return BorderRadius.only(
+    topLeft: scaleRadius(resolved.topLeft),
+    topRight: scaleRadius(resolved.topRight),
+    bottomLeft: scaleRadius(resolved.bottomLeft),
+    bottomRight: scaleRadius(resolved.bottomRight),
+  );
+}
+
 class _StudioBackgroundImage extends StatefulWidget {
   const _StudioBackgroundImage({required this.source, required this.alignment});
 
