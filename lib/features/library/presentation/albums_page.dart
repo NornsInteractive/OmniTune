@@ -964,25 +964,24 @@ class _AlbumGridCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child: SizedBox.expand(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(cardRadius),
               child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  Positioned.fill(
-                    child: _AlbumArtwork(
-                      album: album,
-                      size: 200,
-                      borderRadius: 24,
-                    ),
+                  _AlbumArtwork(
+                    album: album,
+                    size: 200,
+                    borderRadius: 24,
+                    showFrame: false,
                   ),
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(cardRadius),
-                          border: Border.all(
-                            color: _GlacierPalette.outline.withValues(
-                              alpha: 0.45,
-                            ),
+                  IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(cardRadius),
+                        border: Border.all(
+                          color: _GlacierPalette.outline.withValues(
+                            alpha: 0.45,
                           ),
                         ),
                       ),
@@ -1183,31 +1182,20 @@ class _AlbumListRow extends StatelessWidget {
     return Material(
       color: _GlacierPalette.surface.withValues(alpha: 0.6),
       borderRadius: BorderRadius.circular(cardRadius),
-      clipBehavior: Clip.antiAlias,
       child: InkWell(
         borderRadius: BorderRadius.circular(cardRadius),
         onTap: onTap,
-        child: Row(
-          children: [
-            SizedBox(
-              width: 84,
-              height: 84,
-              child: _AlbumArtwork(
-                album: album,
-                size: 84,
-                borderRadius: 22,
-                clipBorderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(22),
-                  bottomLeft: Radius.circular(22),
-                ),
+        child: Padding(
+          padding: studioListPaddingOf(context, const EdgeInsets.all(12)),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 72,
+                height: 72,
+                child: _AlbumArtwork(album: album, size: 72, borderRadius: 18),
               ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: studioListPaddingOf(
-                  context,
-                  const EdgeInsets.fromLTRB(14, 12, 8, 12),
-                ),
+              const SizedBox(width: 14),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1246,10 +1234,7 @@ class _AlbumListRow extends StatelessWidget {
                   ],
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: Material(
+              Material(
                 color: _GlacierPalette.primary.withValues(alpha: 0.12),
                 shape: const CircleBorder(),
                 child: InkWell(
@@ -1266,8 +1251,8 @@ class _AlbumListRow extends StatelessWidget {
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1383,12 +1368,14 @@ class _AlbumArtwork extends ConsumerWidget {
     required this.size,
     this.borderRadius = 18,
     this.clipBorderRadius,
+    this.showFrame = true,
   });
 
   final LibraryAlbum album;
   final double size;
   final double borderRadius;
   final BorderRadiusGeometry? clipBorderRadius;
+  final bool showFrame;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1421,7 +1408,7 @@ class _AlbumArtwork extends ConsumerWidget {
               size: size,
               borderRadius: borderRadius,
               clipBorderRadius: clipBorderRadius,
-              showFrame: false,
+              showFrame: showFrame,
             ),
           ),
         );
@@ -1437,7 +1424,7 @@ class _AlbumArtwork extends ConsumerWidget {
         size: size,
         borderRadius: borderRadius,
         clipBorderRadius: clipBorderRadius,
-        showFrame: false,
+        showFrame: showFrame,
         localCoverPath: leadTrack.displayLocalCoverPath,
         coverUrl: leadTrack.displayCoverUrl,
       );
@@ -1449,7 +1436,7 @@ class _AlbumArtwork extends ConsumerWidget {
       size: size,
       borderRadius: borderRadius,
       clipBorderRadius: clipBorderRadius,
-      showFrame: false,
+      showFrame: showFrame,
     );
   }
 }
