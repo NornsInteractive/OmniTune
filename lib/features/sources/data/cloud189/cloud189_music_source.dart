@@ -10,14 +10,18 @@ import '../../../../core/models/source_profile.dart';
 import '../../../../core/models/source_protocol.dart';
 import '../../domain/music_source.dart';
 import 'cloud189_api_client.dart';
+import '../webdav/webdav_playback_cache_base.dart';
+import '../webdav/webdav_remote_client.dart';
 
 typedef Cloud189RemoteClientFactory =
     Cloud189RemoteClient Function(SourceProfile profile);
+typedef Cloud189PlaybackCacheFactory = WebDavPlaybackCache Function();
 
 class Cloud189MusicSource implements MusicSource {
   Cloud189MusicSource(
     this.profile, {
     Cloud189RemoteClientFactory? clientFactory,
+    required Cloud189PlaybackCacheFactory playbackCacheFactory,
     Cloud189CaptchaResolver? captchaResolver,
     Cloud189QRCodeResolver? qrCodeResolver,
     Cloud189SMSVerificationResolver? smsVerificationResolver,
@@ -28,7 +32,8 @@ class Cloud189MusicSource implements MusicSource {
              captchaResolver: captchaResolver,
              qrCodeResolver: qrCodeResolver,
              smsVerificationResolver: smsVerificationResolver,
-           );
+           ),
+       _playbackCache = playbackCacheFactory();
 
   static const _audioExtensions = {
     '.aac',
@@ -53,6 +58,7 @@ class Cloud189MusicSource implements MusicSource {
   final SourceProfile profile;
 
   final Cloud189RemoteClient _client;
+  final WebDavPlaybackCache _playbackCache;
   final Map<String, String?> _textFileCache = <String, String?>{};
   bool _connected = false;
 
@@ -123,14 +129,42 @@ class Cloud189MusicSource implements MusicSource {
         .where((segment) => segment.isNotEmpty)
         .toList();
 
-    await connect();
+    final cacheClient = _Cloud189PlaybackCacheClientAdapter(_client);
+    final cachedAudioSourceFuture = _playbackCache
+        .createCachedAudioSource(entry: entry, client: cacheClient)
+        .timeout(const Duration(seconds: 1), onTimeout: () => null);
+    final cachedAudioSource = await cachedAudioSourceFuture;
+
+    if (cachedAudioSource != null) {
+      return PlayableTrack(
+        id: entry.uniqueId,
+        sourceId: profile.id,
+        title: entry.title,
+        sourceName: profile.name,
+        remotePath: entry.path,
+        audioSource: cachedAudioSource,
+        sourceSizeBytes: entry.size,
+        albumTitle: folderSegments.isEmpty ? profile.name : folderSegments.last,
+        artistName: folderSegments.length >= 2
+            ? folderSegments[folderSegments.length - 2]
+            : profile.name,
+      );
+    }
+
+    if (!_connected) {
+      unawaited(connect());
+    }
     return PlayableTrack(
       id: entry.uniqueId,
       sourceId: profile.id,
       title: entry.title,
       sourceName: profile.name,
       remotePath: entry.path,
-      audioSource: _Cloud189StreamAudioSource(client: _client, entry: entry),
+      audioSource: _Cloud189CachedStreamAudioSource(
+        client: _client,
+        entry: entry,
+        playbackCache: _playbackCache,
+      ),
       sourceSizeBytes: entry.size,
       albumTitle: folderSegments.isEmpty ? profile.name : folderSegments.last,
       artistName: folderSegments.length >= 2
@@ -202,15 +236,202 @@ class _Cloud189StreamAudioSource extends StreamAudioSource {
 }
 
 class Cloud189MusicSourceFactory implements MusicSourceFactory {
-  const Cloud189MusicSourceFactory();
+  const Cloud189MusicSourceFactory({required this.playbackCacheFactory});
+
+  final Cloud189PlaybackCacheFactory playbackCacheFactory;
 
   @override
   SourceProtocol get protocol => SourceProtocol.cloudDrive;
 
   @override
   MusicSource create(SourceProfile profile) {
-    return Cloud189MusicSource(profile);
+    return Cloud189MusicSource(
+      profile,
+      playbackCacheFactory: playbackCacheFactory,
+    );
   }
+}
+
+class _Cloud189CachedStreamAudioSource extends StreamAudioSource {
+  _Cloud189CachedStreamAudioSource({
+    required this.client,
+    required this.entry,
+    required this.playbackCache,
+  });
+
+  final Cloud189RemoteClient client;
+  final RemoteEntry entry;
+  final WebDavPlaybackCache playbackCache;
+
+  @override
+  Future<StreamAudioResponse> request([int? start, int? end]) async {
+    final requestedStart = start ?? 0;
+    final cachedRange = await playbackCache.readCachedRange(
+      entry: entry,
+      start: requestedStart,
+      end: end,
+    );
+
+    if (cachedRange != null) {
+      final cachedSourceLength = entry.size;
+      final cachedContentLength = cachedRange.bytes.length;
+      final cacheSatisfiesRequest = end != null
+          ? cachedRange.endExclusive >= end
+          : (cachedSourceLength != null &&
+                cachedRange.endExclusive >= cachedSourceLength);
+
+      if (cacheSatisfiesRequest) {
+        return StreamAudioResponse(
+          sourceLength: cachedSourceLength,
+          contentLength: cachedContentLength,
+          offset: requestedStart,
+          stream: Stream<List<int>>.value(cachedRange.bytes),
+          contentType: _resolvePlaybackContentType(''),
+        );
+      }
+
+      final networkResult = await client.openRead(
+        entry.path,
+        start: cachedRange.endExclusive,
+        end: end,
+      );
+      final sourceLength = networkResult.sourceLength ?? entry.size;
+      final resolvedContentLength = _resolvedContentLength(
+        requestedStart: requestedStart,
+        requestedEnd: end,
+        sourceLength: sourceLength,
+        cachedBytesLength: cachedRange.bytes.length,
+        networkContentLength: networkResult.contentLength,
+      );
+
+      return StreamAudioResponse(
+        sourceLength: sourceLength,
+        contentLength: resolvedContentLength,
+        offset: requestedStart,
+        stream: _concatStreams(
+          Stream<List<int>>.value(cachedRange.bytes),
+          playbackCache.wrapPlaybackStream(
+            entry: entry,
+            stream: networkResult.stream,
+            offset: networkResult.offset,
+            requestedEnd: end,
+            expectedLength: sourceLength,
+          ),
+        ),
+        contentType: _resolvePlaybackContentType(networkResult.contentType),
+      );
+    }
+
+    final result = await client.openRead(entry.path, start: start, end: end);
+    final sourceLength = result.sourceLength ?? entry.size;
+    final resolvedContentLength = _resolvedContentLength(
+      requestedStart: result.offset,
+      requestedEnd: end,
+      sourceLength: sourceLength,
+      cachedBytesLength: 0,
+      networkContentLength: result.contentLength,
+    );
+
+    return StreamAudioResponse(
+      sourceLength: sourceLength,
+      contentLength: resolvedContentLength,
+      offset: result.offset,
+      stream: playbackCache.wrapPlaybackStream(
+        entry: entry,
+        stream: result.stream,
+        offset: result.offset,
+        requestedEnd: end,
+        expectedLength: sourceLength,
+      ),
+      contentType: _resolvePlaybackContentType(result.contentType),
+    );
+  }
+
+  int _resolvedContentLength({
+    required int requestedStart,
+    required int? requestedEnd,
+    required int? sourceLength,
+    required int cachedBytesLength,
+    required int networkContentLength,
+  }) {
+    if (requestedEnd != null) {
+      return requestedEnd - requestedStart;
+    }
+    if (sourceLength != null) {
+      return sourceLength - requestedStart;
+    }
+    if (cachedBytesLength > 0) {
+      return cachedBytesLength + networkContentLength;
+    }
+    return networkContentLength;
+  }
+
+  String _resolvePlaybackContentType(String headerContentType) {
+    final normalizedHeader = headerContentType.trim().toLowerCase();
+    if (normalizedHeader.startsWith('audio/')) {
+      return normalizedHeader.split(';').first;
+    }
+    final normalizedMime = (entry.mimeType ?? '').trim().toLowerCase();
+    if (normalizedMime.startsWith('audio/')) {
+      return normalizedMime.split(';').first;
+    }
+    return 'audio/mpeg';
+  }
+
+  Stream<List<int>> _concatStreams(
+    Stream<List<int>> first,
+    Stream<List<int>> second,
+  ) async* {
+    yield* first;
+    yield* second;
+  }
+}
+
+class _Cloud189PlaybackCacheClientAdapter implements WebDavRemoteClient {
+  const _Cloud189PlaybackCacheClientAdapter(this._client);
+
+  final Cloud189RemoteClient _client;
+
+  @override
+  WebDavDirectoryDebugInfo? get lastDirectoryDebugInfo => null;
+
+  @override
+  Future<void> dispose() async {}
+
+  @override
+  Future<WebDavReadResult> openRead(String path, {int? start, int? end}) async {
+    final result = await _client.openRead(path, start: start, end: end);
+    return WebDavReadResult(
+      stream: result.stream,
+      offset: result.offset,
+      contentLength: result.contentLength,
+      contentType: result.contentType,
+      sourceLength: result.sourceLength,
+    );
+  }
+
+  @override
+  Future<void> ping() => _client.connect();
+
+  @override
+  Future<List<WebDavRemoteFile>> readDirectory(String path) async {
+    final items = await _client.readDirectory(path);
+    return items
+        .map(
+          (file) => WebDavRemoteFile(
+            path: file.path,
+            name: file.name,
+            isDirectory: file.isDirectory,
+            mimeType: file.mimeType,
+            size: file.size,
+            modifiedAt: file.modifiedAt,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  @override
+  Future<String?> readText(String path) => _client.readText(path);
 }
 
 Cloud189RemoteClient _defaultClientFactory(

@@ -56,6 +56,9 @@ class _UnsupportedWebDavPlaybackCache implements WebDavPlaybackCache {
   Future<void> clearAllCachedData() async {}
 
   @override
+  Future<void> clearMemoryCachedData() async {}
+
+  @override
   Future<void> removeCachedTracks(Set<String> trackIds) async {}
 
   @override

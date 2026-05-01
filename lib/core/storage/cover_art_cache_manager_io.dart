@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
@@ -47,6 +48,11 @@ class CoverArtCacheManager {
     return '$hash$extension';
   }
 
+  String _generateKeyFileName(String cacheKey, String extension) {
+    final hash = md5.convert(cacheKey.codeUnits).toString();
+    return '$hash${_normalizeExtension(extension)}';
+  }
+
   Future<String?> downloadAndCache(String coverUrl) async {
     if (coverUrl.trim().isEmpty) {
       return null;
@@ -83,6 +89,53 @@ class CoverArtCacheManager {
       return null;
     } catch (e, stack) {
       DebugLogger.error('CoverArtCache', '缓存异常', e.toString(), stack);
+      return null;
+    }
+  }
+
+  Future<String?> cachedPathForUrl(String coverUrl) async {
+    if (coverUrl.trim().isEmpty) {
+      return null;
+    }
+    final cacheDir = await _getCacheDir();
+    final file = File('${cacheDir.path}/${_generateFileName(coverUrl)}');
+    return await file.exists() ? file.path : null;
+  }
+
+  Future<String?> cachedPathForKey(
+    String cacheKey, {
+    String extension = '.jpg',
+  }) async {
+    if (cacheKey.trim().isEmpty) {
+      return null;
+    }
+    final cacheDir = await _getCacheDir();
+    final file = File(
+      '${cacheDir.path}/${_generateKeyFileName(cacheKey, extension)}',
+    );
+    return await file.exists() ? file.path : null;
+  }
+
+  Future<String?> cacheBytes(
+    String cacheKey,
+    Uint8List bytes, {
+    String extension = '.jpg',
+  }) async {
+    if (cacheKey.trim().isEmpty || bytes.isEmpty) {
+      return null;
+    }
+
+    try {
+      final cacheDir = await _getCacheDir();
+      final file = File(
+        '${cacheDir.path}/${_generateKeyFileName(cacheKey, extension)}',
+      );
+      if (!await file.exists()) {
+        await file.writeAsBytes(bytes, flush: true);
+      }
+      return file.path;
+    } catch (e, stack) {
+      DebugLogger.error('CoverArtCache', '写入封面缓存失败', e.toString(), stack);
       return null;
     }
   }
@@ -131,5 +184,13 @@ class CoverArtCacheManager {
       return '.jpeg';
     }
     return '.jpg';
+  }
+
+  String _normalizeExtension(String extension) {
+    final normalized = extension.trim().toLowerCase();
+    if (normalized.isEmpty) {
+      return '.jpg';
+    }
+    return normalized.startsWith('.') ? normalized : '.$normalized';
   }
 }

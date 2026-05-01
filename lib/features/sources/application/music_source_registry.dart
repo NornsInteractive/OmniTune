@@ -35,9 +35,9 @@ MusicSourceRegistry musicSourceRegistry(Ref ref) {
   final playbackCache = ref.watch(webDavPlaybackCacheProvider);
   return MusicSourceRegistry([
     WebDavMusicSourceFactory(playbackCacheFactory: () => playbackCache),
+    Cloud189MusicSourceFactory(playbackCacheFactory: () => playbackCache),
     const SftpMusicSourceFactory(),
     const FtpMusicSourceFactory(),
     const SambaMusicSourceFactory(),
-    const Cloud189MusicSourceFactory(),
   ]);
 }

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:music/l10n/app_localizations.dart';
 
 import '../../../../core/utils/debug_log_store.dart';
+import '../../../../core/widgets/top_snackbar.dart';
 
 /// 日志显示面板
 class DebugLogPanel extends StatefulWidget {
@@ -277,12 +278,9 @@ class _DebugLogDialogState extends State<DebugLogDialog> {
             // 导出日志到剪贴板
             final text = DebugLogStore().exportAsText();
             Clipboard.setData(ClipboardData(text: text));
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  '${l10n.logsExportedToClipboard} (${text.length} chars)',
-                ),
-              ),
+            showTopSnackBar(
+              context,
+              '${l10n.logsExportedToClipboard} (${text.length} chars)',
             );
           },
           child: Text(l10n.copyLogsAction),

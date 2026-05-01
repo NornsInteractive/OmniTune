@@ -11,6 +11,7 @@ import '../../../core/models/source_profile.dart';
 import '../../../core/models/source_protocol.dart';
 import '../../../core/widgets/glacier_dialog.dart';
 import '../../../core/widgets/studio_chrome.dart';
+import '../../../core/widgets/top_snackbar.dart';
 import '../../sources/data/cloud189/cloud189_api_client.dart';
 import '../../sources/application/sources_controller.dart';
 import '../application/add_source_controller.dart';
@@ -503,8 +504,6 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
                                                   .validate()) {
                                                 return;
                                               }
-                                              final messenger =
-                                                  ScaffoldMessenger.of(context);
                                               try {
                                                 if (_protocol ==
                                                     SourceProtocol.cloudDrive) {
@@ -523,12 +522,9 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
                                                 if (!mounted) {
                                                   return;
                                                 }
-                                                messenger.showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                      l10n.connectionTestSuccess,
-                                                    ),
-                                                  ),
+                                                showTopSnackBar(
+                                                  this.context,
+                                                  l10n.connectionTestSuccess,
                                                 );
                                                 await _showCloud189DebugLog(
                                                   controller,
@@ -537,13 +533,10 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
                                                 if (!mounted) {
                                                   return;
                                                 }
-                                                messenger.showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                      _connectionFailedMessage(
-                                                        l10n,
-                                                      ),
-                                                    ),
+                                                showTopSnackBar(
+                                                  this.context,
+                                                  _connectionFailedMessage(
+                                                    l10n,
                                                   ),
                                                 );
                                                 await _showCloud189DebugLog(
@@ -562,8 +555,6 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
                                                   .validate()) {
                                                 return;
                                               }
-                                              final messenger =
-                                                  ScaffoldMessenger.of(context);
                                               final router = GoRouter.of(
                                                 context,
                                               );
@@ -585,14 +576,11 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
                                                 if (!mounted) {
                                                   return;
                                                 }
-                                                messenger.showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                      isEditing
-                                                          ? l10n.sourceUpdatedSuccess
-                                                          : l10n.sourceSavedSuccess,
-                                                    ),
-                                                  ),
+                                                showTopSnackBar(
+                                                  this.context,
+                                                  isEditing
+                                                      ? l10n.sourceUpdatedSuccess
+                                                      : l10n.sourceSavedSuccess,
                                                 );
                                                 await _showCloud189DebugLog(
                                                   controller,
@@ -605,13 +593,10 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
                                                 if (!mounted) {
                                                   return;
                                                 }
-                                                messenger.showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                      _connectionFailedMessage(
-                                                        l10n,
-                                                      ),
-                                                    ),
+                                                showTopSnackBar(
+                                                  this.context,
+                                                  _connectionFailedMessage(
+                                                    l10n,
                                                   ),
                                                 );
                                                 await _showCloud189DebugLog(
@@ -933,13 +918,10 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
 
   Future<void> _openCloud189Authorization(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
-    final messenger = ScaffoldMessenger.of(context);
     final appKey = _cloud189AppKeyController.text.trim();
     final redirectUri = _cloud189RedirectUriController.text.trim();
     if (appKey.isEmpty || redirectUri.isEmpty) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(l10n.cloud189AppAuthorizationConfigRequired)),
-      );
+      showTopSnackBar(context, l10n.cloud189AppAuthorizationConfigRequired);
       return;
     }
 
@@ -955,14 +937,11 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
     if (!context.mounted) {
       return;
     }
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          launched
-              ? l10n.cloud189AuthorizationOpenedMessage
-              : l10n.cloud189AuthorizationOpenFailedMessage,
-        ),
-      ),
+    showTopSnackBar(
+      context,
+      launched
+          ? l10n.cloud189AuthorizationOpenedMessage
+          : l10n.cloud189AuthorizationOpenFailedMessage,
     );
   }
 

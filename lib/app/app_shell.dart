@@ -6,8 +6,9 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:music/l10n/app_localizations.dart';
 
+import '../core/storage/library_preferences_repository.dart';
 import '../core/widgets/studio_chrome.dart';
-import '../features/debug/application/debug_mode_provider.dart';
+import '../features/settings/application/app_settings_controller.dart';
 import '../features/player/presentation/widgets/mini_player.dart';
 
 class MusicAppShell extends ConsumerWidget {
@@ -17,7 +18,10 @@ class MusicAppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final debugModeEnabled = ref.watch(debugModeProvider);
+    final preferences =
+        ref.watch(appSettingsControllerProvider).valueOrNull ??
+        const LibraryPreferences();
+    final debugModeEnabled = preferences.enableDebugMode;
     _GlacierPalette.sync(context);
 
     return Scaffold(

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/debug_log_store.dart';
 import '../../../core/widgets/studio_chrome.dart';
+import '../../../core/widgets/top_snackbar.dart';
 
 /// 调试日志页面
 class DebugLogsPage extends StatefulWidget {
@@ -57,9 +58,7 @@ class _DebugLogsPageState extends State<DebugLogsPage> {
 
   void _copyToClipboard(String text) {
     Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('✓ 已复制到剪贴板')));
+    showTopSnackBar(context, '✓ 已复制到剪贴板');
   }
 
   @override

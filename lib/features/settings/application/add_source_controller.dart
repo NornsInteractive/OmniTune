@@ -11,6 +11,7 @@ import '../../sources/application/music_source_registry.dart';
 import '../../sources/application/sources_controller.dart';
 import '../../sources/data/cloud189/cloud189_api_client.dart';
 import '../../sources/data/cloud189/cloud189_music_source.dart';
+import '../../sources/data/webdav/webdav_playback_cache_provider.dart';
 import '../../sources/domain/music_source.dart';
 
 part 'add_source_controller.g.dart';
@@ -311,6 +312,7 @@ class AddSourceController extends _$AddSourceController {
     if (profile.protocol == SourceProtocol.cloudDrive) {
       return Cloud189MusicSource(
         profile,
+        playbackCacheFactory: () => ref.read(webDavPlaybackCacheProvider),
         captchaResolver: captchaResolver,
         qrCodeResolver: qrCodeResolver,
         smsVerificationResolver: smsVerificationResolver,

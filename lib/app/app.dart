@@ -22,26 +22,33 @@ class MusicApp extends ConsumerWidget {
         const LibraryPreferences();
 
     final customColors = preferences.customThemeColors;
-    final seedColor =
-        customColors.getSeedColor() ??
-        ThemeData(useMaterial3: true).colorScheme.primary;
+    final fallbackSeedColor = ThemeData(useMaterial3: true).colorScheme.primary;
+    final lightSeedColor =
+        customColors.getSeedColorFor(Brightness.light) ?? fallbackSeedColor;
+    final darkSeedColor =
+        customColors.getSeedColorFor(Brightness.dark) ?? fallbackSeedColor;
 
     debugPrint(
-      '🎨 [App] Current theme seed color: ${customColors.primaryColorSeed}',
+      '🎨 [App] Current theme seed color: '
+      'light=${customColors.effectiveHexFor(Brightness.light)} '
+      'dark=${customColors.effectiveHexFor(Brightness.dark)} '
+      'legacy=${customColors.primaryColorSeed}',
     );
     debugPrint(
-      '🎨 [App] Parsed seed color from getSeedColor(): ${seedColor.toString()}',
+      '🎨 [App] Parsed theme seeds: '
+      'light=${lightSeedColor.toString()} '
+      'dark=${darkSeedColor.toString()}',
     );
 
     // 构建亮色方案
     final lightScheme = _buildColorScheme(
-      seedColor: seedColor,
+      seedColor: lightSeedColor,
       brightness: Brightness.light,
     );
 
     // 构建深色方案
     final darkScheme = _buildColorScheme(
-      seedColor: seedColor,
+      seedColor: darkSeedColor,
       brightness: Brightness.dark,
     );
 

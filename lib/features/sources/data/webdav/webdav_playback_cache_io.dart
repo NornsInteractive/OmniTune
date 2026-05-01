@@ -6,6 +6,7 @@ import 'dart:typed_data';
 
 import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/models/playback_cache_settings.dart';
 import '../../../../core/models/remote_entry.dart';
@@ -30,6 +31,8 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
       <String, _PersistedTrackCacheState>{};
   PlaybackCacheSettings _settings;
   bool _persistedTrackCacheLoaded = false;
+  Directory? _resolvedCacheDirectory;
+  bool _legacyCacheMigrated = false;
 
   @override
   void applySettings(PlaybackCacheSettings settings) {
@@ -218,12 +221,51 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
       }
     }
 
-    final directory = Directory(
-      '${Directory.systemTemp.path}/$_cacheDirectoryName',
-    );
+    final directory = await _cacheDirectory();
     if (await directory.exists()) {
       await directory.delete(recursive: true);
     }
+    _resolvedCacheDirectory = null;
+    _emitInventory();
+  }
+
+  @override
+  Future<void> clearMemoryCachedData() async {
+    final affectedTrackIds = <String>[];
+    final removableTrackIds = <String>[];
+
+    for (final entry in _trackCache.entries) {
+      final trackId = entry.key;
+      final state = entry.value;
+      if (!state.hasInMemoryBytes) {
+        continue;
+      }
+      affectedTrackIds.add(trackId);
+      if (state.hasPersistedCopy) {
+        state.clearInMemoryBytes();
+      } else {
+        removableTrackIds.add(trackId);
+      }
+    }
+
+    for (final trackId in removableTrackIds) {
+      _trackCache.remove(trackId);
+      _activeCaptureCounts.remove(trackId);
+    }
+
+    for (final trackId in affectedTrackIds) {
+      if (!_snapshotController.isClosed) {
+        _snapshotController.add(
+          snapshotForTrack(trackId) ??
+              PlaybackCacheSnapshot(
+                trackId: trackId,
+                totalLength: null,
+                segments: const [],
+              ),
+        );
+      }
+    }
+
     _emitInventory();
   }
 
@@ -353,10 +395,17 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
   }
 
   Future<Directory> _cacheDirectory() async {
+    if (_resolvedCacheDirectory != null) {
+      return _resolvedCacheDirectory!;
+    }
+
+    final supportDirectory = await getApplicationSupportDirectory();
     final directory = Directory(
-      '${Directory.systemTemp.path}/$_cacheDirectoryName',
+      '${supportDirectory.path}/$_cacheDirectoryName',
     );
     await directory.create(recursive: true);
+    _resolvedCacheDirectory = directory;
+    await _migrateLegacyTempCacheIfNeeded(directory);
     return directory;
   }
 
@@ -372,9 +421,7 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
       return;
     }
 
-    final directory = Directory(
-      '${Directory.systemTemp.path}/$_cacheDirectoryName',
-    );
+    final directory = await _cacheDirectory();
     if (await directory.exists()) {
       await for (final entity in directory.list()) {
         if (entity is! File) {
@@ -406,6 +453,50 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
     }
 
     _persistedTrackCacheLoaded = true;
+  }
+
+  Future<void> _migrateLegacyTempCacheIfNeeded(
+    Directory targetDirectory,
+  ) async {
+    if (_legacyCacheMigrated) {
+      return;
+    }
+    _legacyCacheMigrated = true;
+
+    final legacyDirectory = Directory(
+      '${Directory.systemTemp.path}/$_cacheDirectoryName',
+    );
+    if (!await legacyDirectory.exists() ||
+        legacyDirectory.path == targetDirectory.path) {
+      return;
+    }
+
+    await for (final entity in legacyDirectory.list()) {
+      if (entity is! File) {
+        continue;
+      }
+      final targetFile = File(
+        '${targetDirectory.path}/${p.basename(entity.path)}',
+      );
+      if (await targetFile.exists()) {
+        continue;
+      }
+      try {
+        await entity.rename(targetFile.path);
+      } catch (_) {
+        try {
+          await entity.copy(targetFile.path);
+        } catch (_) {
+          continue;
+        }
+      }
+    }
+
+    try {
+      await legacyDirectory.delete(recursive: true);
+    } catch (_) {
+      // Ignore cleanup failures; migrated files are already usable.
+    }
   }
 
   List<PlaybackCacheInventoryItem> _buildInventory() {

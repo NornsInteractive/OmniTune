@@ -98,6 +98,8 @@ abstract class WebDavPlaybackCache {
 
   Future<void> clearAllCachedData();
 
+  Future<void> clearMemoryCachedData();
+
   Future<void> removeCachedTracks(Set<String> trackIds);
 
   Future<void> dispose();

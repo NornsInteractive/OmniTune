@@ -6,6 +6,7 @@ import 'package:music/core/models/scraping_preferences.dart';
 import 'package:music/l10n/app_localizations.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../core/widgets/top_snackbar.dart';
 import '../../library/application/library_catalog_controller.dart';
 import '../../player/application/player_controller.dart';
 import '../application/scraping_provider.dart';
@@ -52,6 +53,7 @@ class _LyricsScrapingSheetState extends ConsumerState<_LyricsScrapingSheet> {
   bool _applying = false;
   String? _errorText;
   String? _applyingCandidateKey;
+  String? _selectedCandidateKey;
   List<LrclibLyrics> _candidates = const [];
 
   @override
@@ -85,6 +87,7 @@ class _LyricsScrapingSheetState extends ConsumerState<_LyricsScrapingSheet> {
     setState(() {
       _searching = true;
       _errorText = null;
+      _selectedCandidateKey = null;
     });
     try {
       final results = <LrclibLyrics>[];
@@ -214,16 +217,12 @@ class _LyricsScrapingSheetState extends ConsumerState<_LyricsScrapingSheet> {
         return;
       }
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.scrapingResultApplied)));
+      showTopSnackBar(context, l10n.scrapingResultApplied);
     } catch (_) {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.scrapingErrorMessage)));
+      showTopSnackBar(context, l10n.scrapingErrorMessage);
       setState(() {
         _applying = false;
         _applyingCandidateKey = null;
@@ -361,13 +360,39 @@ class _LyricsScrapingSheetState extends ConsumerState<_LyricsScrapingSheet> {
                                   candidate: item,
                                   currentPosition: playbackPosition,
                                   applying: _applyingCandidateKey == key,
+                                  selected: _selectedCandidateKey == key,
                                   onSelect: _applying
                                       ? null
-                                      : () => _applyLyrics(item),
+                                      : () => setState(() {
+                                          _selectedCandidateKey = key;
+                                        }),
                                 ),
                               );
                             },
                           ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: _applying || _selectedCandidateKey == null
+                          ? null
+                          : () {
+                              final candidate = _candidates.firstWhere(
+                                (item) =>
+                                    '${item.id}_${item.trackName}_${item.artistName}' ==
+                                    _selectedCandidateKey,
+                              );
+                              _applyLyrics(candidate);
+                            },
+                      child: _applying
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Text(l10n.scrapingSelectButtonLabel),
+                    ),
                   ),
                 ],
               ),
@@ -384,12 +409,14 @@ class _LyricsCandidateCard extends StatefulWidget {
     required this.candidate,
     required this.currentPosition,
     required this.applying,
+    required this.selected,
     required this.onSelect,
   });
 
   final LrclibLyrics candidate;
   final Duration currentPosition;
   final bool applying;
+  final bool selected;
   final VoidCallback? onSelect;
 
   @override
@@ -397,7 +424,6 @@ class _LyricsCandidateCard extends StatefulWidget {
 }
 
 class _LyricsCandidateCardState extends State<_LyricsCandidateCard> {
-  static const double _lyricsViewportHeight = 54;
   late final ScrollController _scrollController;
   late final List<LyricLine> _lines;
   int _lastActiveIndex = -1;
@@ -436,8 +462,15 @@ class _LyricsCandidateCardState extends State<_LyricsCandidateCard> {
         child: Container(
           padding: const EdgeInsets.fromLTRB(6, 6, 6, 5),
           decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.62),
+            color: widget.selected
+                ? colorScheme.primaryContainer.withValues(alpha: 0.48)
+                : colorScheme.surfaceContainerHigh.withValues(alpha: 0.62),
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: widget.selected
+                  ? colorScheme.primary.withValues(alpha: 0.7)
+                  : colorScheme.outlineVariant.withValues(alpha: 0.18),
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -460,7 +493,7 @@ class _LyricsCandidateCardState extends State<_LyricsCandidateCard> {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  else
+                  else if (widget.selected)
                     Icon(
                       Icons.check_circle_rounded,
                       size: 18,
@@ -481,9 +514,8 @@ class _LyricsCandidateCardState extends State<_LyricsCandidateCard> {
                     ),
                   ),
                 ),
-              const SizedBox(height: 3),
-              SizedBox(
-                height: _lyricsViewportHeight,
+              const SizedBox(height: 4),
+              Expanded(
                 child: _lines.isEmpty
                     ? Center(
                         child: Text(
@@ -561,7 +593,8 @@ class _LyricsCandidateCardState extends State<_LyricsCandidateCard> {
     if (!maxExtent.isFinite || maxExtent <= 0) {
       return;
     }
-    final visibleLines = _lyricsViewportHeight / 12.0;
+    final visibleLines = (_scrollController.position.viewportDimension / 12.0)
+        .clamp(1.0, 8.0);
     final centeredIndex = (targetIndex - (visibleLines / 2)).clamp(
       0.0,
       (_lines.length - 1).toDouble(),

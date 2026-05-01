@@ -30,6 +30,13 @@ flutter pub search <keyword>
 dart run build_runner build --delete-conflicting-outputs
 ```
 
+### 2.1 APK 构建验证
+每次完成代码修改后，必须执行一次：
+```bash
+./scripts/build_apk.sh
+```
+如果构建失败，必须先修复构建问题，再结束本次任务。
+
 ### 3. 平台适配检查
 添加新功能时必须考虑所有目标平台：
 ```

@@ -3,11 +3,31 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 class GlacierDialog extends StatelessWidget {
-  const GlacierDialog({super.key, this.title, this.content, this.actions});
+  const GlacierDialog({
+    super.key,
+    this.title,
+    this.content,
+    this.actions,
+    this.maxWidth = 640,
+    this.insetPadding = const EdgeInsets.symmetric(
+      horizontal: 20,
+      vertical: 24,
+    ),
+    this.titlePadding,
+    this.contentPadding,
+    this.actionsPadding,
+    this.buttonPadding,
+  });
 
   final Widget? title;
   final Widget? content;
   final List<Widget>? actions;
+  final double maxWidth;
+  final EdgeInsets insetPadding;
+  final EdgeInsetsGeometry? titlePadding;
+  final EdgeInsetsGeometry? contentPadding;
+  final EdgeInsetsGeometry? actionsPadding;
+  final EdgeInsetsGeometry? buttonPadding;
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +35,7 @@ class GlacierDialog extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      insetPadding: insetPadding,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(28),
         child: BackdropFilter(
@@ -36,7 +56,7 @@ class GlacierDialog extends StatelessWidget {
               ],
             ),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 640),
+              constraints: BoxConstraints(maxWidth: maxWidth),
               child: AlertDialog(
                 backgroundColor: Colors.transparent,
                 elevation: 0,
@@ -44,6 +64,10 @@ class GlacierDialog extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(28),
                 ),
+                titlePadding: titlePadding,
+                contentPadding: contentPadding,
+                actionsPadding: actionsPadding,
+                buttonPadding: buttonPadding,
                 title: title,
                 content: content,
                 actions: actions,

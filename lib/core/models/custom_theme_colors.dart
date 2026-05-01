@@ -3,11 +3,20 @@ import 'package:flutter/material.dart';
 /// 自定义主题颜色配置
 class CustomThemeColors {
   const CustomThemeColors({
+    this.lightPrimaryColorSeed = '#FF0000',
+    this.darkPrimaryColorSeed = '#FFFFFF',
     this.primaryColorSeed,
     this.borderRadius = 25.0,
     this.interfaceCompactness = 0.8,
   });
 
+  /// 浅色主题颜色种子（hex 颜色值，如 '#FF5722'）
+  final String? lightPrimaryColorSeed;
+
+  /// 深色主题颜色种子（hex 颜色值，如 '#FF5722'）
+  final String? darkPrimaryColorSeed;
+
+  /// 旧版本通用主题颜色种子，保留用于兼容迁移
   /// 主题颜色种子（hex 颜色值，如 '#FF5722'）
   final String? primaryColorSeed;
 
@@ -21,11 +30,16 @@ class CustomThemeColors {
   final double interfaceCompactness;
 
   CustomThemeColors copyWith({
+    String? lightPrimaryColorSeed,
+    String? darkPrimaryColorSeed,
     String? primaryColorSeed,
     double? borderRadius,
     double? interfaceCompactness,
   }) {
     return CustomThemeColors(
+      lightPrimaryColorSeed:
+          lightPrimaryColorSeed ?? this.lightPrimaryColorSeed,
+      darkPrimaryColorSeed: darkPrimaryColorSeed ?? this.darkPrimaryColorSeed,
       primaryColorSeed: primaryColorSeed ?? this.primaryColorSeed,
       borderRadius: borderRadius ?? this.borderRadius,
       interfaceCompactness: interfaceCompactness ?? this.interfaceCompactness,
@@ -35,6 +49,8 @@ class CustomThemeColors {
   /// 从存储的 Map 反序列化
   factory CustomThemeColors.fromJson(Map<String, dynamic> json) {
     return CustomThemeColors(
+      lightPrimaryColorSeed: json['lightPrimaryColorSeed'] as String?,
+      darkPrimaryColorSeed: json['darkPrimaryColorSeed'] as String?,
       primaryColorSeed: json['primaryColorSeed'] as String?,
       borderRadius: (json['borderRadius'] as num?)?.toDouble() ?? 25.0,
       interfaceCompactness:
@@ -45,6 +61,8 @@ class CustomThemeColors {
   /// 序列化为 Map
   Map<String, dynamic> toJson() {
     return {
+      'lightPrimaryColorSeed': lightPrimaryColorSeed,
+      'darkPrimaryColorSeed': darkPrimaryColorSeed,
       'primaryColorSeed': primaryColorSeed,
       'borderRadius': borderRadius,
       'interfaceCompactness': interfaceCompactness,
@@ -82,12 +100,38 @@ class CustomThemeColors {
 
   /// 获取主题种子颜色
   Color? getSeedColor() {
-    if (primaryColorSeed == null || primaryColorSeed!.isEmpty) {
+    return _parseSeedColor(primaryColorSeed);
+  }
+
+  Color? getSeedColorFor(Brightness brightness) {
+    return switch (brightness) {
+      Brightness.light =>
+        _parseSeedColor(lightPrimaryColorSeed) ??
+            _parseSeedColor(primaryColorSeed),
+      Brightness.dark =>
+        _parseSeedColor(darkPrimaryColorSeed) ??
+            _parseSeedColor(primaryColorSeed),
+    };
+  }
+
+  String? effectiveHexFor(Brightness brightness) {
+    return switch (brightness) {
+      Brightness.light =>
+        normalizeHexColor(lightPrimaryColorSeed) ??
+            normalizeHexColor(primaryColorSeed),
+      Brightness.dark =>
+        normalizeHexColor(darkPrimaryColorSeed) ??
+            normalizeHexColor(primaryColorSeed),
+    };
+  }
+
+  Color? _parseSeedColor(String? rawHex) {
+    if (rawHex == null || rawHex.isEmpty) {
       return null;
     }
     try {
       // 标准化hex值：去掉 # 前缀并转换为大写
-      var hex = primaryColorSeed!.trim();
+      var hex = rawHex.trim();
       if (hex.startsWith('#')) {
         hex = hex.substring(1);
       }

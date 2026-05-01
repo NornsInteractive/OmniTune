@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music/l10n/app_localizations.dart';
 
 import '../../../core/models/library_song.dart';
+import '../../../core/widgets/top_snackbar.dart';
 import '../../library/application/library_catalog_controller.dart';
 import '../../player/application/player_controller.dart';
 import '../../player/presentation/widgets/track_cover_thumbnail.dart';
@@ -143,16 +144,12 @@ class _ManualScrapingSheetState extends ConsumerState<_ManualScrapingSheet> {
         return;
       }
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.scrapingResultApplied)));
+      showTopSnackBar(context, l10n.scrapingResultApplied);
     } catch (_) {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.scrapingErrorMessage)));
+      showTopSnackBar(context, l10n.scrapingErrorMessage);
       setState(() {
         _applyingSourceId = null;
       });
@@ -276,7 +273,7 @@ class _ManualScrapingSheetState extends ConsumerState<_ManualScrapingSheet> {
                               final applying =
                                   _applyingSourceId == item.sourceId;
                               return Container(
-                                padding: const EdgeInsets.all(12),
+                                padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
                                   color: colorScheme.surfaceContainerHigh
                                       .withValues(alpha: 0.62),
@@ -292,7 +289,7 @@ class _ManualScrapingSheetState extends ConsumerState<_ManualScrapingSheet> {
                                         TrackCoverThumbnail(
                                           title: item.title,
                                           subtitle: item.artist ?? '-',
-                                          size: 56,
+                                          size: 50,
                                           borderRadius: 12,
                                           localCoverPath: item.localCoverPath,
                                           coverUrl: item.coverUrl,
@@ -320,13 +317,14 @@ class _ManualScrapingSheetState extends ConsumerState<_ManualScrapingSheet> {
                                                 Padding(
                                                   padding:
                                                       const EdgeInsets.only(
-                                                        top: 4,
+                                                        top: 2,
                                                       ),
                                                   child: Text(
                                                     item.album!,
                                                     style: TextStyle(
                                                       color: colorScheme
                                                           .onSurfaceVariant,
+                                                      fontSize: 12,
                                                     ),
                                                   ),
                                                 ),
@@ -335,42 +333,57 @@ class _ManualScrapingSheetState extends ConsumerState<_ManualScrapingSheet> {
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(height: 8),
-                                    Wrap(
-                                      spacing: 8,
-                                      runSpacing: 8,
+                                    const SizedBox(height: 6),
+                                    Row(
                                       children: [
-                                        _MetaChip(
-                                          label: l10n.scrapingMatchScoreLabel(
-                                            (item.score * 100).round(),
+                                        Expanded(
+                                          child: Wrap(
+                                            spacing: 6,
+                                            runSpacing: 6,
+                                            children: [
+                                              _MetaChip(
+                                                label: l10n
+                                                    .scrapingMatchScoreLabel(
+                                                      (item.score * 100)
+                                                          .round(),
+                                                    ),
+                                              ),
+                                              if (hasCover)
+                                                _MetaChip(
+                                                  label:
+                                                      l10n.scrapingCoverLabel,
+                                                ),
+                                            ],
                                           ),
                                         ),
-                                        if (hasCover)
-                                          _MetaChip(
-                                            label: l10n.scrapingCoverLabel,
+                                        const SizedBox(width: 8),
+                                        FilledButton(
+                                          onPressed: applying
+                                              ? null
+                                              : () => _applyResult(item),
+                                          style: FilledButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 8,
+                                            ),
+                                            minimumSize: const Size(0, 34),
+                                            tapTargetSize: MaterialTapTargetSize
+                                                .shrinkWrap,
                                           ),
+                                          child: applying
+                                              ? const SizedBox(
+                                                  width: 14,
+                                                  height: 14,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                      ),
+                                                )
+                                              : Text(
+                                                  l10n.scrapingSelectButtonLabel,
+                                                ),
+                                        ),
                                       ],
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Align(
-                                      alignment: Alignment.centerRight,
-                                      child: FilledButton(
-                                        onPressed: applying
-                                            ? null
-                                            : () => _applyResult(item),
-                                        child: applying
-                                            ? const SizedBox(
-                                                width: 16,
-                                                height: 16,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                    ),
-                                              )
-                                            : Text(
-                                                l10n.scrapingSelectButtonLabel,
-                                              ),
-                                      ),
                                     ),
                                   ],
                                 ),

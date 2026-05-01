@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -17,7 +18,7 @@ import '../../../core/storage/background_image_store.dart';
 import '../../../core/storage/library_preferences_repository.dart';
 import '../../../core/widgets/glacier_dialog.dart';
 import '../../../core/widgets/studio_chrome.dart';
-import '../../debug/application/debug_mode_provider.dart';
+import '../../../core/widgets/top_snackbar.dart';
 import '../../library/application/library_catalog_controller.dart';
 import '../../library/application/library_controller.dart';
 import '../../player/application/playback_cache_settings_controller.dart';
@@ -38,12 +39,16 @@ class SettingsPage extends ConsumerWidget {
     final preferences =
         ref.watch(appSettingsControllerProvider).valueOrNull ??
         const LibraryPreferences();
-    final accentHex = preferences.customThemeColors.primaryColorSeed;
-    final accentColor =
-        preferences.customThemeColors.getSeedColor() ?? colorScheme.primary;
-    final accentSummary = accentHex == null || accentHex.trim().isEmpty
-        ? l10n.themeAccentColorDefaultLabel
-        : accentHex;
+    final lightAccentHex = preferences.customThemeColors.effectiveHexFor(
+      Brightness.light,
+    );
+    final darkAccentHex = preferences.customThemeColors.effectiveHexFor(
+      Brightness.dark,
+    );
+    final accentSummary =
+        '${_themeLabel(l10n, AppThemePreference.light)} ${lightAccentHex ?? "--"}'
+        ' / '
+        '${_themeLabel(l10n, AppThemePreference.dark)} ${darkAccentHex ?? "--"}';
     final cacheSettings =
         ref.watch(playbackCacheSettingsControllerProvider).valueOrNull ??
         const PlaybackCacheSettings();
@@ -54,9 +59,6 @@ class SettingsPage extends ConsumerWidget {
     final appSettingsController = ref.read(
       appSettingsControllerProvider.notifier,
     );
-    final sourcesController = ref.read(sourcesControllerProvider.notifier);
-    final libraryController = ref.read(libraryControllerProvider.notifier);
-    final materialL10n = MaterialLocalizations.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final dividerColor = colorScheme.outlineVariant.withValues(
       alpha: isDark ? 0.5 : 0.62,
@@ -68,9 +70,20 @@ class SettingsPage extends ConsumerWidget {
       alpha: isDark ? 0.62 : 0.88,
     );
     final shellBackground = colorScheme.surface;
-    final selectedSourceId = browser?.selectedSource?.id;
     const defaultAlbumPageSize = 9;
     const defaultMemoryCacheTrackLimit = 3;
+    const lightAccentPresetColors = <Color>[
+      Colors.black,
+      Color(0xFF32819F),
+      Color(0xFFD7263D),
+      Color(0xFFFF5FA2),
+    ];
+    const darkAccentPresetColors = <Color>[
+      Color(0xFF1D796F),
+      Colors.white,
+      Color(0xFFD7263D),
+      Color(0xFFFF5FA2),
+    ];
 
     Widget section({
       required String title,
@@ -84,7 +97,7 @@ class SettingsPage extends ConsumerWidget {
           borderRadius: BorderRadius.circular(sectionRadius),
           border: Border.all(color: sectionBorderColor),
         ),
-        padding: studioPaddingOf(context, const EdgeInsets.all(20)),
+        padding: studioPaddingOf(context, const EdgeInsets.all(16)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -102,7 +115,7 @@ class SettingsPage extends ConsumerWidget {
                 if (trailing != null) trailing,
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             ...children,
           ],
         ),
@@ -134,7 +147,7 @@ class SettingsPage extends ConsumerWidget {
       final row = Padding(
         padding: studioPaddingOf(
           context,
-          const EdgeInsets.symmetric(vertical: 2),
+          const EdgeInsets.symmetric(vertical: 0),
         ),
         child: Row(
           children: [
@@ -144,12 +157,12 @@ class SettingsPage extends ConsumerWidget {
                 children: [
                   Text(
                     title,
-                    style: theme.textTheme.titleMedium?.copyWith(
+                    style: theme.textTheme.titleSmall?.copyWith(
                       color: colorScheme.onSurface,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 1),
                   Text(
                     subtitle,
                     style: theme.textTheme.bodySmall?.copyWith(
@@ -159,7 +172,7 @@ class SettingsPage extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             trailing,
           ],
         ),
@@ -173,6 +186,12 @@ class SettingsPage extends ConsumerWidget {
         child: row,
       );
     }
+
+    final compactSliderTheme = SliderTheme.of(context).copyWith(
+      trackHeight: 2.5,
+      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+      overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+    );
 
     return Scaffold(
       backgroundColor: shellBackground,
@@ -193,153 +212,62 @@ class SettingsPage extends ConsumerWidget {
             alignment: Alignment.topCenter,
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 960),
-              child: ListView(
-                padding: studioListPaddingOf(
-                  context,
-                  const EdgeInsets.fromLTRB(16, 4, 16, 28),
-                ),
-                children: [
-                  SizedBox(
-                    height: 56,
-                    child: Row(
-                      children: [
-                        Material(
-                          color: colorScheme.surfaceContainerHigh.withValues(
-                            alpha: isDark ? 0.8 : 0.92,
-                          ),
-                          borderRadius: BorderRadius.circular(999),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(999),
-                            onTap: () => context.pop(),
-                            child: SizedBox(
-                              width: 40,
-                              height: 40,
-                              child: Icon(
-                                Icons.arrow_back_rounded,
-                                color: colorScheme.primary,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          l10n.settingsPageTitle,
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            color: colorScheme.primary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
+              child: SliderTheme(
+                data: compactSliderTheme,
+                child: ListView(
+                  padding: studioListPaddingOf(
+                    context,
+                    const EdgeInsets.fromLTRB(16, 4, 16, 28),
                   ),
-                  const SizedBox(height: 14),
-                  section(
-                    title: l10n.appearanceSettingsTitle,
-                    children: [
-                      settingRow(
-                        title: l10n.languageSettingTitle,
-                        subtitle: _localeLabel(
-                          l10n,
-                          preferences.localePreference,
-                        ),
-                        trailing: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainerHigh,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: colorScheme.outlineVariant.withValues(
-                                alpha: isDark ? 0.75 : 0.95,
-                              ),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                _localeLabel(
-                                  l10n,
-                                  preferences.localePreference,
-                                ),
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: colorScheme.onSurface,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Icon(
-                                Icons.keyboard_arrow_down_rounded,
-                                size: 18,
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ],
-                          ),
-                        ),
-                        onTap: () => _showSelectionDialog<AppLocalePreference>(
-                          context: context,
-                          title: l10n.languageSettingTitle,
-                          selectedValue: preferences.localePreference,
-                          options: [
-                            _DialogOption(
-                              value: AppLocalePreference.system,
-                              label: _localeLabel(
-                                l10n,
-                                AppLocalePreference.system,
-                              ),
-                              icon: Icons.settings_suggest_rounded,
-                            ),
-                            _DialogOption(
-                              value: AppLocalePreference.chinese,
-                              label: _localeLabel(
-                                l10n,
-                                AppLocalePreference.chinese,
-                              ),
-                              icon: Icons.translate_rounded,
-                            ),
-                            _DialogOption(
-                              value: AppLocalePreference.english,
-                              label: _localeLabel(
-                                l10n,
-                                AppLocalePreference.english,
-                              ),
-                              icon: Icons.public_rounded,
-                            ),
-                          ],
-                          onSelected: appSettingsController.setLocalePreference,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      divider(),
-                      const SizedBox(height: 14),
-                      Row(
+                  children: [
+                    SizedBox(
+                      height: 56,
+                      child: Row(
                         children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  l10n.themeSettingTitle,
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                          Material(
+                            color: colorScheme.surfaceContainerHigh.withValues(
+                              alpha: isDark ? 0.8 : 0.92,
+                            ),
+                            borderRadius: BorderRadius.circular(999),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(999),
+                              onTap: () => context.pop(),
+                              child: SizedBox(
+                                width: 40,
+                                height: 40,
+                                child: Icon(
+                                  Icons.arrow_back_rounded,
+                                  color: colorScheme.primary,
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _themeLabel(
-                                    l10n,
-                                    preferences.themePreference,
-                                  ),
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
                           ),
-                          Container(
+                          const SizedBox(width: 10),
+                          Text(
+                            l10n.settingsPageTitle,
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                              color: colorScheme.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    section(
+                      title: l10n.appearanceSettingsTitle,
+                      children: [
+                        settingRow(
+                          title: l10n.languageSettingTitle,
+                          subtitle: _localeLabel(
+                            l10n,
+                            preferences.localePreference,
+                          ),
+                          trailing: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
                             decoration: BoxDecoration(
                               color: colorScheme.surfaceContainerHigh,
                               borderRadius: BorderRadius.circular(10),
@@ -349,763 +277,727 @@ class SettingsPage extends ConsumerWidget {
                                 ),
                               ),
                             ),
-                            padding: const EdgeInsets.all(4),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                for (final value in AppThemePreference.values)
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 2,
+                                Text(
+                                  _localeLabel(
+                                    l10n,
+                                    preferences.localePreference,
+                                  ),
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurface,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  size: 18,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ],
+                            ),
+                          ),
+                          onTap: () =>
+                              _showSelectionDialog<AppLocalePreference>(
+                                context: context,
+                                title: l10n.languageSettingTitle,
+                                selectedValue: preferences.localePreference,
+                                options: [
+                                  _DialogOption(
+                                    value: AppLocalePreference.system,
+                                    label: _localeLabel(
+                                      l10n,
+                                      AppLocalePreference.system,
                                     ),
-                                    child: Material(
-                                      color:
-                                          preferences.themePreference == value
-                                          ? colorScheme.primary.withValues(
-                                              alpha: 0.2,
-                                            )
-                                          : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: InkWell(
+                                    icon: Icons.settings_suggest_rounded,
+                                  ),
+                                  _DialogOption(
+                                    value: AppLocalePreference.chinese,
+                                    label: _localeLabel(
+                                      l10n,
+                                      AppLocalePreference.chinese,
+                                    ),
+                                    icon: Icons.translate_rounded,
+                                  ),
+                                  _DialogOption(
+                                    value: AppLocalePreference.english,
+                                    label: _localeLabel(
+                                      l10n,
+                                      AppLocalePreference.english,
+                                    ),
+                                    icon: Icons.public_rounded,
+                                  ),
+                                ],
+                                onSelected:
+                                    appSettingsController.setLocalePreference,
+                              ),
+                        ),
+                        const SizedBox(height: 12),
+                        divider(),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    l10n.themeSettingTitle,
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(fontWeight: FontWeight.w600),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _themeLabel(
+                                      l10n,
+                                      preferences.themePreference,
+                                    ),
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: colorScheme.surfaceContainerHigh,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: colorScheme.outlineVariant.withValues(
+                                    alpha: isDark ? 0.75 : 0.95,
+                                  ),
+                                ),
+                              ),
+                              padding: const EdgeInsets.all(4),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  for (final value in AppThemePreference.values)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 2,
+                                      ),
+                                      child: Material(
+                                        color:
+                                            preferences.themePreference == value
+                                            ? colorScheme.primary.withValues(
+                                                alpha: 0.2,
+                                              )
+                                            : Colors.transparent,
                                         borderRadius: BorderRadius.circular(8),
-                                        onTap: () {
-                                          appSettingsController
-                                              .setThemePreference(value);
-                                        },
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 7,
+                                        child: InkWell(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
                                           ),
-                                          child: Text(
-                                            _themeLabel(l10n, value),
-                                            style: theme.textTheme.labelMedium
-                                                ?.copyWith(
-                                                  color:
-                                                      preferences
-                                                              .themePreference ==
-                                                          value
-                                                      ? colorScheme.primary
-                                                      : colorScheme
-                                                            .onSurfaceVariant,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
+                                          onTap: () {
+                                            appSettingsController
+                                                .setThemePreference(value);
+                                          },
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 7,
+                                            ),
+                                            child: Text(
+                                              _themeLabel(l10n, value),
+                                              style: theme.textTheme.labelMedium
+                                                  ?.copyWith(
+                                                    color:
+                                                        preferences
+                                                                .themePreference ==
+                                                            value
+                                                        ? colorScheme.primary
+                                                        : colorScheme
+                                                              .onSurfaceVariant,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                              ],
+                                ],
+                              ),
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        divider(),
+                        const SizedBox(height: 12),
+                        Text(
+                          l10n.interfaceSizeSettingTitle,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      divider(),
-                      const SizedBox(height: 14),
-                      Text(
-                        l10n.interfaceSizeSettingTitle,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        l10n.interfaceSizeDialogDescription,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Slider(
-                              value: preferences.interfaceScaleFactor,
-                              min: AppDisplayPreferences.minInterfaceScale,
-                              max: AppDisplayPreferences.maxInterfaceScale,
-                              divisions: 50,
-                              onChanged:
-                                  appSettingsController.setInterfaceScale,
-                            ),
+                        const SizedBox(height: 2),
+                        Text(
+                          l10n.interfaceSizeDialogDescription,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            l10n.scalePercentLabel(
-                              _scalePercent(preferences.interfaceScaleFactor),
-                            ),
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: colorScheme.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: resetButton(
-                          enabled:
-                              (preferences.interfaceScaleFactor -
-                                      AppDisplayPreferences
-                                          .defaultInterfaceScale)
-                                  .abs() >
-                              0.0001,
-                          onPressed: () {
-                            appSettingsController.setInterfaceScale(
-                              AppDisplayPreferences.defaultInterfaceScale,
-                            );
-                          },
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      divider(),
-                      const SizedBox(height: 14),
-                      Text(
-                        l10n.fontSizeSettingTitle,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        l10n.fontSizeDialogDescription,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Slider(
-                              value: preferences.fontScaleFactor,
-                              min: AppDisplayPreferences.minFontScale,
-                              max: AppDisplayPreferences.maxFontScale,
-                              divisions: 57,
-                              onChanged: appSettingsController.setFontScale,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            l10n.scalePercentLabel(
-                              _scalePercent(preferences.fontScaleFactor),
-                            ),
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: colorScheme.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: resetButton(
-                          enabled:
-                              (preferences.fontScaleFactor -
-                                      AppDisplayPreferences.defaultFontScale)
-                                  .abs() >
-                              0.0001,
-                          onPressed: () {
-                            appSettingsController.setFontScale(
-                              AppDisplayPreferences.defaultFontScale,
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      (() {
-                        final isZh =
-                            Localizations.localeOf(
-                              context,
-                            ).languageCode.toLowerCase() ==
-                            'zh';
-                        final albumPageTitle = isZh
-                            ? '专辑每页数量'
-                            : 'Albums per page';
-                        final albumPageDescription = isZh
-                            ? '设置专辑列表分页时每页最多显示的专辑数量（默认 9）。'
-                            : 'Set the maximum number of albums shown on each page (default 9).';
-                        final albumPageValue = isZh
-                            ? '每页 ${preferences.albumPageSize} 条'
-                            : '${preferences.albumPageSize} per page';
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        const SizedBox(height: 8),
+                        Row(
                           children: [
+                            Expanded(
+                              child: Slider(
+                                value: preferences.interfaceScaleFactor,
+                                min: AppDisplayPreferences.minInterfaceScale,
+                                max: AppDisplayPreferences.maxInterfaceScale,
+                                divisions: 50,
+                                onChanged:
+                                    appSettingsController.setInterfaceScale,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
                             Text(
-                              albumPageTitle,
-                              style: theme.textTheme.titleMedium?.copyWith(
+                              l10n.scalePercentLabel(
+                                _scalePercent(preferences.interfaceScaleFactor),
+                              ),
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: colorScheme.primary,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              albumPageDescription,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Slider(
-                                    value: preferences.albumPageSize.toDouble(),
-                                    min: 1,
-                                    max: 60,
-                                    divisions: 59,
-                                    onChanged: (value) {
-                                      appSettingsController.setAlbumPageSize(
-                                        value.round(),
-                                      );
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  albumPageValue,
-                                  style: theme.textTheme.labelMedium?.copyWith(
-                                    color: colorScheme.primary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: resetButton(
-                                enabled:
-                                    preferences.albumPageSize !=
-                                    defaultAlbumPageSize,
-                                onPressed: () {
-                                  appSettingsController.setAlbumPageSize(
-                                    defaultAlbumPageSize,
-                                  );
-                                },
-                              ),
-                            ),
-                            const SizedBox(height: 8),
                           ],
-                        );
-                      })(),
-                      divider(),
-                      const SizedBox(height: 14),
-                      settingRow(
-                        title: l10n.themeAccentColorSettingTitle,
-                        subtitle: accentSummary,
-                        trailing: Wrap(
-                          spacing: 8,
+                        ),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: resetButton(
+                            enabled:
+                                (preferences.interfaceScaleFactor -
+                                        AppDisplayPreferences
+                                            .defaultInterfaceScale)
+                                    .abs() >
+                                0.0001,
+                            onPressed: () {
+                              appSettingsController.setInterfaceScale(
+                                AppDisplayPreferences.defaultInterfaceScale,
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        divider(),
+                        const SizedBox(height: 14),
+                        Text(
+                          l10n.fontSizeSettingTitle,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          l10n.fontSizeDialogDescription,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
                           children: [
-                            for (final color in const <Color>[
-                              Color(0xFF7DD3FC),
-                              Color(0xFFC8A0F0),
-                              Color(0xFF34D399),
-                              Color(0xFFFB7185),
-                            ])
-                              InkWell(
-                                borderRadius: BorderRadius.circular(999),
-                                onTap: () async {
-                                  await appSettingsController
-                                      .setCustomThemeColors(
-                                        preferences.customThemeColors.copyWith(
-                                          primaryColorSeed: _hexFromColor(
-                                            color,
-                                          ),
-                                        ),
-                                      );
-                                },
-                                child: Container(
-                                  width: 24,
-                                  height: 24,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: color,
-                                    border: Border.all(
-                                      color:
-                                          (accentColor.toARGB32() & 0xFFFFFF) ==
-                                              (color.toARGB32() & 0xFFFFFF)
-                                          ? Colors.white
-                                          : Colors.transparent,
-                                      width: 2,
-                                    ),
-                                  ),
+                            Expanded(
+                              child: Slider(
+                                value: preferences.fontScaleFactor,
+                                min: AppDisplayPreferences.minFontScale,
+                                max: AppDisplayPreferences.maxFontScale,
+                                divisions: 57,
+                                onChanged: appSettingsController.setFontScale,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              l10n.scalePercentLabel(
+                                _scalePercent(preferences.fontScaleFactor),
+                              ),
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: resetButton(
+                            enabled:
+                                (preferences.fontScaleFactor -
+                                        AppDisplayPreferences.defaultFontScale)
+                                    .abs() >
+                                0.0001,
+                            onPressed: () {
+                              appSettingsController.setFontScale(
+                                AppDisplayPreferences.defaultFontScale,
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        (() {
+                          final isZh =
+                              Localizations.localeOf(
+                                context,
+                              ).languageCode.toLowerCase() ==
+                              'zh';
+                          final albumPageTitle = isZh
+                              ? '专辑每页数量'
+                              : 'Albums per page';
+                          final albumPageDescription = isZh
+                              ? '设置专辑列表分页时每页最多显示的专辑数量（默认 9）。'
+                              : 'Set the maximum number of albums shown on each page (default 9).';
+                          final albumPageValue = isZh
+                              ? '每页 ${preferences.albumPageSize} 条'
+                              : '${preferences.albumPageSize} per page';
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                albumPageTitle,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                            InkWell(
-                              borderRadius: BorderRadius.circular(999),
-                              onTap: () async {
-                                final colorHex = await _showColorPickerDialog(
-                                  context: context,
-                                  currentColor: accentHex ?? '',
-                                );
-                                if (colorHex == null || colorHex.isEmpty) {
-                                  return;
-                                }
-                                await appSettingsController
-                                    .setCustomThemeColors(
-                                      preferences.customThemeColors.copyWith(
-                                        primaryColorSeed: colorHex,
-                                      ),
-                                    );
-                              },
-                              child: Container(
-                                width: 24,
-                                height: 24,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: colorScheme.surfaceContainerHigh,
-                                  border: Border.all(
-                                    color: colorScheme.outline,
-                                  ),
-                                ),
-                                child: Icon(
-                                  Icons.add_rounded,
-                                  size: 14,
+                              const SizedBox(height: 2),
+                              Text(
+                                albumPageDescription,
+                                style: theme.textTheme.bodySmall?.copyWith(
                                   color: colorScheme.onSurfaceVariant,
                                 ),
                               ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Slider(
+                                      value: preferences.albumPageSize
+                                          .toDouble(),
+                                      min: 1,
+                                      max: 60,
+                                      divisions: 59,
+                                      onChanged: (value) {
+                                        appSettingsController.setAlbumPageSize(
+                                          value.round(),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    albumPageValue,
+                                    style: theme.textTheme.labelMedium
+                                        ?.copyWith(
+                                          color: colorScheme.primary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: resetButton(
+                                  enabled:
+                                      preferences.albumPageSize !=
+                                      defaultAlbumPageSize,
+                                  onPressed: () {
+                                    appSettingsController.setAlbumPageSize(
+                                      defaultAlbumPageSize,
+                                    );
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                            ],
+                          );
+                        })(),
+                        divider(),
+                        const SizedBox(height: 14),
+                        settingRow(
+                          title: l10n.themeAccentColorSettingTitle,
+                          subtitle: accentSummary,
+                          trailing: SizedBox(
+                            width: 248,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                _ThemeAccentSwatchRow(
+                                  label: _themeLabel(
+                                    l10n,
+                                    AppThemePreference.light,
+                                  ),
+                                  currentHex: lightAccentHex,
+                                  presets: lightAccentPresetColors,
+                                  onPresetSelected: (color) async {
+                                    await appSettingsController
+                                        .setCustomThemeColors(
+                                          preferences.customThemeColors
+                                              .copyWith(
+                                                lightPrimaryColorSeed:
+                                                    _hexFromColor(color),
+                                              ),
+                                        );
+                                  },
+                                  onCustomSelected: () async {
+                                    final colorHex =
+                                        await _showColorPickerDialog(
+                                          context: context,
+                                          currentColor: lightAccentHex ?? '',
+                                        );
+                                    if (colorHex == null || colorHex.isEmpty) {
+                                      return;
+                                    }
+                                    await appSettingsController
+                                        .setCustomThemeColors(
+                                          preferences.customThemeColors
+                                              .copyWith(
+                                                lightPrimaryColorSeed: colorHex,
+                                              ),
+                                        );
+                                  },
+                                ),
+                                const SizedBox(height: 8),
+                                _ThemeAccentSwatchRow(
+                                  label: _themeLabel(
+                                    l10n,
+                                    AppThemePreference.dark,
+                                  ),
+                                  currentHex: darkAccentHex,
+                                  presets: darkAccentPresetColors,
+                                  onPresetSelected: (color) async {
+                                    await appSettingsController
+                                        .setCustomThemeColors(
+                                          preferences.customThemeColors
+                                              .copyWith(
+                                                darkPrimaryColorSeed:
+                                                    _hexFromColor(color),
+                                              ),
+                                        );
+                                  },
+                                  onCustomSelected: () async {
+                                    final colorHex =
+                                        await _showColorPickerDialog(
+                                          context: context,
+                                          currentColor: darkAccentHex ?? '',
+                                        );
+                                    if (colorHex == null || colorHex.isEmpty) {
+                                      return;
+                                    }
+                                    await appSettingsController
+                                        .setCustomThemeColors(
+                                          preferences.customThemeColors
+                                              .copyWith(
+                                                darkPrimaryColorSeed: colorHex,
+                                              ),
+                                        );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        divider(),
+                        const SizedBox(height: 12),
+                        settingRow(
+                          title: l10n.themeBorderRadiusSettingTitle,
+                          subtitle:
+                              '${preferences.customThemeColors.borderRadius.toStringAsFixed(1)}px',
+                          trailing: SizedBox(
+                            width: 190,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Slider(
+                                  value:
+                                      CustomThemeColors.normalizeBorderRadius(
+                                        preferences
+                                            .customThemeColors
+                                            .borderRadius,
+                                      ),
+                                  min: 12,
+                                  max: 32,
+                                  divisions: 40,
+                                  onChanged: (value) {
+                                    appSettingsController.setCustomThemeColors(
+                                      preferences.customThemeColors.copyWith(
+                                        borderRadius:
+                                            CustomThemeColors.normalizeBorderRadius(
+                                              value,
+                                            ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                resetButton(
+                                  enabled:
+                                      (preferences
+                                                  .customThemeColors
+                                                  .borderRadius -
+                                              const CustomThemeColors()
+                                                  .borderRadius)
+                                          .abs() >
+                                      0.0001,
+                                  onPressed: () {
+                                    appSettingsController.setCustomThemeColors(
+                                      preferences.customThemeColors.copyWith(
+                                        borderRadius: const CustomThemeColors()
+                                            .borderRadius,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        divider(),
+                        const SizedBox(height: 12),
+                        settingRow(
+                          title: l10n.themeCompactnessSettingTitle,
+                          subtitle:
+                              '${(preferences.customThemeColors.interfaceCompactness * 100).toStringAsFixed(0)}%',
+                          trailing: SizedBox(
+                            width: 190,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Slider(
+                                  value: CustomThemeColors.normalizeCompactness(
+                                    preferences
+                                        .customThemeColors
+                                        .interfaceCompactness,
+                                  ),
+                                  min: 0.5,
+                                  max: 1.5,
+                                  divisions: 20,
+                                  onChanged: (value) {
+                                    appSettingsController.setCustomThemeColors(
+                                      preferences.customThemeColors.copyWith(
+                                        interfaceCompactness:
+                                            CustomThemeColors.normalizeCompactness(
+                                              value,
+                                            ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                resetButton(
+                                  enabled:
+                                      (preferences
+                                                  .customThemeColors
+                                                  .interfaceCompactness -
+                                              const CustomThemeColors()
+                                                  .interfaceCompactness)
+                                          .abs() >
+                                      0.0001,
+                                  onPressed: () {
+                                    appSettingsController.setCustomThemeColors(
+                                      preferences.customThemeColors.copyWith(
+                                        interfaceCompactness:
+                                            const CustomThemeColors()
+                                                .interfaceCompactness,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        divider(),
+                        const SizedBox(height: 12),
+                        settingRow(
+                          title: l10n.backgroundImageSettingTitle,
+                          subtitle: preferences.backgroundImageSource == null
+                              ? l10n.backgroundImageDefaultSummary
+                              : l10n.backgroundImageConfiguredSummary,
+                          trailing: Icon(
+                            Icons.chevron_right_rounded,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          onTap: () => _showBackgroundImageDialog(
+                            context: context,
+                            ref: ref,
+                            preferences: preferences,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    section(
+                      title: l10n.sourceManagementSettingTitle,
+                      trailing: FilledButton.tonalIcon(
+                        onPressed: () => showSourceTypePicker(context),
+                        icon: const Icon(Icons.add_rounded, size: 16),
+                        label: Text(l10n.addSourceAction),
+                      ),
+                      children: [
+                        settingRow(
+                          title: l10n.sourceManagementSettingTitle,
+                          subtitle: sources.isEmpty
+                              ? l10n.sourceManagementEmptySummary
+                              : l10n.sourceManagementSummary(
+                                  browser?.selectedSource?.name ??
+                                      sources.first.name,
+                                  sources.length,
+                                ),
+                          trailing: Icon(
+                            Icons.chevron_right_rounded,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          onTap: () => _showSourceManagementDialog(
+                            pageContext: context,
+                            ref: ref,
+                            sources: sources,
+                            selectedSource: browser?.selectedSource,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    section(
+                      title: l10n.playbackCacheTitle,
+                      children: [
+                        settingRow(
+                          title: l10n.persistentPlaybackCacheLabel,
+                          subtitle: l10n.persistentPlaybackCacheDescription,
+                          trailing: Switch.adaptive(
+                            value: cacheSettings.enablePersistentCache,
+                            onChanged: (value) {
+                              ref
+                                  .read(
+                                    playbackCacheSettingsControllerProvider
+                                        .notifier,
+                                  )
+                                  .setPersistentCacheEnabled(value);
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        divider(),
+                        const SizedBox(height: 12),
+                        Text(
+                          l10n.memoryCacheTrackLimitLabel,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          l10n.memoryCacheTrackLimitDescription,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Slider(
+                                min: 1,
+                                max: 12,
+                                divisions: 11,
+                                value: cacheSettings.memoryCacheTrackLimit
+                                    .toDouble()
+                                    .clamp(1, 12),
+                                onChanged: (value) {
+                                  ref
+                                      .read(
+                                        playbackCacheSettingsControllerProvider
+                                            .notifier,
+                                      )
+                                      .setMemoryCacheTrackLimit(value.round());
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              l10n.memoryCacheTrackLimitValue(
+                                cacheSettings.memoryCacheTrackLimit,
+                              ),
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 14),
-                      divider(),
-                      const SizedBox(height: 14),
-                      settingRow(
-                        title: l10n.themeBorderRadiusSettingTitle,
-                        subtitle:
-                            '${preferences.customThemeColors.borderRadius.toStringAsFixed(1)}px',
-                        trailing: SizedBox(
-                          width: 190,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Slider(
-                                value: CustomThemeColors.normalizeBorderRadius(
-                                  preferences.customThemeColors.borderRadius,
-                                ),
-                                min: 12,
-                                max: 32,
-                                divisions: 40,
-                                onChanged: (value) {
-                                  appSettingsController.setCustomThemeColors(
-                                    preferences.customThemeColors.copyWith(
-                                      borderRadius:
-                                          CustomThemeColors.normalizeBorderRadius(
-                                            value,
-                                          ),
-                                    ),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: resetButton(
+                            enabled:
+                                cacheSettings.memoryCacheTrackLimit !=
+                                defaultMemoryCacheTrackLimit,
+                            onPressed: () {
+                              ref
+                                  .read(
+                                    playbackCacheSettingsControllerProvider
+                                        .notifier,
+                                  )
+                                  .setMemoryCacheTrackLimit(
+                                    defaultMemoryCacheTrackLimit,
                                   );
-                                },
-                              ),
-                              resetButton(
-                                enabled:
-                                    (preferences
-                                                .customThemeColors
-                                                .borderRadius -
-                                            const CustomThemeColors()
-                                                .borderRadius)
-                                        .abs() >
-                                    0.0001,
-                                onPressed: () {
-                                  appSettingsController.setCustomThemeColors(
-                                    preferences.customThemeColors.copyWith(
-                                      borderRadius: const CustomThemeColors()
-                                          .borderRadius,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
+                            },
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 14),
-                      divider(),
-                      const SizedBox(height: 14),
-                      settingRow(
-                        title: l10n.themeCompactnessSettingTitle,
-                        subtitle:
-                            '${(preferences.customThemeColors.interfaceCompactness * 100).toStringAsFixed(0)}%',
-                        trailing: SizedBox(
-                          width: 190,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Slider(
-                                value: CustomThemeColors.normalizeCompactness(
-                                  preferences
-                                      .customThemeColors
-                                      .interfaceCompactness,
-                                ),
-                                min: 0.5,
-                                max: 1.5,
-                                divisions: 20,
-                                onChanged: (value) {
-                                  appSettingsController.setCustomThemeColors(
-                                    preferences.customThemeColors.copyWith(
-                                      interfaceCompactness:
-                                          CustomThemeColors.normalizeCompactness(
-                                            value,
-                                          ),
-                                    ),
-                                  );
-                                },
-                              ),
-                              resetButton(
-                                enabled:
-                                    (preferences
-                                                .customThemeColors
-                                                .interfaceCompactness -
-                                            const CustomThemeColors()
-                                                .interfaceCompactness)
-                                        .abs() >
-                                    0.0001,
-                                onPressed: () {
-                                  appSettingsController.setCustomThemeColors(
-                                    preferences.customThemeColors.copyWith(
-                                      interfaceCompactness:
-                                          const CustomThemeColors()
-                                              .interfaceCompactness,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
+                        const SizedBox(height: 8),
+                        divider(),
+                        const SizedBox(height: 14),
+                        settingRow(
+                          title: l10n.clearCachedFilesTitle,
+                          subtitle: l10n.clearCachedFilesDescription,
+                          trailing: Icon(
+                            Icons.chevron_right_rounded,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          onTap: () => _showCacheManagementDialog(
+                            context: context,
+                            sourceNames: {
+                              for (final source in sources)
+                                source.id: source.name,
+                            },
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 14),
-                      divider(),
-                      const SizedBox(height: 14),
-                      settingRow(
-                        title: l10n.backgroundImageSettingTitle,
-                        subtitle: preferences.backgroundImageSource == null
-                            ? l10n.backgroundImageDefaultSummary
-                            : l10n.backgroundImageConfiguredSummary,
-                        trailing: Icon(
-                          Icons.chevron_right_rounded,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        onTap: () => _showBackgroundImageDialog(
-                          context: context,
-                          ref: ref,
-                          preferences: preferences,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  section(
-                    title: l10n.sourceManagementSettingTitle,
-                    trailing: FilledButton.tonalIcon(
-                      onPressed: () => showSourceTypePicker(context),
-                      icon: const Icon(Icons.add_rounded, size: 16),
-                      label: Text(l10n.addSourceAction),
+                      ],
                     ),
-                    children: [
-                      if (sources.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          child: Text(
-                            l10n.sourceManagementEmptySummary,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
+                    const SizedBox(height: 14),
+                    section(
+                      title: l10n.debugSettingsTitle,
+                      children: [
+                        SwitchListTile.adaptive(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          visualDensity: const VisualDensity(
+                            horizontal: -2,
+                            vertical: -2,
                           ),
-                        )
-                      else
-                        for (
-                          var index = 0;
-                          index < sources.length;
-                          index++
-                        ) ...[
-                          Material(
-                            color: colorScheme.surfaceContainerHigh.withValues(
-                              alpha: isDark ? 0.52 : 0.85,
-                            ),
-                            borderRadius: BorderRadius.circular(10),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(10),
-                              onTap: () async {
-                                await libraryController.selectSource(
-                                  sources[index].id,
-                                );
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 9,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 38,
-                                      height: 38,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: colorScheme.primary.withValues(
-                                          alpha: 0.2,
-                                        ),
-                                      ),
-                                      child: Icon(
-                                        _protocolIcon(sources[index].protocol),
-                                        color: colorScheme.primary,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            sources[index].name,
-                                            style: theme.textTheme.titleSmall
-                                                ?.copyWith(
-                                                  color: colorScheme.onSurface,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            '${_protocolLabel(l10n, sources[index].protocol)} · ${sources[index].hostLabel}',
-                                            style: theme.textTheme.bodySmall
-                                                ?.copyWith(
-                                                  color: colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    if (selectedSourceId == sources[index].id)
-                                      Padding(
-                                        padding: EdgeInsets.only(right: 2),
-                                        child: Icon(
-                                          Icons.check_circle_rounded,
-                                          color: colorScheme.primary,
-                                          size: 18,
-                                        ),
-                                      ),
-                                    IconButton(
-                                      tooltip: l10n.editSourceAction,
-                                      onPressed: () {
-                                        context.push(
-                                          '/settings/source/${sources[index].id}',
-                                        );
-                                      },
-                                      icon: Icon(
-                                        Icons.edit_outlined,
-                                        color: colorScheme.onSurfaceVariant,
-                                        size: 19,
-                                      ),
-                                    ),
-                                    IconButton(
-                                      tooltip: materialL10n.deleteButtonTooltip,
-                                      onPressed: () async {
-                                        final confirmed =
-                                            await showDialog<bool>(
-                                              context: context,
-                                              builder: (dialogContext) {
-                                                return GlacierDialog(
-                                                  title: Text(
-                                                    materialL10n
-                                                        .deleteButtonTooltip,
-                                                  ),
-                                                  content: Text(
-                                                    sources[index].name,
-                                                  ),
-                                                  actions: [
-                                                    TextButton(
-                                                      onPressed: () =>
-                                                          Navigator.of(
-                                                            dialogContext,
-                                                          ).pop(false),
-                                                      child: Text(
-                                                        materialL10n
-                                                            .cancelButtonLabel,
-                                                      ),
-                                                    ),
-                                                    FilledButton(
-                                                      onPressed: () =>
-                                                          Navigator.of(
-                                                            dialogContext,
-                                                          ).pop(true),
-                                                      child: Text(
-                                                        materialL10n
-                                                            .deleteButtonTooltip,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                );
-                                              },
-                                            ) ??
-                                            false;
-                                        if (!confirmed) {
-                                          return;
-                                        }
-                                        await sourcesController.deleteProfile(
-                                          sources[index].id,
-                                        );
-                                        ref.invalidate(
-                                          libraryControllerProvider,
-                                        );
-                                        ref.invalidate(
-                                          libraryCatalogControllerProvider,
-                                        );
-                                      },
-                                      icon: Icon(
-                                        Icons.delete_outline_rounded,
-                                        color: colorScheme.error,
-                                        size: 19,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          if (index != sources.length - 1)
-                            const SizedBox(height: 10),
-                        ],
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  section(
-                    title: l10n.playbackCacheTitle,
-                    children: [
-                      settingRow(
-                        title: l10n.persistentPlaybackCacheLabel,
-                        subtitle: l10n.persistentPlaybackCacheDescription,
-                        trailing: Switch.adaptive(
-                          value: cacheSettings.enablePersistentCache,
+                          title: Text(l10n.debugModeLabel),
+                          subtitle: Text(l10n.debugModeDescription),
+                          value: preferences.enableDebugMode,
                           onChanged: (value) {
-                            ref
-                                .read(
-                                  playbackCacheSettingsControllerProvider
-                                      .notifier,
-                                )
-                                .setPersistentCacheEnabled(value);
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      divider(),
-                      const SizedBox(height: 14),
-                      Text(
-                        l10n.memoryCacheTrackLimitLabel,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        l10n.memoryCacheTrackLimitDescription,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Slider(
-                              min: 1,
-                              max: 12,
-                              divisions: 11,
-                              value: cacheSettings.memoryCacheTrackLimit
-                                  .toDouble()
-                                  .clamp(1, 12),
-                              onChanged: (value) {
-                                ref
-                                    .read(
-                                      playbackCacheSettingsControllerProvider
-                                          .notifier,
-                                    )
-                                    .setMemoryCacheTrackLimit(value.round());
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            l10n.memoryCacheTrackLimitValue(
-                              cacheSettings.memoryCacheTrackLimit,
-                            ),
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: colorScheme.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: resetButton(
-                          enabled:
-                              cacheSettings.memoryCacheTrackLimit !=
-                              defaultMemoryCacheTrackLimit,
-                          onPressed: () {
-                            ref
-                                .read(
-                                  playbackCacheSettingsControllerProvider
-                                      .notifier,
-                                )
-                                .setMemoryCacheTrackLimit(
-                                  defaultMemoryCacheTrackLimit,
-                                );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      divider(),
-                      const SizedBox(height: 14),
-                      settingRow(
-                        title: l10n.clearCachedFilesTitle,
-                        subtitle: l10n.clearCachedFilesDescription,
-                        trailing: Icon(
-                          Icons.chevron_right_rounded,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        onTap: () => _showCacheManagementDialog(
-                          context: context,
-                          sourceNames: {
-                            for (final source in sources)
-                              source.id: source.name,
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  section(
-                    title: l10n.debugSettingsTitle,
-                    children: [
-                      SwitchListTile.adaptive(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(l10n.debugModeLabel),
-                        subtitle: Text(l10n.debugModeDescription),
-                        value: preferences.enableDebugMode,
-                        onChanged: (value) {
-                          ref
-                              .read(debugModeProvider.notifier)
-                              .setEnabled(value);
-                          appSettingsController.setDebugMode(value);
-                          if (!value) {
-                            return;
-                          }
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(l10n.debugModeEnabledMessage),
+                            appSettingsController.setDebugMode(value);
+                            if (!value) {
+                              return;
+                            }
+                            showTopSnackBar(
+                              context,
+                              l10n.debugModeEnabledMessage,
                               duration: const Duration(seconds: 3),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ],
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -1235,9 +1127,12 @@ class SettingsPage extends ConsumerWidget {
         ? Future<Uint8List?>.value()
         : readStudioBackgroundImage(source);
 
-    await showDialog<void>(
+    final saved = await showModalBottomSheet<bool>(
       context: context,
-      builder: (dialogContext) {
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
         return StatefulBuilder(
           builder: (context, setState) {
             Future<void> chooseImage() async {
@@ -1268,107 +1163,92 @@ class SettingsPage extends ConsumerWidget {
               });
             }
 
-            return GlacierDialog(
-              title: Text(l10n.backgroundImageDialogTitle),
-              content: SizedBox(
-                width: 560,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            return _SettingsBottomSheetFrame(
+              title: l10n.backgroundImageDialogTitle,
+              cancelLabel: materialL10n.cancelButtonLabel,
+              confirmLabel: materialL10n.okButtonLabel,
+              onCancel: () => Navigator.of(sheetContext).pop(false),
+              onConfirm: () async {
+                final nextSource = source;
+                if (nextSource == null) {
+                  await controller.clearBackgroundImage();
+                } else {
+                  await controller.setBackgroundImage(
+                    source: nextSource,
+                    alignmentX: alignment.x,
+                    alignmentY: alignment.y,
+                  );
+                }
+                if (sheetContext.mounted) {
+                  Navigator.of(sheetContext).pop(true);
+                }
+              },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(l10n.backgroundImageDialogDescription),
+                  const SizedBox(height: 16),
+                  _BackgroundImagePositionPreview(
+                    previewFuture: previewFuture,
+                    alignment: alignment,
+                    emptyLabel: l10n.backgroundImageEmptyPreview,
+                    onAlignmentChanged: (value) {
+                      setState(() => alignment = value);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    l10n.backgroundImagePositionHelpText,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
                     children: [
-                      Text(l10n.backgroundImageDialogDescription),
-                      const SizedBox(height: 16),
-                      _BackgroundImagePositionPreview(
-                        previewFuture: previewFuture,
-                        alignment: alignment,
-                        emptyLabel: l10n.backgroundImageEmptyPreview,
-                        onAlignmentChanged: (value) {
-                          setState(() => alignment = value);
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        l10n.backgroundImagePositionHelpText,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      FilledButton.tonalIcon(
+                        onPressed: chooseImage,
+                        icon: const Icon(Icons.image_search_rounded),
+                        label: Text(
+                          source == null
+                              ? l10n.backgroundImageChooseAction
+                              : l10n.backgroundImageChangeAction,
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: [
-                          FilledButton.tonalIcon(
-                            onPressed: chooseImage,
-                            icon: const Icon(Icons.image_search_rounded),
-                            label: Text(
-                              source == null
-                                  ? l10n.backgroundImageChooseAction
-                                  : l10n.backgroundImageChangeAction,
-                            ),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: source == null
-                                ? null
-                                : () {
-                                    setState(
-                                      () => alignment = Alignment.center,
-                                    );
-                                  },
-                            icon: const Icon(Icons.center_focus_strong_rounded),
-                            label: Text(l10n.backgroundImageCenterAction),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: source == null
-                                ? null
-                                : () async {
-                                    setState(() {
-                                      source = null;
-                                      alignment = Alignment.center;
-                                      previewFuture =
-                                          Future<Uint8List?>.value();
-                                    });
-                                  },
-                            icon: const Icon(Icons.delete_outline_rounded),
-                            label: Text(l10n.backgroundImageClearAction),
-                          ),
-                        ],
+                      OutlinedButton.icon(
+                        onPressed: source == null
+                            ? null
+                            : () {
+                                setState(() => alignment = Alignment.center);
+                              },
+                        icon: const Icon(Icons.center_focus_strong_rounded),
+                        label: Text(l10n.backgroundImageCenterAction),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: source == null
+                            ? null
+                            : () {
+                                setState(() {
+                                  source = null;
+                                  alignment = Alignment.center;
+                                  previewFuture = Future<Uint8List?>.value();
+                                });
+                              },
+                        icon: const Icon(Icons.delete_outline_rounded),
+                        label: Text(l10n.backgroundImageClearAction),
                       ),
                     ],
                   ),
-                ),
+                ],
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: Text(materialL10n.cancelButtonLabel),
-                ),
-                FilledButton(
-                  onPressed: () async {
-                    final nextSource = source;
-                    if (nextSource == null) {
-                      await controller.clearBackgroundImage();
-                    } else {
-                      await controller.setBackgroundImage(
-                        source: nextSource,
-                        alignmentX: alignment.x,
-                        alignmentY: alignment.y,
-                      );
-                    }
-                    didSave = true;
-                    if (dialogContext.mounted) {
-                      Navigator.of(dialogContext).pop();
-                    }
-                  },
-                  child: Text(materialL10n.okButtonLabel),
-                ),
-              ],
             );
           },
         );
       },
     );
+    didSave = saved == true;
 
     if (didSave) {
       if (originalSource != source) {
@@ -1497,9 +1377,12 @@ class SettingsPage extends ConsumerWidget {
       );
     }
 
-    return showDialog<String?>(
+    return showModalBottomSheet<String?>(
       context: context,
-      builder: (dialogContext) {
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
         return StatefulBuilder(
           builder: (context, setState) {
             final dialogTheme = Theme.of(context);
@@ -1511,133 +1394,79 @@ class SettingsPage extends ConsumerWidget {
               syncHexField(color.toColor());
             }
 
-            final isDark = dialogTheme.brightness == Brightness.dark;
-            // 生成实时主题预览
-            final previewScheme = ColorScheme.fromSeed(
-              seedColor: selectedColor,
-              brightness: isDark ? Brightness.dark : Brightness.light,
-            );
-
-            return GlacierDialog(
-              title: Text(l10n.themeColorDialogTitle),
-              content: SizedBox(
-                width: 420,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: _CircularColorPicker(
-                        hsvColor: selectedHsv,
-                        onChanged: updateHsv,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    _HueSlider(
+            return _SettingsBottomSheetFrame(
+              title: l10n.themeColorDialogTitle,
+              cancelLabel: materialL10n.cancelButtonLabel,
+              confirmLabel: materialL10n.okButtonLabel,
+              onCancel: () => Navigator.of(sheetContext).pop(),
+              onConfirm: () {
+                final hexColor = _hexFromColor(selectedHsv.toColor());
+                final normalized =
+                    CustomThemeColors.normalizeHexColor(hexColor) ?? hexColor;
+                Navigator.of(sheetContext).pop(normalized);
+              },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: _CircularColorPicker(
                       hsvColor: selectedHsv,
-                      onChanged: (hue) {
-                        updateHsv(selectedHsv.withHue(hue));
-                      },
+                      onChanged: updateHsv,
                     ),
-                    const SizedBox(height: 14),
-                    Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Row(
-                        children: [
-                          Text(
-                            l10n.themeColorPresetLabel,
-                            style: dialogTheme.textTheme.bodyMedium?.copyWith(
-                              color: dialogColorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Container(
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              color: previewScheme.primary,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: dialogColorScheme.outlineVariant,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                  ),
+                  const SizedBox(height: 12),
+                  _HueSlider(
+                    hsvColor: selectedHsv,
+                    onChanged: (hue) {
+                      updateHsv(selectedHsv.withHue(hue));
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
                     ),
-                    const SizedBox(height: 14),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
+                    decoration: BoxDecoration(
+                      color: dialogColorScheme.surfaceContainerHigh.withValues(
+                        alpha: 0.72,
                       ),
-                      decoration: BoxDecoration(
-                        color: dialogColorScheme.surfaceContainerHigh
-                            .withValues(alpha: 0.72),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: dialogColorScheme.outlineVariant.withValues(
-                            alpha: 0.52,
-                          ),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: dialogColorScheme.outlineVariant.withValues(
+                          alpha: 0.52,
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          _ColorPreview(color: selectedColor, size: 34),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: TextField(
-                              controller: hexController,
-                              decoration: InputDecoration(
-                                labelText: l10n.themeColorHexFieldLabel,
-                                helperText: l10n.themeColorHexFieldHint,
-                              ),
-                              textCapitalization: TextCapitalization.characters,
-                              onChanged: (value) {
-                                Color? color = _parseHexColor(value);
-                                color ??= colorFromHex(
-                                  value,
-                                  enableAlpha: false,
-                                );
-                                if (color == null) {
-                                  return;
-                                }
-                                setState(
-                                  () =>
-                                      selectedHsv = HSVColor.fromColor(color!),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
-                  ],
-                ),
+                    child: Row(
+                      children: [
+                        _ColorPreview(color: selectedColor, size: 34),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: hexController,
+                            decoration: InputDecoration(
+                              labelText: l10n.themeColorHexFieldLabel,
+                              helperText: l10n.themeColorHexFieldHint,
+                            ),
+                            textCapitalization: TextCapitalization.characters,
+                            onChanged: (value) {
+                              Color? color = _parseHexColor(value);
+                              color ??= colorFromHex(value, enableAlpha: false);
+                              if (color == null) {
+                                return;
+                              }
+                              setState(
+                                () => selectedHsv = HSVColor.fromColor(color!),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: Text(materialL10n.cancelButtonLabel),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(dialogContext).pop('');
-                  },
-                  child: Text(l10n.themeAccentColorDefaultLabel),
-                ),
-                FilledButton(
-                  onPressed: () {
-                    // 生成hex值并规范化，确保一致的存储格式
-                    final hexColor = _hexFromColor(selectedHsv.toColor());
-                    final normalized =
-                        CustomThemeColors.normalizeHexColor(hexColor) ??
-                        hexColor;
-                    Navigator.of(dialogContext).pop(normalized);
-                  },
-                  child: Text(materialL10n.okButtonLabel),
-                ),
-              ],
             );
           },
         );
@@ -1828,8 +1657,11 @@ class SettingsPage extends ConsumerWidget {
     required BuildContext context,
     required Map<String, String> sourceNames,
   }) {
-    return showDialog<void>(
+    return showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (_) => _CacheManagementDialog(sourceNames: sourceNames),
     );
   }
@@ -1845,86 +1677,89 @@ class SettingsPage extends ConsumerWidget {
     final l10n = AppLocalizations.of(pageContext)!;
     final materialL10n = MaterialLocalizations.of(pageContext);
 
-    return showDialog<void>(
+    return showModalBottomSheet<void>(
       context: pageContext,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (dialogContext) {
-        return GlacierDialog(
-          title: Text(l10n.sourceManagementSettingTitle),
-          content: SizedBox(
-            width: 520,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(l10n.sourceManagementDialogDescription),
-                  const SizedBox(height: 16),
-                  if (sources.isEmpty)
-                    _DialogEmptyState(
-                      icon: Icons.cloud_off_rounded,
-                      title: l10n.sourceManagementEmptyTitle,
-                      description: l10n.sourceManagementEmptySummary,
-                    )
-                  else
-                    for (final source in sources) ...[
-                      _SourceManagementCard(
-                        source: source,
-                        selected: selectedSource?.id == source.id,
-                        protocolLabel: _protocolLabel(l10n, source.protocol),
-                        editLabel: l10n.editSourceAction,
-                        deleteLabel: materialL10n.deleteButtonTooltip,
-                        onTap: () async {
-                          Navigator.of(dialogContext).pop();
-                          await ref
-                              .read(libraryControllerProvider.notifier)
-                              .selectSource(source.id);
-                        },
-                        onEdit: () {
-                          Navigator.of(dialogContext).pop();
-                          GoRouter.of(
-                            pageContext,
-                          ).push('/settings/source/${source.id}');
-                        },
-                        onDelete: () async {
-                          Navigator.of(dialogContext).pop();
-                          await ref
-                              .read(sourcesControllerProvider.notifier)
-                              .deleteProfile(source.id);
-                          ref.invalidate(libraryControllerProvider);
-                          ref.invalidate(libraryCatalogControllerProvider);
-                        },
-                      ),
-                      SizedBox(height: studioListGapOf(dialogContext)),
-                    ],
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            if (sources.isNotEmpty)
-              OutlinedButton.icon(
-                onPressed: () async {
+        return _SettingsBottomSheetFrame(
+          title: l10n.sourceManagementSettingTitle,
+          headerTrailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (sources.isNotEmpty)
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    Navigator.of(dialogContext).pop();
+                    await ref
+                        .read(libraryCatalogControllerProvider.notifier)
+                        .scanAllSources();
+                  },
+                  icon: const Icon(Icons.radar_rounded, size: 16),
+                  label: Text(l10n.scanLibraryAction),
+                ),
+              if (sources.isNotEmpty) const SizedBox(width: 8),
+              FilledButton.icon(
+                onPressed: () {
                   Navigator.of(dialogContext).pop();
-                  await ref
-                      .read(libraryCatalogControllerProvider.notifier)
-                      .scanAllSources();
+                  showSourceTypePicker(pageContext);
                 },
-                icon: const Icon(Icons.radar_rounded),
-                label: Text(l10n.scanLibraryAction),
+                icon: const Icon(Icons.add_link_rounded, size: 16),
+                label: Text(l10n.addSourceAction),
               ),
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(materialL10n.closeButtonLabel),
-            ),
-            FilledButton.icon(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                showSourceTypePicker(pageContext);
-              },
-              icon: const Icon(Icons.add_link_rounded),
-              label: Text(l10n.addSourceAction),
-            ),
-          ],
+            ],
+          ),
+          showFooter: false,
+          cancelLabel: materialL10n.cancelButtonLabel,
+          confirmLabel: materialL10n.okButtonLabel,
+          onCancel: () => Navigator.of(dialogContext).pop(),
+          onConfirm: () => Navigator.of(dialogContext).pop(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l10n.sourceManagementDialogDescription),
+              const SizedBox(height: 16),
+              if (sources.isEmpty)
+                _DialogEmptyState(
+                  icon: Icons.cloud_off_rounded,
+                  title: l10n.sourceManagementEmptyTitle,
+                  description: l10n.sourceManagementEmptySummary,
+                )
+              else
+                for (final source in sources) ...[
+                  _SourceManagementCard(
+                    source: source,
+                    selected: selectedSource?.id == source.id,
+                    protocolLabel: _protocolLabel(l10n, source.protocol),
+                    editLabel: l10n.editSourceAction,
+                    deleteLabel: materialL10n.deleteButtonTooltip,
+                    onTap: () async {
+                      Navigator.of(dialogContext).pop();
+                      await ref
+                          .read(libraryControllerProvider.notifier)
+                          .selectSource(source.id);
+                    },
+                    onEdit: () {
+                      Navigator.of(dialogContext).pop();
+                      GoRouter.of(
+                        pageContext,
+                      ).push('/settings/source/${source.id}');
+                    },
+                    onDelete: () async {
+                      Navigator.of(dialogContext).pop();
+                      await ref
+                          .read(sourcesControllerProvider.notifier)
+                          .deleteProfile(source.id);
+                      ref.invalidate(libraryControllerProvider);
+                      ref.invalidate(libraryCatalogControllerProvider);
+                    },
+                  ),
+                  SizedBox(height: studioListGapOf(dialogContext)),
+                ],
+            ],
+          ),
         );
       },
     );
@@ -2020,16 +1855,6 @@ class SettingsPage extends ConsumerWidget {
       AppThemePreference.system => l10n.themeOptionSystem,
       AppThemePreference.light => l10n.themeOptionLight,
       AppThemePreference.dark => l10n.themeOptionDark,
-    };
-  }
-
-  IconData _protocolIcon(SourceProtocol protocol) {
-    return switch (protocol) {
-      SourceProtocol.webdav => Icons.dns_rounded,
-      SourceProtocol.sftp => Icons.terminal_rounded,
-      SourceProtocol.ftp => Icons.swap_vert_circle_rounded,
-      SourceProtocol.samba => Icons.lan_rounded,
-      SourceProtocol.cloudDrive => Icons.cloud_queue_rounded,
     };
   }
 
@@ -2174,6 +1999,229 @@ class _SettingTile extends StatelessWidget {
   }
 }
 
+class _SettingsBottomSheetFrame extends StatelessWidget {
+  const _SettingsBottomSheetFrame({
+    required this.title,
+    required this.child,
+    required this.onCancel,
+    required this.onConfirm,
+    required this.cancelLabel,
+    required this.confirmLabel,
+    this.headerTrailing,
+    this.showFooter = true,
+  });
+
+  final String title;
+  final Widget child;
+  final VoidCallback onCancel;
+  final VoidCallback onConfirm;
+  final String cancelLabel;
+  final String confirmLabel;
+  final Widget? headerTrailing;
+  final bool showFooter;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final radius = studioRadiusOf(context, 28);
+    final height = MediaQuery.sizeOf(context).height * 0.66;
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(radius),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+            child: Container(
+              height: height,
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerLow.withValues(alpha: 0.96),
+                borderRadius: BorderRadius.circular(radius),
+                border: Border.all(
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.42),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        if (headerTrailing != null) ...[
+                          const SizedBox(width: 12),
+                          headerTrailing!,
+                        ],
+                      ],
+                    ),
+                  ),
+                  Divider(
+                    height: 1,
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.38),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+                      child: child,
+                    ),
+                  ),
+                  if (showFooter) ...[
+                    Divider(
+                      height: 1,
+                      color: colorScheme.outlineVariant.withValues(alpha: 0.38),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: onCancel,
+                              child: Text(cancelLabel),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: FilledButton(
+                              onPressed: onConfirm,
+                              child: Text(confirmLabel),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ThemeAccentSwatchRow extends StatelessWidget {
+  const _ThemeAccentSwatchRow({
+    required this.label,
+    required this.currentHex,
+    required this.presets,
+    required this.onPresetSelected,
+    required this.onCustomSelected,
+  });
+
+  final String label;
+  final String? currentHex;
+  final List<Color> presets;
+  final ValueChanged<Color> onPresetSelected;
+  final VoidCallback onCustomSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final normalizedCurrent = CustomThemeColors.normalizeHexColor(currentHex);
+
+    bool isSelected(Color color) {
+      return normalizedCurrent == _hexFromColorStatic(color);
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        SizedBox(
+          width: 30,
+          child: Text(
+            label,
+            textAlign: TextAlign.right,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        for (final color in presets) ...[
+          _ThemeAccentSwatchButton(
+            color: color,
+            selected: isSelected(color),
+            onTap: () => onPresetSelected(color),
+          ),
+          const SizedBox(width: 6),
+        ],
+        InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: onCustomSelected,
+          child: Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: colorScheme.surfaceContainerHigh,
+              border: Border.all(color: colorScheme.outline),
+            ),
+            child: Icon(
+              Icons.add_rounded,
+              size: 14,
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  static String _hexFromColorStatic(Color color) {
+    final argb = color.toARGB32();
+    final rgb = argb & 0xFFFFFF;
+    return '#${rgb.toRadixString(16).toUpperCase().padLeft(6, '0')}';
+  }
+}
+
+class _ThemeAccentSwatchButton extends StatelessWidget {
+  const _ThemeAccentSwatchButton({
+    required this.color,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final Color color;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final selectionColor = color.computeLuminance() > 0.72
+        ? colorScheme.onSurface
+        : Colors.white;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: onTap,
+      child: Container(
+        width: 24,
+        height: 24,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color,
+          border: Border.all(
+            color: selected ? selectionColor : colorScheme.outlineVariant,
+            width: selected ? 2 : 1,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _BackgroundImagePositionPreview extends StatelessWidget {
   const _BackgroundImagePositionPreview({
     required this.previewFuture,
@@ -2193,101 +2241,104 @@ class _BackgroundImagePositionPreview extends StatelessWidget {
     final screenSize = MediaQuery.sizeOf(context);
     final aspectRatio = screenSize.width / screenSize.height;
 
-    return AspectRatio(
-      aspectRatio: aspectRatio.clamp(0.56, 1.9).toDouble(),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(studioRadiusOf(context, 24)),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest,
-            border: Border.all(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.22),
+    return SizedBox(
+      height: 170,
+      child: AspectRatio(
+        aspectRatio: aspectRatio.clamp(0.56, 1.9).toDouble(),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(studioRadiusOf(context, 24)),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest,
+              border: Border.all(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.22),
+              ),
             ),
-          ),
-          child: FutureBuilder<Uint8List?>(
-            future: previewFuture,
-            builder: (context, snapshot) {
-              final bytes = snapshot.data;
-              if (bytes == null || bytes.isEmpty) {
-                return Center(
-                  child: Text(
-                    emptyLabel,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                );
-              }
-
-              return LayoutBuilder(
-                builder: (context, constraints) {
-                  Alignment draggedAlignment(Offset delta) {
-                    final nextX =
-                        (alignment.x - delta.dx / constraints.maxWidth * 2)
-                            .clamp(-1.0, 1.0)
-                            .toDouble();
-                    final nextY =
-                        (alignment.y - delta.dy / constraints.maxHeight * 2)
-                            .clamp(-1.0, 1.0)
-                            .toDouble();
-                    return Alignment(nextX, nextY);
-                  }
-
-                  return GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onPanUpdate: (details) {
-                      onAlignmentChanged(draggedAlignment(details.delta));
-                    },
-                    onDoubleTap: () => onAlignmentChanged(Alignment.center),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        Image.memory(
-                          bytes,
-                          fit: BoxFit.cover,
-                          alignment: alignment,
-                          filterQuality: FilterQuality.medium,
-                        ),
-                        DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                colorScheme.surface.withValues(alpha: 0.08),
-                                colorScheme.surface.withValues(alpha: 0.22),
-                              ],
-                            ),
-                          ),
-                        ),
-                        IgnorePointer(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: colorScheme.onSurface.withValues(
-                                  alpha: 0.16,
-                                ),
-                                width: 2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: colorScheme.shadow.withValues(
-                                    alpha: 0.18,
-                                  ),
-                                  blurRadius: 18,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
+            child: FutureBuilder<Uint8List?>(
+              future: previewFuture,
+              builder: (context, snapshot) {
+                final bytes = snapshot.data;
+                if (bytes == null || bytes.isEmpty) {
+                  return Center(
+                    child: Text(
+                      emptyLabel,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   );
-                },
-              );
-            },
+                }
+
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    Alignment draggedAlignment(Offset delta) {
+                      final nextX =
+                          (alignment.x - delta.dx / constraints.maxWidth * 2)
+                              .clamp(-1.0, 1.0)
+                              .toDouble();
+                      final nextY =
+                          (alignment.y - delta.dy / constraints.maxHeight * 2)
+                              .clamp(-1.0, 1.0)
+                              .toDouble();
+                      return Alignment(nextX, nextY);
+                    }
+
+                    return GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onPanUpdate: (details) {
+                        onAlignmentChanged(draggedAlignment(details.delta));
+                      },
+                      onDoubleTap: () => onAlignmentChanged(Alignment.center),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.memory(
+                            bytes,
+                            fit: BoxFit.cover,
+                            alignment: alignment,
+                            filterQuality: FilterQuality.medium,
+                          ),
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  colorScheme.surface.withValues(alpha: 0.08),
+                                  colorScheme.surface.withValues(alpha: 0.22),
+                                ],
+                              ),
+                            ),
+                          ),
+                          IgnorePointer(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: colorScheme.onSurface.withValues(
+                                    alpha: 0.16,
+                                  ),
+                                  width: 2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: colorScheme.shadow.withValues(
+                                      alpha: 0.18,
+                                    ),
+                                    blurRadius: 18,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -2506,7 +2557,7 @@ class _CircularColorPicker extends StatelessWidget {
   final HSVColor hsvColor;
   final ValueChanged<HSVColor> onChanged;
 
-  static const _pickerSize = 280.0;
+  static const _pickerSize = 220.0;
 
   void _selectColor(Offset localPosition, Size size) {
     if (!_containsCircle(localPosition, size)) {
@@ -2696,7 +2747,7 @@ class _HueSlider extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth.clamp(240.0, 420.0);
-        const height = 42.0;
+        const height = 15.0;
         final size = Size(width, height);
 
         return Center(
@@ -2764,24 +2815,24 @@ class _HueSliderPainter extends CustomPainter {
     );
     canvas.drawCircle(
       Offset(thumbX, size.height / 2),
-      12,
+      5.5,
       Paint()
         ..color = selectedHueColor
         ..style = PaintingStyle.fill,
     );
     canvas.drawCircle(
       Offset(thumbX, size.height / 2),
-      12,
+      5.5,
       Paint()
         ..color = Colors.white
-        ..strokeWidth = 3
+        ..strokeWidth = 1.8
         ..style = PaintingStyle.stroke,
     );
     canvas.drawCircle(
       Offset(thumbX, size.height / 2),
-      14,
+      6.6,
       Paint()
-        ..color = Colors.black.withValues(alpha: 0.36)
+        ..color = Colors.black.withValues(alpha: 0.3)
         ..strokeWidth = 1
         ..style = PaintingStyle.stroke,
     );
@@ -2807,202 +2858,198 @@ class _CacheManagementDialogState
     extends ConsumerState<_CacheManagementDialog> {
   final Set<String> _selectedTrackIds = <String>{};
   late final Stream<List<PlaybackCacheInventoryItem>> _inventoryStream;
+  late final Future<List<PlaybackCacheInventoryItem>> _initialInventoryFuture;
 
   @override
   void initState() {
     super.initState();
-    _inventoryStream = ref
-        .read(webDavPlaybackCacheProvider)
-        .watchCachedTracks();
+    final cache = ref.read(webDavPlaybackCacheProvider);
+    _inventoryStream = cache.watchCachedTracks();
+    _initialInventoryFuture = cache.listCachedTracks();
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final materialL10n = MaterialLocalizations.of(context);
-    return StreamBuilder<List<PlaybackCacheInventoryItem>>(
-      stream: _inventoryStream,
-      builder: (context, snapshot) {
-        final items = snapshot.data ?? const <PlaybackCacheInventoryItem>[];
-        final itemIds = items.map((item) => item.trackId).toSet();
-        final selectedIds = _selectedTrackIds.where(itemIds.contains).toSet();
+    return FutureBuilder<List<PlaybackCacheInventoryItem>>(
+      future: _initialInventoryFuture,
+      builder: (context, initialSnapshot) {
+        return StreamBuilder<List<PlaybackCacheInventoryItem>>(
+          stream: _inventoryStream,
+          initialData: initialSnapshot.data,
+          builder: (context, snapshot) {
+            final items =
+                snapshot.data ??
+                initialSnapshot.data ??
+                const <PlaybackCacheInventoryItem>[];
+            final itemIds = items.map((item) => item.trackId).toSet();
+            final selectedIds = _selectedTrackIds
+                .where(itemIds.contains)
+                .toSet();
 
-        return GlacierDialog(
-          title: Text(l10n.clearCachedFilesTitle),
-          content: SizedBox(
-            width: 560,
-            child:
-                !snapshot.hasData &&
-                    snapshot.connectionState == ConnectionState.waiting
-                ? const SizedBox(
-                    height: 220,
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                : (items.isEmpty
-                      ? _DialogEmptyState(
-                          icon: Icons.offline_bolt_outlined,
-                          title: l10n.cachedTracksEmptyTitle,
-                          description: l10n.cachedTracksEmptyDescription,
-                        )
-                      : Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(l10n.cachedTracksDialogDescription),
-                            const SizedBox(height: 12),
-                            Text(
-                              l10n.selectedCacheCountLabel(selectedIds.length),
-                              style: Theme.of(context).textTheme.labelLarge,
-                            ),
-                            const SizedBox(height: 12),
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(maxHeight: 360),
-                              child: ListView.separated(
-                                shrinkWrap: true,
-                                itemCount: items.length,
-                                separatorBuilder: (context, _) =>
-                                    SizedBox(height: studioListGapOf(context)),
-                                itemBuilder: (context, index) {
-                                  final item = items[index];
-                                  final selected = selectedIds.contains(
-                                    item.trackId,
-                                  );
-                                  final sourceName =
-                                      widget.sourceNames[item.sourceId] ??
-                                      l10n.cacheUnknownSourceLabel;
-                                  final cacheMode = _cacheModeLabel(l10n, item);
-                                  final coverage =
-                                      item.totalBytes == null ||
-                                          item.totalBytes == 0
-                                      ? l10n.cacheCoverageUnknownLabel
-                                      : l10n.cacheCoverageLabel(
-                                          ((item.cachedBytes /
-                                                      item.totalBytes!) *
-                                                  100)
-                                              .round(),
-                                        );
-
-                                  return Material(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.surfaceContainerLow,
-                                    borderRadius: BorderRadius.circular(22),
-                                    child: CheckboxListTile(
-                                      value: selected,
-                                      dense: true,
-                                      visualDensity: VisualDensity.compact,
-                                      contentPadding: studioListItemPaddingOf(
-                                        context,
-                                      ),
-                                      controlAffinity:
-                                          ListTileControlAffinity.leading,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(22),
-                                      ),
-                                      title: Text(
-                                        item.title,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      subtitle: Text(
-                                        '$sourceName · $cacheMode · $coverage\n${item.remotePath}',
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      onChanged: (value) {
-                                        setState(() {
-                                          if (value == true) {
-                                            _selectedTrackIds.add(item.trackId);
-                                          } else {
-                                            _selectedTrackIds.remove(
-                                              item.trackId,
-                                            );
-                                          }
-                                        });
-                                      },
+            return _SettingsBottomSheetFrame(
+              title: l10n.clearCachedFilesTitle,
+              cancelLabel: materialL10n.cancelButtonLabel,
+              confirmLabel: materialL10n.okButtonLabel,
+              onCancel: () => Navigator.of(context).pop(),
+              onConfirm: () => Navigator.of(context).pop(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (!snapshot.hasData &&
+                      !initialSnapshot.hasData &&
+                      snapshot.connectionState == ConnectionState.waiting)
+                    const SizedBox(
+                      height: 220,
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (items.isEmpty)
+                    _DialogEmptyState(
+                      icon: Icons.offline_bolt_outlined,
+                      title: l10n.cachedTracksEmptyTitle,
+                      description: l10n.cachedTracksEmptyDescription,
+                    )
+                  else ...[
+                    Text(l10n.cachedTracksDialogDescription),
+                    const SizedBox(height: 10),
+                    Text(
+                      l10n.selectedCacheCountLabel(selectedIds.length),
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        OutlinedButton(
+                          onPressed: () {
+                            setState(() {
+                              if (selectedIds.length == items.length) {
+                                _selectedTrackIds.clear();
+                              } else {
+                                _selectedTrackIds
+                                  ..clear()
+                                  ..addAll(itemIds);
+                              }
+                            });
+                          },
+                          child: Text(
+                            selectedIds.length == items.length
+                                ? l10n.clearSelectionAction
+                                : l10n.selectAllAction,
+                          ),
+                        ),
+                        OutlinedButton(
+                          onPressed: () async {
+                            await ref
+                                .read(webDavPlaybackCacheProvider)
+                                .clearMemoryCachedData();
+                            if (!mounted) {
+                              return;
+                            }
+                            setState(_selectedTrackIds.clear);
+                            showTopSnackBar(
+                              this.context,
+                              l10n.cacheClearedMessage,
+                            );
+                          },
+                          child: Text(l10n.clearCacheAction),
+                        ),
+                        FilledButton.tonal(
+                          onPressed: selectedIds.isEmpty
+                              ? null
+                              : () async {
+                                  await ref
+                                      .read(webDavPlaybackCacheProvider)
+                                      .removeCachedTracks(selectedIds);
+                                  if (!mounted) {
+                                    return;
+                                  }
+                                  setState(() {
+                                    _selectedTrackIds.removeAll(selectedIds);
+                                  });
+                                  showTopSnackBar(
+                                    this.context,
+                                    l10n.selectedCacheDeletedMessage(
+                                      selectedIds.length,
                                     ),
                                   );
                                 },
-                              ),
-                            ),
-                          ],
-                        )),
-          ),
-          actions: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(materialL10n.closeButtonLabel),
-                ),
-                if (items.isNotEmpty)
-                  TextButton(
-                    onPressed: () {
-                      setState(() {
-                        if (selectedIds.length == items.length) {
-                          _selectedTrackIds.clear();
-                        } else {
-                          _selectedTrackIds
-                            ..clear()
-                            ..addAll(itemIds);
-                        }
-                      });
-                    },
-                    child: Text(
-                      selectedIds.length == items.length
-                          ? l10n.clearSelectionAction
-                          : l10n.selectAllAction,
+                          child: Text(l10n.deleteSelectedCacheAction),
+                        ),
+                      ],
                     ),
-                  ),
-                OutlinedButton(
-                  onPressed: items.isEmpty
-                      ? null
-                      : () async {
-                          final messenger = ScaffoldMessenger.of(this.context);
-                          await ref
-                              .read(webDavPlaybackCacheProvider)
-                              .clearAllCachedData();
-                          if (!mounted) {
-                            return;
-                          }
-                          setState(_selectedTrackIds.clear);
-                          messenger.showSnackBar(
-                            SnackBar(content: Text(l10n.cacheClearedMessage)),
-                          );
-                        },
-                  child: Text(l10n.clearCacheAction),
-                ),
-                FilledButton(
-                  onPressed: selectedIds.isEmpty
-                      ? null
-                      : () async {
-                          final messenger = ScaffoldMessenger.of(this.context);
-                          await ref
-                              .read(webDavPlaybackCacheProvider)
-                              .removeCachedTracks(selectedIds);
-                          if (!mounted) {
-                            return;
-                          }
-                          setState(() {
-                            _selectedTrackIds.removeAll(selectedIds);
-                          });
-                          messenger.showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                l10n.selectedCacheDeletedMessage(
-                                  selectedIds.length,
-                                ),
-                              ),
+                    const SizedBox(height: 14),
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: items.length,
+                      separatorBuilder: (context, _) =>
+                          SizedBox(height: studioListGapOf(context)),
+                      itemBuilder: (context, index) {
+                        final item = items[index];
+                        final selected = selectedIds.contains(item.trackId);
+                        final sourceName =
+                            widget.sourceNames[item.sourceId] ??
+                            l10n.cacheUnknownSourceLabel;
+                        final cacheMode = _cacheModeLabel(l10n, item);
+                        final coverage =
+                            item.totalBytes == null || item.totalBytes == 0
+                            ? l10n.cacheCoverageUnknownLabel
+                            : l10n.cacheCoverageLabel(
+                                ((item.cachedBytes / item.totalBytes!) * 100)
+                                    .round(),
+                              );
+
+                        return Material(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(18),
+                          child: CheckboxListTile(
+                            value: selected,
+                            dense: true,
+                            visualDensity: const VisualDensity(
+                              horizontal: -2,
+                              vertical: -3,
                             ),
-                          );
-                        },
-                  child: Text(l10n.deleteSelectedCacheAction),
-                ),
-              ],
-            ),
-          ],
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 2,
+                            ),
+                            controlAffinity: ListTileControlAffinity.leading,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            title: Text(
+                              item.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Text(
+                              '$sourceName · $cacheMode · $coverage\n${item.remotePath}',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            onChanged: (value) {
+                              setState(() {
+                                if (value == true) {
+                                  _selectedTrackIds.add(item.trackId);
+                                } else {
+                                  _selectedTrackIds.remove(item.trackId);
+                                }
+                              });
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ],
+              ),
+            );
+          },
         );
       },
     );

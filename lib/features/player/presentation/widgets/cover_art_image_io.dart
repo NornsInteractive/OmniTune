@@ -2,9 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/storage/cover_art_cache_manager.dart';
 import 'generated_cover_art.dart';
 
-class CoverArtImage extends StatelessWidget {
+class CoverArtImage extends StatefulWidget {
   const CoverArtImage({
     super.key,
     required this.title,
@@ -23,16 +24,74 @@ class CoverArtImage extends StatelessWidget {
   final String? coverUrl;
 
   @override
+  State<CoverArtImage> createState() => _CoverArtImageState();
+}
+
+class _CoverArtImageState extends State<CoverArtImage> {
+  String? _resolvedLocalPath;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolvedLocalPath = _normalize(widget.localCoverPath);
+    _primeLocalCover();
+  }
+
+  @override
+  void didUpdateWidget(covariant CoverArtImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.localCoverPath != widget.localCoverPath ||
+        oldWidget.coverUrl != widget.coverUrl) {
+      _resolvedLocalPath = _normalize(widget.localCoverPath);
+      _primeLocalCover();
+    }
+  }
+
+  Future<void> _primeLocalCover() async {
+    if (_resolvedLocalPath?.isNotEmpty == true) {
+      return;
+    }
+
+    final remoteUrl = _normalize(widget.coverUrl);
+    if (remoteUrl == null) {
+      return;
+    }
+
+    final cacheManager = CoverArtCacheManager();
+    final cachedPath = await cacheManager.cachedPathForUrl(remoteUrl);
+    if (!mounted) {
+      return;
+    }
+    if (cachedPath?.isNotEmpty == true) {
+      setState(() => _resolvedLocalPath = cachedPath);
+      return;
+    }
+
+    final downloadedPath = await cacheManager.downloadAndCache(remoteUrl);
+    if (!mounted) {
+      return;
+    }
+    if (downloadedPath?.isNotEmpty == true) {
+      setState(() => _resolvedLocalPath = downloadedPath);
+    }
+  }
+
+  String? _normalize(String? value) {
+    final normalized = value?.trim();
+    return normalized == null || normalized.isEmpty ? null : normalized;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final localPath = localCoverPath?.trim();
+    final localPath = _resolvedLocalPath;
     if (localPath != null && localPath.isNotEmpty) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
+        borderRadius: BorderRadius.circular(widget.borderRadius),
         child: Image.file(
           File(localPath),
           fit: BoxFit.cover,
-          width: size,
-          height: size,
+          width: widget.size,
+          height: widget.size,
           errorBuilder: (context, error, stackTrace) => _remoteOrGenerated(),
         ),
       );
@@ -42,15 +101,15 @@ class CoverArtImage extends StatelessWidget {
   }
 
   Widget _remoteOrGenerated() {
-    final remoteUrl = coverUrl?.trim();
+    final remoteUrl = _normalize(widget.coverUrl);
     if (remoteUrl != null && remoteUrl.isNotEmpty) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
+        borderRadius: BorderRadius.circular(widget.borderRadius),
         child: Image.network(
           remoteUrl,
           fit: BoxFit.cover,
-          width: size,
-          height: size,
+          width: widget.size,
+          height: widget.size,
           errorBuilder: (context, error, stackTrace) => _generated(),
         ),
       );
@@ -60,10 +119,10 @@ class CoverArtImage extends StatelessWidget {
 
   Widget _generated() {
     return GeneratedCoverArt(
-      title: title,
-      subtitle: subtitle,
-      size: size,
-      borderRadius: borderRadius,
+      title: widget.title,
+      subtitle: widget.subtitle,
+      size: widget.size,
+      borderRadius: widget.borderRadius,
     );
   }
 }

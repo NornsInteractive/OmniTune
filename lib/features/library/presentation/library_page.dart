@@ -10,6 +10,7 @@ import 'package:music/l10n/app_localizations.dart';
 import '../../../core/models/library_song.dart';
 import '../../../core/models/remote_entry.dart';
 import '../../../core/widgets/studio_chrome.dart';
+import '../../../core/widgets/top_snackbar.dart';
 import '../../player/application/player_controller.dart';
 import '../../player/presentation/widgets/track_cover_thumbnail.dart';
 import '../../scraper/presentation/manual_scraping_sheet.dart';
@@ -469,9 +470,7 @@ class LibraryBrowserPage extends ConsumerWidget {
                                 if (!context.mounted) {
                                   return;
                                 }
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(error.toString())),
-                                );
+                                showTopSnackBar(context, error.toString());
                               }
                             },
                           ),

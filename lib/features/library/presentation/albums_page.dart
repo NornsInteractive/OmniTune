@@ -1,5 +1,5 @@
+import 'dart:io';
 import 'dart:ui';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,7 +11,9 @@ import 'package:path/path.dart' as p;
 import '../../../core/models/library_album.dart';
 import '../../../core/models/library_song.dart';
 import '../../../core/models/source_profile.dart';
+import '../../../core/storage/cover_art_cache_manager.dart';
 import '../../../core/widgets/studio_chrome.dart';
+import '../../../core/widgets/top_snackbar.dart';
 import '../../player/application/player_controller.dart';
 import '../../player/presentation/widgets/generated_cover_art.dart';
 import '../../player/presentation/widgets/track_cover_thumbnail.dart';
@@ -72,9 +74,17 @@ class _AlbumsPageState extends ConsumerState<AlbumsPage> {
         data: (browser) {
           if (!browser.hasSources) {
             return _AlbumsEmptyState(
+              pageTitle: l10n.albumsTabLabel,
               title: l10n.sourceManagementEmptyTitle,
               description:
                   'Add a source to start building album views from your cloud library.',
+              onScan: () {
+                ref
+                    .read(libraryCatalogControllerProvider.notifier)
+                    .scanAllSources();
+              },
+              onAddSource: () => showSourceTypePicker(context),
+              onOpenSettings: () => context.push('/settings'),
             );
           }
 
@@ -240,18 +250,6 @@ class _AlbumsContent extends ConsumerWidget {
                       onTap: refreshAlbums,
                     ),
                     const SizedBox(width: 8),
-                    _ViewModeButton(
-                      icon: Icons.grid_view_rounded,
-                      selected: viewMode == _AlbumViewMode.grid,
-                      onTap: () => onViewModeChanged(_AlbumViewMode.grid),
-                    ),
-                    const SizedBox(width: 8),
-                    _ViewModeButton(
-                      icon: Icons.view_list_rounded,
-                      selected: viewMode == _AlbumViewMode.list,
-                      onTap: () => onViewModeChanged(_AlbumViewMode.list),
-                    ),
-                    const SizedBox(width: 8),
                     _TopIconButton(
                       icon: Icons.add_link_rounded,
                       onTap: () => showSourceTypePicker(context),
@@ -293,6 +291,27 @@ class _AlbumsContent extends ConsumerWidget {
                       );
                     },
                   ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Spacer(),
+                    _ViewModeButton(
+                      icon: Icons.grid_view_rounded,
+                      selected: viewMode == _AlbumViewMode.grid,
+                      size: 34,
+                      iconSize: 17,
+                      onTap: () => onViewModeChanged(_AlbumViewMode.grid),
+                    ),
+                    const SizedBox(width: 6),
+                    _ViewModeButton(
+                      icon: Icons.view_list_rounded,
+                      selected: viewMode == _AlbumViewMode.list,
+                      size: 34,
+                      iconSize: 17,
+                      onTap: () => onViewModeChanged(_AlbumViewMode.list),
+                    ),
+                  ],
                 ),
                 if (catalog?.isScanning == true) ...[
                   const SizedBox(height: 18),
@@ -639,18 +658,14 @@ Future<void> _addAlbumTrackToPlayNext(
     if (!context.mounted) {
       return;
     }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(error.toString())));
+    showTopSnackBar(context, error.toString());
     return;
   }
 
   if (!context.mounted) {
     return;
   }
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(l10n.addedToPlayNextMessage(track.title))),
-  );
+  showTopSnackBar(context, l10n.addedToPlayNextMessage(track.title));
 }
 
 Future<void> _showTrackDetailsSheet(BuildContext context, LibrarySong song) {
@@ -823,11 +838,15 @@ class _ViewModeButton extends StatelessWidget {
     required this.icon,
     required this.selected,
     required this.onTap,
+    this.size = 40,
+    this.iconSize = 20,
   });
 
   final IconData icon;
   final bool selected;
   final VoidCallback onTap;
+  final double size;
+  final double iconSize;
 
   @override
   Widget build(BuildContext context) {
@@ -841,11 +860,11 @@ class _ViewModeButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(buttonRadius),
         onTap: onTap,
         child: SizedBox(
-          width: 40,
-          height: 40,
+          width: size,
+          height: size,
           child: Icon(
             icon,
-            size: 20,
+            size: iconSize,
             color: selected
                 ? _GlacierPalette.primary
                 : _GlacierPalette.onSurfaceVariant,
@@ -1239,10 +1258,9 @@ class _AlbumListRow extends StatelessWidget {
 }
 
 class _AlbumFolderArtwork {
-  const _AlbumFolderArtwork({required this.bytes, required this.mimeType});
+  const _AlbumFolderArtwork({required this.localPath});
 
-  final Uint8List bytes;
-  final String? mimeType;
+  final String localPath;
 }
 
 class _AlbumFolderArtworkRequest {
@@ -1316,9 +1334,27 @@ final _albumFolderArtworkProvider =
       });
 
       for (final file in imageFiles) {
+        final extension = p.extension(file.name).toLowerCase();
+        final cacheKey = 'album-folder:${request.sourceId}:${file.path}';
+        final cacheManager = CoverArtCacheManager();
+        final cachedPath = await cacheManager.cachedPathForKey(
+          cacheKey,
+          extension: extension,
+        );
+        if (cachedPath?.isNotEmpty == true) {
+          return _AlbumFolderArtwork(localPath: cachedPath!);
+        }
+
         final bytes = await musicSource.readBinaryFile(file.path);
         if (bytes != null && bytes.isNotEmpty) {
-          return _AlbumFolderArtwork(bytes: bytes, mimeType: file.mimeType);
+          final localPath = await cacheManager.cacheBytes(
+            cacheKey,
+            bytes,
+            extension: extension,
+          );
+          if (localPath?.isNotEmpty == true) {
+            return _AlbumFolderArtwork(localPath: localPath!);
+          }
         }
       }
       return null;
@@ -1343,11 +1379,11 @@ class _AlbumArtwork extends ConsumerWidget {
         ),
       );
       final folderData = folderArtwork.valueOrNull;
-      if (folderData != null && folderData.bytes.isNotEmpty) {
+      if (folderData != null && folderData.localPath.isNotEmpty) {
         return ClipRRect(
           borderRadius: BorderRadius.circular(18),
-          child: Image.memory(
-            folderData.bytes,
+          child: Image.file(
+            File(folderData.localPath),
             fit: BoxFit.cover,
             gaplessPlayback: true,
             errorBuilder: (_, _, _) => GeneratedCoverArt(
@@ -1742,68 +1778,116 @@ class _DetailRow extends StatelessWidget {
 }
 
 class _AlbumsEmptyState extends StatelessWidget {
-  const _AlbumsEmptyState({required this.title, required this.description});
+  const _AlbumsEmptyState({
+    required this.pageTitle,
+    required this.title,
+    required this.description,
+    required this.onScan,
+    required this.onAddSource,
+    required this.onOpenSettings,
+  });
 
+  final String pageTitle;
   final String title;
   final String description;
+  final VoidCallback onScan;
+  final VoidCallback onAddSource;
+  final VoidCallback onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
     final cardRadius = studioRadiusOf(context, 32);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(cardRadius),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-              child: Container(
-                padding: const EdgeInsets.all(26),
-                decoration: BoxDecoration(
-                  color: _GlacierPalette.surface.withValues(alpha: 0.62),
-                  borderRadius: BorderRadius.circular(cardRadius),
-                  border: Border.all(
-                    color: _GlacierPalette.outline.withValues(alpha: 0.4),
-                  ),
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: studioListPaddingOf(
+        context,
+        const EdgeInsets.fromLTRB(28, 12, 28, 144),
+      ),
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                pageTitle,
+                style: _glacierTextStyle(
+                  color: _GlacierPalette.onSurface,
+                  size: 34,
+                  weight: FontWeight.w700,
+                  height: 1.05,
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    GeneratedCoverArt(
-                      title: title,
-                      subtitle: description,
-                      size: 180,
-                      borderRadius: 26,
+              ),
+            ),
+            _TopIconButton(icon: Icons.radar_rounded, onTap: onScan),
+            const SizedBox(width: 8),
+            _TopIconButton(icon: Icons.add_link_rounded, onTap: onAddSource),
+            const SizedBox(width: 8),
+            _TopIconButton(icon: Icons.settings_rounded, onTap: onOpenSettings),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Text(
+          description,
+          style: _glacierTextStyle(
+            color: _GlacierPalette.onSurfaceVariant,
+            size: 15,
+            weight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 28),
+        Padding(
+          padding: const EdgeInsets.all(0),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(cardRadius),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                child: Container(
+                  padding: const EdgeInsets.all(26),
+                  decoration: BoxDecoration(
+                    color: _GlacierPalette.surface.withValues(alpha: 0.62),
+                    borderRadius: BorderRadius.circular(cardRadius),
+                    border: Border.all(
+                      color: _GlacierPalette.outline.withValues(alpha: 0.4),
                     ),
-                    const SizedBox(height: 20),
-                    Text(
-                      title,
-                      style: _glacierTextStyle(
-                        color: _GlacierPalette.onSurface,
-                        size: 26,
-                        weight: FontWeight.w700,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      GeneratedCoverArt(
+                        title: title,
+                        subtitle: description,
+                        size: 180,
+                        borderRadius: 26,
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      description,
-                      style: _glacierTextStyle(
-                        color: _GlacierPalette.onSurfaceVariant,
-                        size: 14,
-                        weight: FontWeight.w500,
+                      const SizedBox(height: 20),
+                      Text(
+                        title,
+                        style: _glacierTextStyle(
+                          color: _GlacierPalette.onSurface,
+                          size: 26,
+                          weight: FontWeight.w700,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      Text(
+                        description,
+                        style: _glacierTextStyle(
+                          color: _GlacierPalette.onSurfaceVariant,
+                          size: 14,
+                          weight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 }

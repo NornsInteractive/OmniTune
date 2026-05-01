@@ -3,11 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/app_preferences.dart';
 import '../../../core/models/custom_theme_colors.dart';
 import '../../../core/storage/library_preferences_repository.dart';
+import '../../../core/utils/debug_logger.dart';
 
 class AppSettingsController extends AsyncNotifier<LibraryPreferences> {
   @override
-  Future<LibraryPreferences> build() {
-    return ref.read(libraryPreferencesRepositoryProvider).load();
+  Future<LibraryPreferences> build() async {
+    final preferences = await ref
+        .read(libraryPreferencesRepositoryProvider)
+        .load();
+    DebugLogger.setDebugEnabled(preferences.enableDebugMode);
+    return preferences;
   }
 
   Future<void> setThemePreference(AppThemePreference value) async {
@@ -85,6 +90,7 @@ class AppSettingsController extends AsyncNotifier<LibraryPreferences> {
     final current = state.valueOrNull ?? await repository.load();
     final next = transform(current);
     state = AsyncData(next);
+    DebugLogger.setDebugEnabled(next.enableDebugMode);
     await repository.save(next);
   }
 }
