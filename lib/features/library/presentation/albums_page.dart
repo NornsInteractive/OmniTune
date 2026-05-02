@@ -17,7 +17,6 @@ import '../../../core/widgets/top_snackbar.dart';
 import '../../player/application/player_controller.dart';
 import '../../player/presentation/widgets/generated_cover_art.dart';
 import '../../player/presentation/widgets/track_cover_thumbnail.dart';
-import '../../scraper/presentation/manual_scraping_sheet.dart';
 import '../../settings/application/app_settings_controller.dart';
 import '../../settings/presentation/add_source_page.dart';
 import '../../sources/application/source_session_manager.dart';
@@ -37,6 +36,7 @@ class AlbumsPage extends ConsumerStatefulWidget {
 class _AlbumsPageState extends ConsumerState<AlbumsPage> {
   String? _selectedSourceId;
   _AlbumViewMode _viewMode = _AlbumViewMode.list;
+  LibraryAlbumGroupingMode _groupingMode = LibraryAlbumGroupingMode.folder;
   int _pageIndex = 0;
   bool _hydratedViewMode = false;
 
@@ -91,15 +91,22 @@ class _AlbumsPageState extends ConsumerState<AlbumsPage> {
             browser.sources,
             browser,
           );
-          final groupingMode = LibraryAlbumGroupingMode.folder;
+          final groupingMode = _groupingMode;
 
           return catalogAsync.when(
             loading: () => _AlbumsContent(
               sources: browser.sources,
               selectedSource: selectedSource,
               viewMode: _viewMode,
+              groupingMode: groupingMode,
               pageIndex: _pageIndex,
               onViewModeChanged: handleViewModeChanged,
+              onGroupingModeChanged: (value) {
+                setState(() {
+                  _groupingMode = value;
+                  _pageIndex = 0;
+                });
+              },
               onPageChanged: (value) {
                 setState(() => _pageIndex = value);
               },
@@ -125,8 +132,15 @@ class _AlbumsPageState extends ConsumerState<AlbumsPage> {
                 albums: albums,
                 sourceTracks: sourceTracks,
                 viewMode: _viewMode,
+                groupingMode: groupingMode,
                 pageIndex: _pageIndex,
                 onViewModeChanged: handleViewModeChanged,
+                onGroupingModeChanged: (value) {
+                  setState(() {
+                    _groupingMode = value;
+                    _pageIndex = 0;
+                  });
+                },
                 onPageChanged: (value) {
                   setState(() => _pageIndex = value);
                 },
@@ -160,8 +174,10 @@ class _AlbumsContent extends ConsumerWidget {
     required this.sources,
     required this.selectedSource,
     required this.viewMode,
+    required this.groupingMode,
     required this.pageIndex,
     required this.onViewModeChanged,
+    required this.onGroupingModeChanged,
     required this.onPageChanged,
     this.catalog,
     this.albums = const [],
@@ -172,8 +188,10 @@ class _AlbumsContent extends ConsumerWidget {
   final List<SourceProfile> sources;
   final SourceProfile selectedSource;
   final _AlbumViewMode viewMode;
+  final LibraryAlbumGroupingMode groupingMode;
   final int pageIndex;
   final ValueChanged<_AlbumViewMode> onViewModeChanged;
+  final ValueChanged<LibraryAlbumGroupingMode> onGroupingModeChanged;
   final ValueChanged<int> onPageChanged;
   final LibraryCatalogState? catalog;
   final List<LibraryAlbum> albums;
@@ -196,9 +214,7 @@ class _AlbumsContent extends ConsumerWidget {
     final trackCountBySource = <String, int>{};
     for (final source in sources) {
       albumCountBySource[source.id] =
-          catalog
-              ?.albumsForSource(source.id, LibraryAlbumGroupingMode.folder)
-              .length ??
+          catalog?.albumsForSource(source.id, groupingMode).length ??
           (source.id == selectedSource.id ? albums.length : 0);
       trackCountBySource[source.id] =
           catalog?.tracks
@@ -294,7 +310,36 @@ class _AlbumsContent extends ConsumerWidget {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    const Spacer(),
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: SegmentedButton<LibraryAlbumGroupingMode>(
+                          showSelectedIcon: false,
+                          style: ButtonStyle(
+                            visualDensity: const VisualDensity(
+                              horizontal: -3,
+                              vertical: -3,
+                            ),
+                          ),
+                          segments: [
+                            ButtonSegment(
+                              value: LibraryAlbumGroupingMode.folder,
+                              label: Text(l10n.folderAlbumsModeLabel),
+                            ),
+                            ButtonSegment(
+                              value: LibraryAlbumGroupingMode.metadata,
+                              label: Text(l10n.scrapedAlbumsModeLabel),
+                            ),
+                          ],
+                          selected: {groupingMode},
+                          onSelectionChanged: (selection) {
+                            if (selection.isNotEmpty) {
+                              onGroupingModeChanged(selection.first);
+                            }
+                          },
+                        ),
+                      ),
+                    ),
                     _ViewModeButton(
                       icon: Icons.grid_view_rounded,
                       selected: viewMode == _AlbumViewMode.grid,
@@ -611,17 +656,6 @@ void _showAlbumTrackActionsSheet(
                             .read(libraryCatalogControllerProvider.notifier)
                             .toggleLiked(track.id);
                         Navigator.of(context).pop();
-                      },
-                    ),
-                    _TrackActionTile(
-                      icon: Icons.auto_fix_high_rounded,
-                      label: l10n.manualScrapingActionLabel,
-                      onTap: () {
-                        Navigator.of(context).pop();
-                        showManualScrapingSheet(
-                          context: albumSheetContext,
-                          song: track,
-                        );
                       },
                     ),
                     _TrackActionTile(

@@ -7,6 +7,7 @@ import 'package:music/core/utils/debug_logger.dart';
 import 'package:music/core/storage/cover_art_cache_manager.dart';
 import 'package:music/features/scraper/domain/metadata_scraper.dart';
 
+import 'deezer_client.dart';
 import 'itunes_client.dart';
 import 'lrclib_client.dart';
 import 'musicbrainz_client.dart';
@@ -15,8 +16,13 @@ import 'musicbrainz_client.dart';
 class MusicBrainzScraper implements MetadataScraper {
   final MusicBrainzClient musicbrainzClient;
   final ITunesClient itunesClient;
+  final DeezerClient deezerClient;
   final LrclibClient lrclibClient;
   final AppLocalePreference localePreference;
+  final bool enableLyricsScraping;
+  final bool enableDeezerCoverScraping;
+  final bool enableItunesMetadataScraping;
+  final String? lyricsScrapingServiceBaseUrl;
 
   /// 优先级：100 表示高优先级
   @override
@@ -25,11 +31,18 @@ class MusicBrainzScraper implements MetadataScraper {
   MusicBrainzScraper({
     MusicBrainzClient? musicbrainzClient,
     ITunesClient? itunesClient,
+    DeezerClient? deezerClient,
     LrclibClient? lrclibClient,
     this.localePreference = AppLocalePreference.system,
+    this.enableLyricsScraping = false,
+    this.enableDeezerCoverScraping = false,
+    this.enableItunesMetadataScraping = false,
+    this.lyricsScrapingServiceBaseUrl,
   }) : musicbrainzClient = musicbrainzClient ?? MusicBrainzClient(),
        itunesClient = itunesClient ?? ITunesClient(),
-       lrclibClient = lrclibClient ?? LrclibClient();
+       deezerClient = deezerClient ?? DeezerClient(),
+       lrclibClient =
+           lrclibClient ?? LrclibClient(baseUrl: lyricsScrapingServiceBaseUrl);
 
   /// 刮削元数据
   /// 从 RemoteEntry 中提取标题和艺术家，然后调用 searchMetadata
@@ -106,65 +119,76 @@ class MusicBrainzScraper implements MetadataScraper {
     );
 
     try {
-      // 步骤 1：通过 iTunes Search API 获取基本元数据（带 country 参数）
-      DebugLogger.info(
-        'MusicBrainzScraper',
-        '【第1步】iTunes Search API 搜索 (country=${actualLocale.itunesCountryCode})...',
-      );
-      final itunesTracks = await itunesClient.searchTracksWithCountry(
-        artist: artist,
-        title: title,
-        country: actualLocale.itunesCountryCode,
-        limit: limit,
-      );
+      if (enableItunesMetadataScraping) {
+        // 步骤 1：通过 iTunes Search API 获取基本元数据（带 country 参数）
+        DebugLogger.info(
+          'MusicBrainzScraper',
+          '【第1步】iTunes Search API 搜索 (country=${actualLocale.itunesCountryCode})...',
+        );
+        final itunesTracks = await itunesClient.searchTracksWithCountry(
+          artist: artist,
+          title: title,
+          country: actualLocale.itunesCountryCode,
+          limit: limit,
+        );
 
-      if (itunesTracks.isEmpty) {
+        if (itunesTracks.isNotEmpty) {
+          DebugLogger.success(
+            'MusicBrainzScraper',
+            '【第1步成功✓】iTunes 返回 ${itunesTracks.length} 条结果',
+          );
+
+          final results = <ScrapedMetadataResult>[];
+          for (var index = 0; index < itunesTracks.length; index++) {
+            final itunesTrack = itunesTracks[index];
+            final coverUrl = _upgradeItunesArtworkUrl(itunesTrack.artworkUrl);
+            final localCoverPath = await _cacheCover(coverUrl);
+            final lyrics = includeLyrics
+                ? await _fetchLyrics(
+                    title: itunesTrack.trackName,
+                    artist: itunesTrack.artistName,
+                    album: itunesTrack.collectionName,
+                    duration: Duration(
+                      milliseconds: itunesTrack.trackTimeMillis,
+                    ),
+                  )
+                : null;
+            final rankPenalty = (index * 0.03).clamp(0.0, 0.35);
+            results.add(
+              ScrapedMetadataResult(
+                title: itunesTrack.trackName,
+                artist: itunesTrack.artistName,
+                album: itunesTrack.collectionName,
+                coverUrl: coverUrl,
+                localCoverPath: localCoverPath,
+                lyrics: lyrics,
+                source: 'itunes',
+                sourceId: itunesTrack.trackId,
+                score: (1.0 - rankPenalty).clamp(0.0, 1.0),
+              ),
+            );
+          }
+          return results;
+        }
+
         DebugLogger.warning(
           'MusicBrainzScraper',
           '【第1步失败】iTunes 无法找到歌曲 - 回退到直接 MusicBrainz 搜索',
         );
-        return _searchDirectFromMusicBrainz(
-          title,
-          artist: artist,
-          localePreference: actualLocale,
-          includeLyrics: includeLyrics,
-          limit: limit,
+      } else {
+        DebugLogger.info(
+          'MusicBrainzScraper',
+          'iTunes 元数据刮削已关闭，直接使用 MusicBrainz 搜索',
         );
       }
-      DebugLogger.success(
-        'MusicBrainzScraper',
-        '【第1步成功✓】iTunes 返回 ${itunesTracks.length} 条结果',
-      );
 
-      final results = <ScrapedMetadataResult>[];
-      for (var index = 0; index < itunesTracks.length; index++) {
-        final itunesTrack = itunesTracks[index];
-        final coverUrl = _upgradeItunesArtworkUrl(itunesTrack.artworkUrl);
-        final localCoverPath = await _cacheCover(coverUrl);
-        final lyrics = includeLyrics
-            ? await _fetchLyrics(
-                title: itunesTrack.trackName,
-                artist: itunesTrack.artistName,
-                album: itunesTrack.collectionName,
-                duration: Duration(milliseconds: itunesTrack.trackTimeMillis),
-              )
-            : null;
-        final rankPenalty = (index * 0.03).clamp(0.0, 0.35);
-        results.add(
-          ScrapedMetadataResult(
-            title: itunesTrack.trackName,
-            artist: itunesTrack.artistName,
-            album: itunesTrack.collectionName,
-            coverUrl: coverUrl,
-            localCoverPath: localCoverPath,
-            lyrics: lyrics,
-            source: 'itunes',
-            sourceId: itunesTrack.trackId,
-            score: (1.0 - rankPenalty).clamp(0.0, 1.0),
-          ),
-        );
-      }
-      return results;
+      return _searchDirectFromMusicBrainz(
+        title,
+        artist: artist,
+        localePreference: actualLocale,
+        includeLyrics: includeLyrics,
+        limit: limit,
+      );
     } catch (e, stack) {
       DebugLogger.error('MusicBrainzScraper', '【刮削流程异常】', e.toString(), stack);
       return [];
@@ -262,6 +286,9 @@ class MusicBrainzScraper implements MetadataScraper {
     String? album,
     int limit = 12,
   }) {
+    if (!_canScrapeLyrics) {
+      return Future.value(const <LrclibLyrics>[]);
+    }
     return lrclibClient.searchLyricsCandidates(
       trackName: title,
       artistName: artist,
@@ -273,114 +300,98 @@ class MusicBrainzScraper implements MetadataScraper {
   Future<ScrapedMetadata?> scrapeTrackInfo({
     required String title,
     String? artist,
+    String? album,
     AppLocalePreference? localePreference,
     FutureOr<void> Function(ScrapedMetadata metadata)? onUpdate,
   }) async {
-    final actualLocale = localePreference ?? this.localePreference;
     final normalizedArtist = _normalizedArtistQuery(artist);
+    final normalizedAlbum = album?.trim();
 
     DebugLogger.scraping(
       'MusicBrainzScraper',
-      '【快速刮削开始】标题="$title", 艺术家="$normalizedArtist", 语言偏好=$actualLocale',
+      '【快速刮削开始】标题="$title", 艺术家="$normalizedArtist", 封面=${enableDeezerCoverScraping ? "开" : "关"}, 歌词=${_canScrapeLyrics ? "开" : "关"}',
     );
-
-    DebugLogger.info(
-      'MusicBrainzScraper',
-      '【第1步】iTunes Search API 搜索 (country=${actualLocale.itunesCountryCode})...',
-    );
-    final itunesTrack = await itunesClient.searchTrackWithCountry(
-      artist: normalizedArtist,
-      title: title,
-      country: actualLocale.itunesCountryCode,
-    );
-
-    final candidate = itunesTrack != null
-        ? _ResolvedScrapeCandidate(
-            title: itunesTrack.trackName,
-            artist: itunesTrack.artistName,
-            album: itunesTrack.collectionName,
-            coverUrl: _upgradeItunesArtworkUrl(itunesTrack.artworkUrl),
-            duration: Duration(milliseconds: itunesTrack.trackTimeMillis),
-          )
-        : await _searchBestFromMusicBrainz(
-            _buildTitleVariants(title),
-            artist: normalizedArtist,
-            localePreference: actualLocale,
-          );
-
-    if (itunesTrack == null) {
-      DebugLogger.warning(
-        'MusicBrainzScraper',
-        '【第1步失败】iTunes 无法找到歌曲 - 回退到直接 MusicBrainz 搜索',
-      );
-    } else {
-      DebugLogger.success(
-        'MusicBrainzScraper',
-        '【第1步成功✓】iTunes 元数据 - 标题: "${itunesTrack.trackName}", 艺术家: "${itunesTrack.artistName}", 专辑: "${itunesTrack.collectionName}"',
-      );
-    }
-
-    if (candidate == null) {
+    if (!enableDeezerCoverScraping && !_canScrapeLyrics) {
+      DebugLogger.info('MusicBrainzScraper', '自动封面/歌词刮削均未启用，跳过');
       return null;
     }
 
-    var metadata = ScrapedMetadata(
-      title: candidate.title,
-      artist: candidate.artist,
-      album: candidate.album,
-      coverUrl: candidate.coverUrl,
-    );
-    if (onUpdate != null) {
-      await onUpdate(metadata);
-    }
+    var coverUrl = '';
+    var localCoverPath = '';
+    var lyrics = '';
+    var updated = false;
 
-    final coverFuture = _cacheCover(candidate.coverUrl);
-    final lyricsFuture = _fetchLyrics(
-      title: candidate.title,
-      artist: candidate.artist,
-      album: candidate.album,
-      duration: candidate.duration,
-    );
-
-    final localCoverPath = await coverFuture;
-    if (localCoverPath != null && localCoverPath.isNotEmpty) {
-      metadata = ScrapedMetadata(
-        title: metadata.title,
-        artist: metadata.artist,
-        album: metadata.album,
-        coverUrl: metadata.coverUrl,
-        localCoverPath: localCoverPath,
-        lyrics: metadata.lyrics,
+    if (enableDeezerCoverScraping) {
+      final resolvedCoverUrl = await _fetchDeezerCover(
+        title: title,
+        artist: normalizedArtist,
       );
-      if (onUpdate != null) {
-        await onUpdate(metadata);
+      if (resolvedCoverUrl != null && resolvedCoverUrl.isNotEmpty) {
+        coverUrl = resolvedCoverUrl;
+        final cachedCoverPath = await _cacheCover(resolvedCoverUrl);
+        if (cachedCoverPath != null && cachedCoverPath.isNotEmpty) {
+          localCoverPath = cachedCoverPath;
+        }
+        updated = true;
+        if (onUpdate != null) {
+          await onUpdate(
+            ScrapedMetadata(
+              title: title,
+              artist: normalizedArtist,
+              album: normalizedAlbum,
+              coverUrl: coverUrl.isEmpty ? null : coverUrl,
+              localCoverPath: localCoverPath.isEmpty ? null : localCoverPath,
+            ),
+          );
+        }
       }
     }
 
-    final lyrics = await lyricsFuture;
-    if (lyrics != null && lyrics.trim().isNotEmpty) {
-      metadata = ScrapedMetadata(
-        title: metadata.title,
-        artist: metadata.artist,
-        album: metadata.album,
-        coverUrl: metadata.coverUrl,
-        localCoverPath: metadata.localCoverPath,
-        lyrics: lyrics,
+    if (_canScrapeLyrics) {
+      final resolvedLyrics = await _fetchLyrics(
+        title: title,
+        artist: normalizedArtist,
+        album: normalizedAlbum,
       );
-      if (onUpdate != null) {
-        await onUpdate(metadata);
+      if (resolvedLyrics != null && resolvedLyrics.trim().isNotEmpty) {
+        lyrics = resolvedLyrics.trim();
+        updated = true;
+        if (onUpdate != null) {
+          await onUpdate(
+            ScrapedMetadata(
+              title: title,
+              artist: normalizedArtist,
+              album: normalizedAlbum,
+              coverUrl: coverUrl.isEmpty ? null : coverUrl,
+              localCoverPath: localCoverPath.isEmpty ? null : localCoverPath,
+              lyrics: lyrics,
+            ),
+          );
+        }
       }
     }
 
-    DebugLogger.success('MusicBrainzScraper', '【刮削完成✓】使用快速自动刮削路径返回');
+    if (!updated) {
+      DebugLogger.warning('MusicBrainzScraper', '未获得新的封面或歌词');
+      return null;
+    }
 
-    return metadata;
+    DebugLogger.success('MusicBrainzScraper', '【刮削完成✓】已按新策略返回封面/歌词');
+    return ScrapedMetadata(
+      title: title,
+      artist: normalizedArtist,
+      album: normalizedAlbum,
+      coverUrl: coverUrl.isEmpty ? null : coverUrl,
+      localCoverPath: localCoverPath.isEmpty ? null : localCoverPath,
+      lyrics: lyrics.isEmpty ? null : lyrics,
+    );
   }
 
   /// 关闭客户端
   void dispose() {
     musicbrainzClient.close();
     itunesClient.close();
+    deezerClient.close();
     lrclibClient.close();
   }
 
@@ -390,20 +401,27 @@ class MusicBrainzScraper implements MetadataScraper {
     String? album,
     Duration? duration,
   }) async {
+    if (!_canScrapeLyrics) {
+      return null;
+    }
     try {
-      final lyrics = await lrclibClient.findLyrics(
-        trackName: title,
-        artistName: artist,
-        albumName: album,
-        duration: duration,
-      );
-      final raw = lyrics?.bestLyrics;
-      if (raw == null || raw.trim().isEmpty) {
-        DebugLogger.warning('MusicBrainzScraper', '未找到歌词: $title');
-        return null;
+      final titleVariants = _buildTitleVariants(title);
+      for (final queryTitle in titleVariants) {
+        final lyrics = await lrclibClient.findLyrics(
+          trackName: queryTitle,
+          artistName: artist,
+          albumName: album,
+          duration: duration,
+        );
+        final raw = lyrics?.bestLyrics;
+        if (raw == null || raw.trim().isEmpty) {
+          continue;
+        }
+        DebugLogger.success('MusicBrainzScraper', '歌词刮削成功: $queryTitle');
+        return raw.trim();
       }
-      DebugLogger.success('MusicBrainzScraper', '歌词刮削成功: $title');
-      return raw.trim();
+      DebugLogger.warning('MusicBrainzScraper', '未找到歌词: $title');
+      return null;
     } catch (e, stack) {
       DebugLogger.error('MusicBrainzScraper', '歌词刮削异常', e.toString(), stack);
       return null;
@@ -435,6 +453,31 @@ class MusicBrainzScraper implements MetadataScraper {
     }
     return url.replaceFirst(RegExp(r'/100x100[^/]*\.jpg$'), '/600x600bb.jpg');
   }
+
+  Future<String?> _fetchDeezerCover({
+    required String title,
+    String? artist,
+  }) async {
+    try {
+      return await deezerClient.searchBestCoverUrl(
+        title: title,
+        artist: artist,
+      );
+    } catch (e, stack) {
+      DebugLogger.error(
+        'MusicBrainzScraper',
+        'Deezer 封面刮削异常',
+        e.toString(),
+        stack,
+      );
+      return null;
+    }
+  }
+
+  bool get _canScrapeLyrics =>
+      enableLyricsScraping &&
+      lyricsScrapingServiceBaseUrl != null &&
+      lyricsScrapingServiceBaseUrl!.trim().isNotEmpty;
 
   Future<_ResolvedScrapeCandidate?> _searchBestFromMusicBrainz(
     List<String> titleVariants, {

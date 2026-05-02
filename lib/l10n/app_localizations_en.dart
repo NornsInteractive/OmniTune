@@ -579,6 +579,54 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scraperPipelineLabel => 'Scraper pipeline';
 
   @override
+  String get lyricsScrapingServiceUrlLabel => 'Lyrics service URL';
+
+  @override
+  String get lyricsScrapingServiceUrlDescription =>
+      'Enter the base URL for your lyrics service (for example: https://lrclib.net/api). Leave empty to disable lyrics scraping.';
+
+  @override
+  String get lyricsScrapingServiceUrlNotConfigured => 'Not configured';
+
+  @override
+  String get lyricsScrapingServiceUrlConfigured => 'Configured';
+
+  @override
+  String get lyricsScrapingServiceUrlDialogTitle => 'Lyrics service';
+
+  @override
+  String get lyricsScrapingServiceUrlHint => 'https://lrclib.net/api';
+
+  @override
+  String get lyricsScrapingServiceUrlRequiredMessage =>
+      'Configure a lyrics scraping service URL in Settings first.';
+
+  @override
+  String get lyricsScrapingDisabledMessage =>
+      'Enable lyrics scraping in Settings first.';
+
+  @override
+  String get enableLyricsScrapingLabel => 'Enable lyrics scraping';
+
+  @override
+  String get enableLyricsScrapingDescription =>
+      'When enabled, the app connects to your configured lyrics service to complete lyrics. This will generate network traffic.';
+
+  @override
+  String get enableDeezerCoverScrapingLabel => 'Enable Deezer cover completion';
+
+  @override
+  String get enableDeezerCoverScrapingDescription =>
+      'When enabled, the app connects to Deezer to complete track cover art. This will generate network traffic.';
+
+  @override
+  String get enableItunesMetadataScrapingLabel => 'Use iTunes for metadata';
+
+  @override
+  String get enableItunesMetadataScrapingDescription =>
+      'When enabled, the app connects to third-party metadata services (such as iTunes) to complete cover art and track names. This will generate network traffic. Check the third-party service terms for details.';
+
+  @override
   String get scanLibraryAction => 'Scan library';
 
   @override
@@ -976,7 +1024,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get folderAlbumsModeLabel => 'By folder';
 
   @override
-  String get scrapedAlbumsModeLabel => 'By scraped data';
+  String get scrapedAlbumsModeLabel => 'By album tag';
 
   @override
   String get songDetailsTitle => 'Track details';

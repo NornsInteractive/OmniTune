@@ -79,30 +79,14 @@ class LibrarySong {
       ? scrapedArtistName!.trim()
       : artistName;
 
-  /// 获取显示标题（优先级：手动刮削 > 自动刮削 > 原始）
-  String get displayTitle {
-    if (manuallyScrapedTitle?.isNotEmpty == true) return manuallyScrapedTitle!;
-    if (autoScrapedTitle?.isNotEmpty == true) return autoScrapedTitle!;
-    return title;
-  }
+  /// 获取显示标题（使用扫描/本地标签结果）
+  String get displayTitle => title;
 
-  /// 获取显示艺术家（优先级：手动刮削 > 自动刮削 > 原始）
-  String get displayArtist {
-    if (manuallyScrapedArtist?.isNotEmpty == true) {
-      return manuallyScrapedArtist!;
-    }
-    if (autoScrapedArtist?.isNotEmpty == true) return autoScrapedArtist!;
-    if (scrapedArtistName?.isNotEmpty == true) return scrapedArtistName!;
-    return artistName;
-  }
+  /// 获取显示艺术家（使用扫描/本地标签结果）
+  String get displayArtist => artistName;
 
-  /// 获取显示专辑（优先级：手动刮削 > 自动刮削 > 原始）
-  String get displayAlbum {
-    if (manuallyScrapedAlbum?.isNotEmpty == true) return manuallyScrapedAlbum!;
-    if (autoScrapedAlbum?.isNotEmpty == true) return autoScrapedAlbum!;
-    if (scrapedAlbumTitle?.isNotEmpty == true) return scrapedAlbumTitle!;
-    return albumTitle;
-  }
+  /// 获取显示专辑（使用扫描/本地标签结果）
+  String get displayAlbum => albumTitle;
 
   /// 获取显示封面图（优先级：手动 > 自动）
   String? get displayCoverUrl => manuallyScrapedCoverUrl ?? autoScrapedCoverUrl;

@@ -51,14 +51,21 @@ class _AlbumsPageModernState extends ConsumerState<AlbumsPageModern> {
 
             final sources = browser.sources;
             final selectedSource = _resolveSelectedSource(sources, browser);
-            final groupingMode = _groupingBySourceId[selectedSource.id] ?? LibraryAlbumGroupingMode.folder;
+            final groupingMode =
+                _groupingBySourceId[selectedSource.id] ??
+                LibraryAlbumGroupingMode.folder;
 
             return catalogAsync.when(
               loading: () => const SizedBox.expand(),
               error: (error, _) => Center(child: Text(error.toString())),
               data: (catalog) {
-                final albums = catalog.albumsForSource(selectedSource.id, groupingMode);
-                final sourceTracks = catalog.tracks.where((track) => track.sourceId == selectedSource.id).length;
+                final albums = catalog.albumsForSource(
+                  selectedSource.id,
+                  groupingMode,
+                );
+                final sourceTracks = catalog.tracks
+                    .where((track) => track.sourceId == selectedSource.id)
+                    .length;
 
                 return _AlbumsScaffoldModern(
                   sources: sources,
@@ -86,7 +93,10 @@ class _AlbumsPageModernState extends ConsumerState<AlbumsPageModern> {
     );
   }
 
-  SourceProfile _resolveSelectedSource(List<SourceProfile> sources, LibraryViewState browser) {
+  SourceProfile _resolveSelectedSource(
+    List<SourceProfile> sources,
+    LibraryViewState browser,
+  ) {
     for (final source in sources) {
       if (source.id == _selectedSourceId) {
         return source;
@@ -138,8 +148,8 @@ class _AlbumsScaffoldModern extends ConsumerWidget {
                 Text(
                   l10n.albumsHeadline,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 SizedBox(height: CardStyles.sectionSpacing),
 
@@ -147,25 +157,31 @@ class _AlbumsScaffoldModern extends ConsumerWidget {
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
-                    children: List.generate(
-                      sources.length,
-                      (index) {
-                        final source = sources[index];
-                        final isSelected = source.id == selectedSource.id;
-                        final albumCount = catalog?.albumCountForSource(source.id, _groupingModeFor(source.id)) ?? 0;
+                    children: List.generate(sources.length, (index) {
+                      final source = sources[index];
+                      final isSelected = source.id == selectedSource.id;
+                      final albumCount =
+                          catalog?.albumCountForSource(
+                            source.id,
+                            _groupingModeFor(source.id),
+                          ) ??
+                          0;
 
-                        return Padding(
-                          padding: EdgeInsets.only(right: index < sources.length - 1 ? CardStyles.gapXL : 0),
-                          child: FilterChip(
-                            label: Text('${source.name} ($albumCount)'),
-                            selected: isSelected,
-                            onSelected: onSourceSelected == null
-                                ? null
-                                : (_) => onSourceSelected!(source.id),
-                          ),
-                        );
-                      },
-                    ),
+                      return Padding(
+                        padding: EdgeInsets.only(
+                          right: index < sources.length - 1
+                              ? CardStyles.gapXL
+                              : 0,
+                        ),
+                        child: FilterChip(
+                          label: Text('${source.name} ($albumCount)'),
+                          selected: isSelected,
+                          onSelected: onSourceSelected == null
+                              ? null
+                              : (_) => onSourceSelected!(source.id),
+                        ),
+                      );
+                    }),
                   ),
                 ),
                 SizedBox(height: CardStyles.sectionSpacing),
@@ -177,16 +193,30 @@ class _AlbumsScaffoldModern extends ConsumerWidget {
                       flex: 2,
                       child: FilledButton.icon(
                         onPressed: () {
-                          final controller = ref.read(libraryCatalogControllerProvider.notifier);
+                          final controller = ref.read(
+                            libraryCatalogControllerProvider.notifier,
+                          );
                           if (catalog == null ||
-                              catalog!.scannedSources.where((source) => source.id == selectedSource.id).isEmpty) {
+                              catalog!.scannedSources
+                                  .where(
+                                    (source) => source.id == selectedSource.id,
+                                  )
+                                  .isEmpty) {
                             controller.scanAllSources();
                           } else {
                             controller.rescanSource(selectedSource.id);
                           }
                         },
-                        icon: Icon(catalog?.isScanning == true ? Icons.sync_rounded : Icons.radar_rounded),
-                        label: Text(catalog?.isScanning == true ? l10n.scanningAction : l10n.scanLibraryAction),
+                        icon: Icon(
+                          catalog?.isScanning == true
+                              ? Icons.sync_rounded
+                              : Icons.radar_rounded,
+                        ),
+                        label: Text(
+                          catalog?.isScanning == true
+                              ? l10n.scanningAction
+                              : l10n.scanLibraryAction,
+                        ),
                       ),
                     ),
                     SizedBox(width: CardStyles.gapLarge),
@@ -200,7 +230,7 @@ class _AlbumsScaffoldModern extends ConsumerWidget {
                             icon: const Icon(Icons.folder_copy_rounded),
                           ),
                           ButtonSegment(
-                            value: LibraryAlbumGroupingMode.scraped,
+                            value: LibraryAlbumGroupingMode.metadata,
                             label: Text(l10n.scrapedAlbumsModeLabel),
                             icon: const Icon(Icons.auto_awesome_rounded),
                           ),
@@ -208,7 +238,8 @@ class _AlbumsScaffoldModern extends ConsumerWidget {
                         selected: {groupingMode},
                         onSelectionChanged: onGroupingChanged == null
                             ? null
-                            : (selection) => onGroupingChanged!(selection.first),
+                            : (selection) =>
+                                  onGroupingChanged!(selection.first),
                       ),
                     ),
                   ],
@@ -239,7 +270,10 @@ class _AlbumsScaffoldModern extends ConsumerWidget {
                   ),
                   SizedBox(height: CardStyles.gapBase),
                   Text(
-                    l10n.scanningProgress(catalog!.scannedDirectoryCount, catalog!.discoveredTrackCount),
+                    l10n.scanningProgress(
+                      catalog!.scannedDirectoryCount,
+                      catalog!.discoveredTrackCount,
+                    ),
                     style: Theme.of(context).textTheme.labelSmall,
                   ),
                 ],
@@ -261,7 +295,9 @@ class _AlbumsScaffoldModern extends ConsumerWidget {
                 description: l10n.albumsEmptyDescription,
                 actionLabel: l10n.scanLibraryAction,
                 onPressed: () {
-                  ref.read(libraryCatalogControllerProvider.notifier).scanAllSources();
+                  ref
+                      .read(libraryCatalogControllerProvider.notifier)
+                      .scanAllSources();
                 },
               ),
             )
@@ -310,7 +346,11 @@ class _AlbumsScaffoldModern extends ConsumerWidget {
     return LibraryAlbumGroupingMode.folder;
   }
 
-  Future<void> _openAlbumSheet(BuildContext context, WidgetRef ref, LibraryAlbum album) {
+  Future<void> _openAlbumSheet(
+    BuildContext context,
+    WidgetRef ref,
+    LibraryAlbum album,
+  ) {
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
 
@@ -359,9 +399,12 @@ class _AlbumsScaffoldModern extends ConsumerWidget {
                           SizedBox(height: CardStyles.gapSmall),
                           Text(
                             '${album.trackCount} ${l10n.tracksLabel}',
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: colorScheme.onSurface.withValues(alpha: 0.6),
-                            ),
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  color: colorScheme.onSurface.withValues(
+                                    alpha: 0.6,
+                                  ),
+                                ),
                           ),
                         ],
                       ),
@@ -407,7 +450,8 @@ class _AlbumsScaffoldModern extends ConsumerWidget {
                   height: MediaQuery.of(context).size.height * 0.35,
                   child: ListView.separated(
                     itemCount: album.tracks.length,
-                    separatorBuilder: (_, _) => SizedBox(height: CardStyles.gapSmall),
+                    separatorBuilder: (_, _) =>
+                        SizedBox(height: CardStyles.gapSmall),
                     itemBuilder: (context, index) {
                       final track = album.tracks[index];
 
@@ -416,7 +460,9 @@ class _AlbumsScaffoldModern extends ConsumerWidget {
                         title: track.title,
                         artist: track.artistName,
                         onTap: () {
-                          ref.read(playerControllerProvider.notifier).playLibrarySong(track);
+                          ref
+                              .read(playerControllerProvider.notifier)
+                              .playLibrarySong(track);
                           Navigator.of(context).pop();
                         },
                       );
@@ -458,10 +504,7 @@ class _AlbumsEmptyCard extends StatelessWidget {
           SizedBox(height: CardStyles.gapLarge),
           Text(description, style: Theme.of(context).textTheme.bodyMedium),
           SizedBox(height: CardStyles.sectionSpacing),
-          FilledButton(
-            onPressed: onPressed,
-            child: Text(actionLabel),
-          ),
+          FilledButton(onPressed: onPressed, child: Text(actionLabel)),
         ],
       ),
     );

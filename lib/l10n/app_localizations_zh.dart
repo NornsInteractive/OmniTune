@@ -550,6 +550,52 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scraperPipelineLabel => '刮削管线';
 
   @override
+  String get lyricsScrapingServiceUrlLabel => '歌词刮削服务地址';
+
+  @override
+  String get lyricsScrapingServiceUrlDescription =>
+      '输入歌词服务的 Base URL（例如：https://lrclib.net/api）。留空将禁用歌词刮削。';
+
+  @override
+  String get lyricsScrapingServiceUrlNotConfigured => '未配置';
+
+  @override
+  String get lyricsScrapingServiceUrlConfigured => '已配置';
+
+  @override
+  String get lyricsScrapingServiceUrlDialogTitle => '歌词服务';
+
+  @override
+  String get lyricsScrapingServiceUrlHint => 'https://lrclib.net/api';
+
+  @override
+  String get lyricsScrapingServiceUrlRequiredMessage => '请先在设置中配置歌词刮削服务地址';
+
+  @override
+  String get lyricsScrapingDisabledMessage => '请先在设置中开启歌词刮削';
+
+  @override
+  String get enableLyricsScrapingLabel => '启用歌词刮削';
+
+  @override
+  String get enableLyricsScrapingDescription =>
+      '开启后，App 将连接你配置的歌词服务地址以补全歌词。该操作将产生网络流量。';
+
+  @override
+  String get enableDeezerCoverScrapingLabel => '启用 Deezer 封面补全';
+
+  @override
+  String get enableDeezerCoverScrapingDescription =>
+      '开启后，App 将连接 Deezer 获取歌曲封面。该操作将产生网络流量。';
+
+  @override
+  String get enableItunesMetadataScrapingLabel => '使用 iTunes 刮削元数据';
+
+  @override
+  String get enableItunesMetadataScrapingDescription =>
+      '开启后，App 将连接第三方元数据服务（如 iTunes）以补全封面和歌曲名。该操作将产生网络流量，详情请查阅第三方服务条款。';
+
+  @override
   String get scanLibraryAction => '扫描音乐库';
 
   @override
@@ -926,7 +972,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get folderAlbumsModeLabel => '按文件夹';
 
   @override
-  String get scrapedAlbumsModeLabel => '按刮削分类';
+  String get scrapedAlbumsModeLabel => '按专辑字段';
 
   @override
   String get songDetailsTitle => '歌曲详情';

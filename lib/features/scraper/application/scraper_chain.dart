@@ -34,16 +34,26 @@ ScraperChain scraperChain(Ref ref) {
   // Watch appSettingsControllerProvider to get latest language preference
   // This ensures scraper chain is recreated when language changes
   final appSettings = ref.watch(appSettingsControllerProvider);
-  
-  final localePreference = appSettings.maybeWhen(
-    data: (prefs) => prefs.localePreference,
-    orElse: () => AppLocalePreference.system,
+
+  final preferences = appSettings.valueOrNull;
+  final localePreference =
+      preferences?.localePreference ?? AppLocalePreference.system;
+  final lyricsServiceBaseUrl = preferences?.lyricsScrapingServiceBaseUrl;
+  final enableLyricsScraping = preferences?.enableLyricsScraping ?? false;
+  final enableItunes = preferences?.enableItunesMetadataScraping ?? false;
+
+  DebugLogger.info(
+    'ScraperChain',
+    '初始化刮削器链，注册 MusicBrainzScraper，当前语言偏好: $localePreference',
   );
-  
-  DebugLogger.info('ScraperChain', 
-    '初始化刮削器链，注册 MusicBrainzScraper，当前语言偏好: $localePreference');
-  
+
   return ScraperChain([
-    MusicBrainzScraper(localePreference: localePreference),
+    MusicBrainzScraper(
+      localePreference: localePreference,
+      enableLyricsScraping: enableLyricsScraping,
+      enableDeezerCoverScraping: false,
+      enableItunesMetadataScraping: enableItunes,
+      lyricsScrapingServiceBaseUrl: lyricsServiceBaseUrl,
+    ),
   ]);
 }
