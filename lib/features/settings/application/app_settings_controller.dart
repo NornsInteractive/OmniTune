@@ -45,6 +45,35 @@ class AppSettingsController extends AsyncNotifier<LibraryPreferences> {
     await _save((preferences) => preferences.copyWith(enableDebugMode: value));
   }
 
+  Future<void> setLyricsScrapingServiceBaseUrl(String? value) async {
+    final normalized = _normalizeServiceUrl(value);
+    await _save(
+      (preferences) => preferences.copyWith(
+        lyricsScrapingServiceBaseUrl: normalized.isEmpty ? null : normalized,
+        clearLyricsScrapingServiceBaseUrl: normalized.isEmpty,
+      ),
+    );
+  }
+
+  Future<void> setEnableLyricsScraping(bool value) async {
+    await _save(
+      (preferences) => preferences.copyWith(enableLyricsScraping: value),
+    );
+  }
+
+  Future<void> setEnableDeezerCoverScraping(bool value) async {
+    await _save(
+      (preferences) => preferences.copyWith(enableDeezerCoverScraping: value),
+    );
+  }
+
+  Future<void> setEnableItunesMetadataScraping(bool value) async {
+    await _save(
+      (preferences) =>
+          preferences.copyWith(enableItunesMetadataScraping: value),
+    );
+  }
+
   Future<void> setCustomThemeColors(CustomThemeColors value) async {
     await _save(
       (preferences) => preferences.copyWith(customThemeColors: value),
@@ -92,6 +121,22 @@ class AppSettingsController extends AsyncNotifier<LibraryPreferences> {
     state = AsyncData(next);
     DebugLogger.setDebugEnabled(next.enableDebugMode);
     await repository.save(next);
+  }
+
+  String _normalizeServiceUrl(String? value) {
+    var normalized = value?.trim() ?? '';
+    if (normalized.isEmpty) {
+      return '';
+    }
+    normalized = normalized.replaceAll(RegExp(r'\s+'), '');
+    if (normalized.startsWith('https//')) {
+      normalized = normalized.replaceFirst('https//', 'https://');
+    } else if (normalized.startsWith('http//')) {
+      normalized = normalized.replaceFirst('http//', 'http://');
+    } else if (!normalized.contains('://')) {
+      normalized = 'https://$normalized';
+    }
+    return normalized;
   }
 }
 

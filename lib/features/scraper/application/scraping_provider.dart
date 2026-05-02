@@ -30,17 +30,25 @@ ScrapingCacheRepository scrapingCacheRepository(Ref ref) {
 @riverpod
 MusicBrainzScraper musicBrainzScraper(Ref ref) {
   final appSettings = ref.watch(appSettingsControllerProvider);
-  final localePreference = appSettings.maybeWhen(
-    data: (prefs) => prefs.localePreference,
-    orElse: () => AppLocalePreference.system,
-  );
+  final preferences = appSettings.valueOrNull;
+  final localePreference =
+      preferences?.localePreference ?? AppLocalePreference.system;
+  final lyricsServiceBaseUrl = preferences?.lyricsScrapingServiceBaseUrl;
+  final enableLyricsScraping = preferences?.enableLyricsScraping ?? false;
+  final enableItunes = preferences?.enableItunesMetadataScraping ?? false;
 
   DebugLogger.info(
     'musicBrainzScraper Provider',
     '创建 MusicBrainzScraper，语言偏好: $localePreference',
   );
 
-  return MusicBrainzScraper(localePreference: localePreference);
+  return MusicBrainzScraper(
+    localePreference: localePreference,
+    enableLyricsScraping: enableLyricsScraping,
+    enableDeezerCoverScraping: false,
+    enableItunesMetadataScraping: enableItunes,
+    lyricsScrapingServiceBaseUrl: lyricsServiceBaseUrl,
+  );
 }
 
 // ===== 搜索接口 =====

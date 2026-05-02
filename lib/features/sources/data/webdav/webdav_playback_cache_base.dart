@@ -88,6 +88,8 @@ abstract class WebDavPlaybackCache {
     int? end,
   });
 
+  Future<String?> persistentFilePathForEntry(RemoteEntry entry);
+
   Stream<List<int>> wrapPlaybackStream({
     required RemoteEntry entry,
     required Stream<List<int>> stream,

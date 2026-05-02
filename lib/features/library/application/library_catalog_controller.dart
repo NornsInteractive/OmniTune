@@ -11,7 +11,9 @@ import '../../../core/models/library_album.dart';
 import '../../../core/models/library_song.dart';
 import '../../../core/models/remote_entry.dart';
 import '../../../core/models/source_profile.dart';
+import '../../../core/storage/cover_art_cache_manager.dart';
 import '../../../core/storage/library_preferences_repository.dart';
+import '../../../core/utils/audio_embedded_metadata_reader.dart';
 import '../../../core/utils/debug_logger.dart';
 import '../../sources/application/source_session_manager.dart';
 import '../../sources/application/sources_controller.dart';
@@ -19,7 +21,7 @@ import '../../sources/domain/music_source.dart';
 
 part 'library_catalog_controller.g.dart';
 
-enum LibraryAlbumGroupingMode { folder, scraped }
+enum LibraryAlbumGroupingMode { folder, metadata }
 
 class LibraryCatalogState {
   const LibraryCatalogState({
@@ -70,7 +72,7 @@ class LibraryCatalogState {
   ) {
     final sourceAlbums = switch (mode) {
       LibraryAlbumGroupingMode.folder => folderAlbums,
-      LibraryAlbumGroupingMode.scraped => metadataAlbums,
+      LibraryAlbumGroupingMode.metadata => metadataAlbums,
     };
 
     return sourceAlbums
@@ -534,7 +536,14 @@ class LibraryCatalogController extends _$LibraryCatalogController {
           continue;
         }
 
-        discovered.add(await _mapSong(source, entry, waitForScraping: false));
+        discovered.add(
+          await _mapSong(
+            source,
+            entry,
+            session: session,
+            waitForScraping: false,
+          ),
+        );
       }
 
       if (scannedDirectoryCount % 4 == 0) {
@@ -555,6 +564,7 @@ class LibraryCatalogController extends _$LibraryCatalogController {
   Future<LibrarySong> _mapSong(
     SourceProfile source,
     RemoteEntry entry, {
+    required MusicSource session,
     bool waitForScraping = true,
   }) async {
     final directory = p.posix.dirname(entry.path);
@@ -568,20 +578,19 @@ class LibraryCatalogController extends _$LibraryCatalogController {
     final folderArtistName = folderSegments.length >= 2
         ? folderSegments[folderSegments.length - 2]
         : source.name;
+    final embeddedMetadata = await _readEmbeddedMetadata(session, entry);
+    final embeddedCoverPath = await _cacheEmbeddedCover(
+      entry.uniqueId,
+      embeddedMetadata,
+    );
 
     // 从数据库中查找是否有此歌曲的刮削数据
     final scrapingMetadata = IsarManager.getMetadata(entry.uniqueId);
 
     // 应用刮削数据（如果存在）
-    String? manuallyScrapedTitle;
-    String? manuallyScrapedArtist;
-    String? manuallyScrapedAlbum;
     String? manuallyScrapedCoverUrl;
     String? manuallyScrapedLocalCoverPath;
     String? manuallyScrapedLyrics;
-    String? autoScrapedTitle;
-    String? autoScrapedArtist;
-    String? autoScrapedAlbum;
     String? autoScrapedCoverUrl;
     String? autoScrapedLocalCoverPath;
     String? autoScrapedLyrics;
@@ -591,16 +600,10 @@ class LibraryCatalogController extends _$LibraryCatalogController {
         'LibraryCatalogController._mapSong',
         '应用刮削数据到歌曲: ${entry.name}',
       );
-      manuallyScrapedTitle = scrapingMetadata.manuallyScrapedTitle;
-      manuallyScrapedArtist = scrapingMetadata.manuallyScrapedArtist;
-      manuallyScrapedAlbum = scrapingMetadata.manuallyScrapedAlbum;
       manuallyScrapedCoverUrl = scrapingMetadata.manuallyScrapedCoverUrl;
       manuallyScrapedLocalCoverPath =
           scrapingMetadata.manuallyScrapedLocalCoverPath;
       manuallyScrapedLyrics = scrapingMetadata.manuallyScrapedLyrics;
-      autoScrapedTitle = scrapingMetadata.autoScrapedTitle;
-      autoScrapedArtist = scrapingMetadata.autoScrapedArtist;
-      autoScrapedAlbum = scrapingMetadata.autoScrapedAlbum;
       autoScrapedCoverUrl = scrapingMetadata.autoScrapedCoverUrl;
       autoScrapedLocalCoverPath = scrapingMetadata.autoScrapedLocalCoverPath;
       autoScrapedLyrics = scrapingMetadata.autoScrapedLyrics;
@@ -615,11 +618,11 @@ class LibraryCatalogController extends _$LibraryCatalogController {
       id: entry.uniqueId,
       sourceId: source.id,
       sourceName: source.name,
-      title: entry.title,
+      title: embeddedMetadata?.title ?? entry.title,
       fileName: entry.name,
       remotePath: entry.path,
-      albumTitle: folderAlbumTitle,
-      artistName: folderArtistName,
+      albumTitle: embeddedMetadata?.album ?? folderAlbumTitle,
+      artistName: embeddedMetadata?.artist ?? folderArtistName,
       directoryPath: directory,
       folderAlbumTitle: folderAlbumTitle,
       folderArtistName: folderArtistName,
@@ -628,17 +631,17 @@ class LibraryCatalogController extends _$LibraryCatalogController {
       mimeType: entry.mimeType,
       size: entry.size,
       modifiedAt: entry.modifiedAt,
-      manuallyScrapedTitle: manuallyScrapedTitle,
-      manuallyScrapedArtist: manuallyScrapedArtist,
-      manuallyScrapedAlbum: manuallyScrapedAlbum,
+      manuallyScrapedTitle: null,
+      manuallyScrapedArtist: null,
+      manuallyScrapedAlbum: null,
       manuallyScrapedCoverUrl: manuallyScrapedCoverUrl,
       manuallyScrapedLocalCoverPath: manuallyScrapedLocalCoverPath,
       manuallyScrapedLyrics: manuallyScrapedLyrics,
-      autoScrapedTitle: autoScrapedTitle,
-      autoScrapedArtist: autoScrapedArtist,
-      autoScrapedAlbum: autoScrapedAlbum,
+      autoScrapedTitle: null,
+      autoScrapedArtist: null,
+      autoScrapedAlbum: null,
       autoScrapedCoverUrl: autoScrapedCoverUrl,
-      autoScrapedLocalCoverPath: autoScrapedLocalCoverPath,
+      autoScrapedLocalCoverPath: embeddedCoverPath ?? autoScrapedLocalCoverPath,
       autoScrapedLyrics: autoScrapedLyrics,
     );
 
@@ -670,13 +673,9 @@ class LibraryCatalogController extends _$LibraryCatalogController {
           mimeType: track.mimeType,
           size: track.size,
           modifiedAt: track.modifiedAt,
-          manuallyScrapedTitle:
-              cachedMetadata.manuallyScrapedTitle ?? track.manuallyScrapedTitle,
-          manuallyScrapedArtist:
-              cachedMetadata.manuallyScrapedArtist ??
-              track.manuallyScrapedArtist,
-          manuallyScrapedAlbum:
-              cachedMetadata.manuallyScrapedAlbum ?? track.manuallyScrapedAlbum,
+          manuallyScrapedTitle: null,
+          manuallyScrapedArtist: null,
+          manuallyScrapedAlbum: null,
           manuallyScrapedCoverUrl:
               cachedMetadata.manuallyScrapedCoverUrl ??
               track.manuallyScrapedCoverUrl,
@@ -686,12 +685,9 @@ class LibraryCatalogController extends _$LibraryCatalogController {
           manuallyScrapedLyrics:
               cachedMetadata.manuallyScrapedLyrics ??
               track.manuallyScrapedLyrics,
-          autoScrapedTitle:
-              cachedMetadata.autoScrapedTitle ?? track.autoScrapedTitle,
-          autoScrapedArtist:
-              cachedMetadata.autoScrapedArtist ?? track.autoScrapedArtist,
-          autoScrapedAlbum:
-              cachedMetadata.autoScrapedAlbum ?? track.autoScrapedAlbum,
+          autoScrapedTitle: null,
+          autoScrapedArtist: null,
+          autoScrapedAlbum: null,
           autoScrapedCoverUrl:
               cachedMetadata.autoScrapedCoverUrl ?? track.autoScrapedCoverUrl,
           autoScrapedLocalCoverPath:
@@ -701,7 +697,36 @@ class LibraryCatalogController extends _$LibraryCatalogController {
               cachedMetadata.autoScrapedLyrics ?? track.autoScrapedLyrics,
         );
       }
-      return track;
+      return LibrarySong(
+        id: track.id,
+        sourceId: track.sourceId,
+        sourceName: track.sourceName,
+        title: track.title,
+        fileName: track.fileName,
+        remotePath: track.remotePath,
+        albumTitle: track.albumTitle,
+        artistName: track.artistName,
+        directoryPath: track.directoryPath,
+        folderAlbumTitle: track.folderAlbumTitle,
+        folderArtistName: track.folderArtistName,
+        scrapedAlbumTitle: track.scrapedAlbumTitle,
+        scrapedArtistName: track.scrapedArtistName,
+        mimeType: track.mimeType,
+        size: track.size,
+        modifiedAt: track.modifiedAt,
+        manuallyScrapedTitle: null,
+        manuallyScrapedArtist: null,
+        manuallyScrapedAlbum: null,
+        manuallyScrapedCoverUrl: track.manuallyScrapedCoverUrl,
+        manuallyScrapedLocalCoverPath: track.manuallyScrapedLocalCoverPath,
+        manuallyScrapedLyrics: track.manuallyScrapedLyrics,
+        autoScrapedTitle: null,
+        autoScrapedArtist: null,
+        autoScrapedAlbum: null,
+        autoScrapedCoverUrl: track.autoScrapedCoverUrl,
+        autoScrapedLocalCoverPath: track.autoScrapedLocalCoverPath,
+        autoScrapedLyrics: track.autoScrapedLyrics,
+      );
     }).toList();
 
     if (appliedCount > 0) {
@@ -737,6 +762,47 @@ class LibraryCatalogController extends _$LibraryCatalogController {
       grouped,
       titleOf: (track) => track.metadataAlbumTitle,
       artistOf: (track) => track.metadataArtistName,
+    );
+  }
+
+  Future<EmbeddedAudioMetadata?> _readEmbeddedMetadata(
+    MusicSource session,
+    RemoteEntry entry,
+  ) async {
+    final extension = p.extension(entry.name).toLowerCase();
+    const supportedExtensions = {'.mp3', '.flac'};
+    if (!supportedExtensions.contains(extension)) {
+      return null;
+    }
+
+    try {
+      final bytes = await session.readBinaryFile(entry.path);
+      if (bytes == null || bytes.isEmpty) {
+        return null;
+      }
+      return AudioEmbeddedMetadataReader.parse(bytes, fileName: entry.name);
+    } catch (e, stack) {
+      DebugLogger.error(
+        'LibraryCatalogController._readEmbeddedMetadata',
+        '读取标签失败: ${entry.path}',
+        e.toString(),
+        stack,
+      );
+      return null;
+    }
+  }
+
+  Future<String?> _cacheEmbeddedCover(
+    String trackId,
+    EmbeddedAudioMetadata? metadata,
+  ) async {
+    if (metadata?.hasCover != true) {
+      return null;
+    }
+    return CoverArtCacheManager().cacheBytes(
+      'scan_embedded_cover_$trackId',
+      metadata!.coverBytes!,
+      extension: metadata.coverExtension ?? '.jpg',
     );
   }
 
@@ -835,15 +901,9 @@ class LibraryCatalogController extends _$LibraryCatalogController {
             mimeType: track.mimeType,
             size: track.size,
             modifiedAt: track.modifiedAt,
-            manuallyScrapedTitle:
-                cachedMetadata.manuallyScrapedTitle ??
-                track.manuallyScrapedTitle,
-            manuallyScrapedArtist:
-                cachedMetadata.manuallyScrapedArtist ??
-                track.manuallyScrapedArtist,
-            manuallyScrapedAlbum:
-                cachedMetadata.manuallyScrapedAlbum ??
-                track.manuallyScrapedAlbum,
+            manuallyScrapedTitle: null,
+            manuallyScrapedArtist: null,
+            manuallyScrapedAlbum: null,
             manuallyScrapedCoverUrl:
                 cachedMetadata.manuallyScrapedCoverUrl ??
                 track.manuallyScrapedCoverUrl,
@@ -853,12 +913,9 @@ class LibraryCatalogController extends _$LibraryCatalogController {
             manuallyScrapedLyrics:
                 cachedMetadata.manuallyScrapedLyrics ??
                 track.manuallyScrapedLyrics,
-            autoScrapedTitle:
-                cachedMetadata.autoScrapedTitle ?? track.autoScrapedTitle,
-            autoScrapedArtist:
-                cachedMetadata.autoScrapedArtist ?? track.autoScrapedArtist,
-            autoScrapedAlbum:
-                cachedMetadata.autoScrapedAlbum ?? track.autoScrapedAlbum,
+            autoScrapedTitle: null,
+            autoScrapedArtist: null,
+            autoScrapedAlbum: null,
             autoScrapedCoverUrl:
                 cachedMetadata.autoScrapedCoverUrl ?? track.autoScrapedCoverUrl,
             autoScrapedLocalCoverPath:

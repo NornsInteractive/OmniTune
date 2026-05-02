@@ -3,10 +3,12 @@ import 'package:dio/dio.dart';
 import '../../../core/utils/debug_logger.dart';
 
 class LrclibClient {
-  LrclibClient({String? userAgent})
+  LrclibClient({String? userAgent, String? baseUrl})
     : _dio = Dio(
         BaseOptions(
-          baseUrl: _baseUrl,
+          baseUrl: (baseUrl == null || _normalizeBaseUrl(baseUrl).isEmpty)
+              ? _defaultBaseUrl
+              : _normalizeBaseUrl(baseUrl),
           connectTimeout: const Duration(seconds: 10),
           sendTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 10),
@@ -17,11 +19,23 @@ class LrclibClient {
         userAgent ?? 'FlutterMusicPlayer/1.0.0 (lyrics)';
   }
 
-  static const String _baseUrl = 'https://lrclib.net/api';
+  static const String _defaultBaseUrl = 'https://lrclib.net/api';
   static DateTime _lastRequestAt = DateTime.fromMillisecondsSinceEpoch(0);
   static Future<void> _requestQueue = Future<void>.value();
 
   final Dio _dio;
+
+  static String _normalizeBaseUrl(String value) {
+    var normalized = value.trim().replaceAll(RegExp(r'\s+'), '');
+    if (normalized.startsWith('https//')) {
+      normalized = normalized.replaceFirst('https//', 'https://');
+    } else if (normalized.startsWith('http//')) {
+      normalized = normalized.replaceFirst('http//', 'http://');
+    } else if (!normalized.contains('://')) {
+      normalized = 'https://$normalized';
+    }
+    return normalized;
+  }
 
   Future<LrclibLyrics?> findLyrics({
     required String trackName,

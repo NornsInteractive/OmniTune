@@ -864,6 +864,50 @@ class SettingsPage extends ConsumerWidget {
                     ),
                     const SizedBox(height: 14),
                     section(
+                      title: l10n.scraperPipelineLabel,
+                      children: [
+                        settingRow(
+                          title: l10n.lyricsScrapingServiceUrlLabel,
+                          subtitle:
+                              (preferences.lyricsScrapingServiceBaseUrl
+                                      ?.trim()
+                                      .isNotEmpty ??
+                                  false)
+                              ? l10n.lyricsScrapingServiceUrlConfigured
+                              : l10n.lyricsScrapingServiceUrlNotConfigured,
+                          trailing: Icon(
+                            Icons.chevron_right_rounded,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          onTap: () => _showLyricsServiceUrlDialog(
+                            context: context,
+                            controller: appSettingsController,
+                            preferences: preferences,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        divider(),
+                        const SizedBox(height: 12),
+                        SwitchListTile.adaptive(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          visualDensity: const VisualDensity(
+                            horizontal: -2,
+                            vertical: -2,
+                          ),
+                          title: Text(l10n.enableLyricsScrapingLabel),
+                          subtitle: Text(l10n.enableLyricsScrapingDescription),
+                          value: preferences.enableLyricsScraping,
+                          onChanged: (value) {
+                            appSettingsController.setEnableLyricsScraping(
+                              value,
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    section(
                       title: l10n.playbackCacheTitle,
                       children: [
                         settingRow(
@@ -1663,6 +1707,71 @@ class SettingsPage extends ConsumerWidget {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) => _CacheManagementDialog(sourceNames: sourceNames),
+    );
+  }
+
+  Future<void> _showLyricsServiceUrlDialog({
+    required BuildContext context,
+    required AppSettingsController controller,
+    required LibraryPreferences preferences,
+  }) {
+    final l10n = AppLocalizations.of(context)!;
+    final materialL10n = MaterialLocalizations.of(context);
+    final textController = TextEditingController(
+      text: preferences.lyricsScrapingServiceBaseUrl ?? '',
+    );
+
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return GlacierDialog(
+          title: Text(l10n.lyricsScrapingServiceUrlDialogTitle),
+          content: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l10n.lyricsScrapingServiceUrlDescription),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: textController,
+                  keyboardType: TextInputType.url,
+                  decoration: InputDecoration(
+                    hintText: l10n.lyricsScrapingServiceUrlHint,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(materialL10n.cancelButtonLabel),
+            ),
+            TextButton(
+              onPressed: () async {
+                await controller.setLyricsScrapingServiceBaseUrl(null);
+                if (dialogContext.mounted) {
+                  Navigator.of(dialogContext).pop();
+                }
+              },
+              child: Text(l10n.clearAction),
+            ),
+            FilledButton(
+              onPressed: () async {
+                await controller.setLyricsScrapingServiceBaseUrl(
+                  textController.text,
+                );
+                if (dialogContext.mounted) {
+                  Navigator.of(dialogContext).pop();
+                }
+              },
+              child: Text(materialL10n.okButtonLabel),
+            ),
+          ],
+        );
+      },
     );
   }
 

@@ -13,7 +13,6 @@ import '../../../core/widgets/studio_chrome.dart';
 import '../../../core/widgets/top_snackbar.dart';
 import '../../player/application/player_controller.dart';
 import '../../player/presentation/widgets/track_cover_thumbnail.dart';
-import '../../scraper/presentation/manual_scraping_sheet.dart';
 import '../application/library_catalog_controller.dart';
 import '../application/library_controller.dart';
 
@@ -588,14 +587,6 @@ Future<void> _showSongActionsSheet(
                         await ref
                             .read(libraryCatalogControllerProvider.notifier)
                             .toggleLiked(song.id);
-                      },
-                    ),
-                    _TrackActionTile(
-                      icon: Icons.auto_fix_high_rounded,
-                      label: l10n.manualScrapingActionLabel,
-                      onTap: () {
-                        Navigator.of(sheetContext).pop();
-                        showManualScrapingSheet(context: context, song: song);
                       },
                     ),
                     _TrackActionTile(

@@ -14,10 +14,13 @@ import '../../../core/models/playable_track.dart';
 import '../../../core/models/remote_entry.dart';
 import '../../../core/models/scraping_preferences.dart';
 import '../../../core/models/source_profile.dart';
+import '../../../core/storage/cover_art_cache_manager.dart';
 import '../../../core/storage/library_preferences_repository.dart';
 import '../../../core/storage/player_session_repository.dart';
+import '../../../core/utils/audio_embedded_metadata_reader.dart';
 import '../../../core/utils/chinese_text_localizer.dart';
 import '../../../core/utils/debug_logger.dart';
+import '../../../core/utils/local_file_bytes.dart';
 import '../../settings/application/app_settings_controller.dart';
 import '../../scraper/application/scraping_provider.dart' as scraping;
 import '../../scraper/domain/metadata_scraper.dart';
@@ -647,19 +650,16 @@ class PlayerController extends _$PlayerController {
     final enhancedTrack = PlayableTrack(
       id: track.id,
       sourceId: track.sourceId,
-      title: track.title,
+      title: displaySong.title,
       sourceName: track.sourceName,
       remotePath: track.remotePath,
       audioSource: track.audioSource,
       sourceSizeBytes: track.sourceSizeBytes,
-      artistName: displaySong.displayArtist,
-      albumTitle: displaySong.displayAlbum,
-      autoScrapedTitle:
-          displaySong.manuallyScrapedTitle ?? displaySong.autoScrapedTitle,
-      autoScrapedArtist:
-          displaySong.manuallyScrapedArtist ?? displaySong.autoScrapedArtist,
-      autoScrapedAlbum:
-          displaySong.manuallyScrapedAlbum ?? displaySong.autoScrapedAlbum,
+      artistName: displaySong.artistName,
+      albumTitle: displaySong.albumTitle,
+      autoScrapedTitle: null,
+      autoScrapedArtist: null,
+      autoScrapedAlbum: null,
       autoScrapedCoverUrl:
           displaySong.manuallyScrapedCoverUrl ??
           displaySong.autoScrapedCoverUrl,
@@ -944,31 +944,11 @@ class PlayerController extends _$PlayerController {
         remotePath: track.remotePath,
         audioSource: track.audioSource,
         sourceSizeBytes: track.sourceSizeBytes,
-        artistName: _firstNonEmpty(
-          metadata.manuallyScrapedArtist,
-          metadata.autoScrapedArtist,
-          track.artistName,
-        ),
-        albumTitle: _firstNonEmpty(
-          metadata.manuallyScrapedAlbum,
-          metadata.autoScrapedAlbum,
-          track.albumTitle,
-        ),
-        autoScrapedTitle: _firstNonEmpty(
-          metadata.manuallyScrapedTitle,
-          metadata.autoScrapedTitle,
-          track.autoScrapedTitle,
-        ),
-        autoScrapedArtist: _firstNonEmpty(
-          metadata.manuallyScrapedArtist,
-          metadata.autoScrapedArtist,
-          track.autoScrapedArtist,
-        ),
-        autoScrapedAlbum: _firstNonEmpty(
-          metadata.manuallyScrapedAlbum,
-          metadata.autoScrapedAlbum,
-          track.autoScrapedAlbum,
-        ),
+        artistName: track.artistName,
+        albumTitle: track.albumTitle,
+        autoScrapedTitle: null,
+        autoScrapedArtist: null,
+        autoScrapedAlbum: null,
         autoScrapedCoverUrl: _firstNonEmpty(
           metadata.manuallyScrapedCoverUrl,
           metadata.autoScrapedCoverUrl,
@@ -1052,31 +1032,11 @@ class PlayerController extends _$PlayerController {
       remotePath: currentTrack.remotePath,
       audioSource: currentTrack.audioSource,
       sourceSizeBytes: currentTrack.sourceSizeBytes,
-      artistName: _firstNonEmpty(
-        metadata.manuallyScrapedArtist,
-        metadata.autoScrapedArtist,
-        currentTrack.artistName,
-      ),
-      albumTitle: _firstNonEmpty(
-        metadata.manuallyScrapedAlbum,
-        metadata.autoScrapedAlbum,
-        currentTrack.albumTitle,
-      ),
-      autoScrapedTitle: _firstNonEmpty(
-        metadata.manuallyScrapedTitle,
-        metadata.autoScrapedTitle,
-        currentTrack.autoScrapedTitle,
-      ),
-      autoScrapedArtist: _firstNonEmpty(
-        metadata.manuallyScrapedArtist,
-        metadata.autoScrapedArtist,
-        currentTrack.autoScrapedArtist,
-      ),
-      autoScrapedAlbum: _firstNonEmpty(
-        metadata.manuallyScrapedAlbum,
-        metadata.autoScrapedAlbum,
-        currentTrack.autoScrapedAlbum,
-      ),
+      artistName: currentTrack.artistName,
+      albumTitle: currentTrack.albumTitle,
+      autoScrapedTitle: null,
+      autoScrapedArtist: null,
+      autoScrapedAlbum: null,
       autoScrapedCoverUrl: _firstNonEmpty(
         metadata.manuallyScrapedCoverUrl,
         metadata.autoScrapedCoverUrl,
@@ -1135,12 +1095,9 @@ class PlayerController extends _$PlayerController {
       mimeType: currentSong.mimeType,
       size: currentSong.size,
       modifiedAt: currentSong.modifiedAt,
-      manuallyScrapedTitle:
-          metadata.manuallyScrapedTitle ?? currentSong.manuallyScrapedTitle,
-      manuallyScrapedArtist:
-          metadata.manuallyScrapedArtist ?? currentSong.manuallyScrapedArtist,
-      manuallyScrapedAlbum:
-          metadata.manuallyScrapedAlbum ?? currentSong.manuallyScrapedAlbum,
+      manuallyScrapedTitle: null,
+      manuallyScrapedArtist: null,
+      manuallyScrapedAlbum: null,
       manuallyScrapedCoverUrl:
           metadata.manuallyScrapedCoverUrl ??
           currentSong.manuallyScrapedCoverUrl,
@@ -1149,12 +1106,9 @@ class PlayerController extends _$PlayerController {
           currentSong.manuallyScrapedLocalCoverPath,
       manuallyScrapedLyrics:
           metadata.manuallyScrapedLyrics ?? currentSong.manuallyScrapedLyrics,
-      autoScrapedTitle:
-          metadata.autoScrapedTitle ?? currentSong.autoScrapedTitle,
-      autoScrapedArtist:
-          metadata.autoScrapedArtist ?? currentSong.autoScrapedArtist,
-      autoScrapedAlbum:
-          metadata.autoScrapedAlbum ?? currentSong.autoScrapedAlbum,
+      autoScrapedTitle: null,
+      autoScrapedArtist: null,
+      autoScrapedAlbum: null,
       autoScrapedCoverUrl:
           metadata.autoScrapedCoverUrl ?? currentSong.autoScrapedCoverUrl,
       autoScrapedLocalCoverPath:
@@ -1226,7 +1180,9 @@ class PlayerController extends _$PlayerController {
           '使用缓存的刮削结果: ${song.id}',
         );
         _applyScrapingMetadataToCurrentSong(song.id, cachedMetadata);
-        return;
+        if (!_needsAdditionalAutoScrape(cachedMetadata)) {
+          return;
+        }
       }
 
       if (requestSerial != _playRequestSerial ||
@@ -1234,19 +1190,29 @@ class PlayerController extends _$PlayerController {
         return;
       }
 
+      final localMetadata = await _hydrateLocalMetadataForSong(song);
+
       // 2. 执行刮削
       final extracted = TrackMetadataExtractor.extractFromFilename(
         song.fileName,
       );
-      final queryArtist = _firstNonEmpty(
-        extracted.$1,
-        song.artistName == song.sourceName ? null : song.artistName,
+      final queryTitle = _firstNonEmpty(
+        localMetadata?.title,
+        song.title,
+        extracted.$2,
       );
+      final queryArtist = _firstNonEmpty(
+        localMetadata?.artist,
+        song.artistName == song.sourceName ? null : song.artistName,
+        extracted.$1,
+      );
+      final queryAlbum = _firstNonEmpty(localMetadata?.album, song.albumTitle);
       final scrapedMetadata = await ref
           .read(scraping.musicBrainzScraperProvider)
           .scrapeTrackInfo(
-            title: extracted.$2,
+            title: queryTitle ?? extracted.$2,
             artist: queryArtist,
+            album: queryAlbum,
             onUpdate: (metadata) async {
               await _persistAutoScrapeUpdateForSong(
                 song: song,
@@ -1331,7 +1297,9 @@ class PlayerController extends _$PlayerController {
           '使用缓存的刮削结果: ${entry.uniqueId}',
         );
         _applyScrapingMetadataToCurrentTrack(entry.uniqueId, cachedMetadata);
-        return;
+        if (!_needsAdditionalAutoScrape(cachedMetadata)) {
+          return;
+        }
       }
 
       if (requestSerial != _playRequestSerial ||
@@ -1339,11 +1307,16 @@ class PlayerController extends _$PlayerController {
         return;
       }
 
+      final localMetadata = await _hydrateLocalMetadataForEntry(entry);
+      final extracted = TrackMetadataExtractor.extractFromFilename(entry.name);
       final scrapedMetadata = await ref
           .read(scraping.musicBrainzScraperProvider)
           .scrapeTrackInfo(
-            title: TrackMetadataExtractor.extractFromFilename(entry.name).$2,
-            artist: TrackMetadataExtractor.extractFromFilename(entry.name).$1,
+            title:
+                _firstNonEmpty(localMetadata?.title, extracted.$2) ??
+                extracted.$2,
+            artist: _firstNonEmpty(localMetadata?.artist, extracted.$1),
+            album: localMetadata?.album,
             onUpdate: (metadata) async {
               await _persistAutoScrapeUpdateForEntry(
                 entry: entry,
@@ -1489,8 +1462,12 @@ class PlayerController extends _$PlayerController {
     if (metadata == null) {
       return true;
     }
-    return !(metadata.status == ScrapingStatus.completed &&
-        _hasSavedScrapingData(metadata));
+    if (metadata.status == ScrapingStatus.completed &&
+        _hasSavedScrapingData(metadata) &&
+        !_needsAdditionalAutoScrape(metadata)) {
+      return false;
+    }
+    return true;
   }
 
   Future<void> _persistAutoScrapeUpdateForSong({
@@ -1548,19 +1525,6 @@ class PlayerController extends _$PlayerController {
           originalArtist: originalArtist,
         );
 
-    metadata.autoScrapedTitle = _firstNonEmpty(
-      scrapedMetadata.title,
-      metadata.autoScrapedTitle,
-    );
-    metadata.autoScrapedArtist = _firstNonEmpty(
-      scrapedMetadata.artist,
-      metadata.autoScrapedArtist,
-      originalArtist,
-    );
-    metadata.autoScrapedAlbum = _firstNonEmpty(
-      scrapedMetadata.album,
-      metadata.autoScrapedAlbum,
-    );
     metadata.autoScrapedCoverUrl = _firstNonEmpty(
       scrapedMetadata.coverUrl,
       metadata.autoScrapedCoverUrl,
@@ -1595,6 +1559,266 @@ class PlayerController extends _$PlayerController {
       scrapedMetadata: scrapedMetadata,
       status: status,
     );
+  }
+
+  Future<EmbeddedAudioMetadata?> _hydrateLocalMetadataForSong(
+    LibrarySong song,
+  ) async {
+    try {
+      final metadata = await _readEmbeddedMetadata(song.toRemoteEntry());
+      if (metadata == null) {
+        return null;
+      }
+      await _persistLocalMetadata(
+        id: song.id,
+        sourceId: song.sourceId,
+        remotePath: song.remotePath,
+        fileName: song.fileName,
+        originalArtist: song.artistName,
+        metadata: metadata,
+      );
+      return metadata;
+    } catch (e, stack) {
+      DebugLogger.error(
+        'PlayerController._hydrateLocalMetadataForSong',
+        '读取音频内嵌标签失败',
+        e.toString(),
+        stack,
+      );
+      return null;
+    }
+  }
+
+  Future<EmbeddedAudioMetadata?> _hydrateLocalMetadataForEntry(
+    RemoteEntry entry,
+  ) async {
+    try {
+      final metadata = await _readEmbeddedMetadata(entry);
+      if (metadata == null) {
+        return null;
+      }
+      await _persistLocalMetadata(
+        id: entry.uniqueId,
+        sourceId: entry.sourceId,
+        remotePath: entry.path,
+        fileName: entry.name,
+        originalArtist: null,
+        metadata: metadata,
+      );
+      return metadata;
+    } catch (e, stack) {
+      DebugLogger.error(
+        'PlayerController._hydrateLocalMetadataForEntry',
+        '读取音频内嵌标签失败',
+        e.toString(),
+        stack,
+      );
+      return null;
+    }
+  }
+
+  Future<EmbeddedAudioMetadata?> _readEmbeddedMetadata(
+    RemoteEntry entry,
+  ) async {
+    final persistedPath = await _playbackCache.persistentFilePathForEntry(
+      entry,
+    );
+    if (persistedPath?.trim().isNotEmpty == true) {
+      final bytes = await readLocalFileBytes(persistedPath!);
+      if (bytes != null && bytes.isNotEmpty) {
+        final parsed = AudioEmbeddedMetadataReader.parse(
+          bytes,
+          fileName: entry.name,
+        );
+        if (parsed != null) {
+          return parsed;
+        }
+      }
+    }
+
+    for (var attempt = 0; attempt < 8; attempt++) {
+      final range = await _playbackCache.readCachedRange(
+        entry: entry,
+        start: 0,
+        end: 256 * 1024,
+      );
+      final bytes = range?.bytes;
+      if (bytes != null && bytes.isNotEmpty) {
+        final parsed = AudioEmbeddedMetadataReader.parse(
+          bytes,
+          fileName: entry.name,
+        );
+        if (parsed != null) {
+          return parsed;
+        }
+      }
+      await Future<void>.delayed(Duration(milliseconds: 180 * (attempt + 1)));
+    }
+
+    return null;
+  }
+
+  Future<void> _persistLocalMetadata({
+    required String id,
+    required String sourceId,
+    required String remotePath,
+    required String fileName,
+    required String? originalArtist,
+    required EmbeddedAudioMetadata metadata,
+  }) async {
+    final existing =
+        IsarManager.getMetadata(id) ??
+        ScrapingMetadata(
+          id: id,
+          sourceId: sourceId,
+          filePath: remotePath,
+          filenameWithoutExt: p.posix.basenameWithoutExtension(fileName),
+          originalFileName: fileName,
+          originalArtist: originalArtist,
+        );
+
+    var changed = false;
+    if (metadata.title?.trim().isNotEmpty == true &&
+        existing.autoScrapedTitle != metadata.title) {
+      existing.autoScrapedTitle = metadata.title;
+      changed = true;
+    }
+    if (metadata.artist?.trim().isNotEmpty == true &&
+        existing.autoScrapedArtist != metadata.artist) {
+      existing.autoScrapedArtist = metadata.artist;
+      changed = true;
+    }
+    if (metadata.album?.trim().isNotEmpty == true &&
+        existing.autoScrapedAlbum != metadata.album) {
+      existing.autoScrapedAlbum = metadata.album;
+      changed = true;
+    }
+    if (metadata.hasCover) {
+      final localCoverPath = await CoverArtCacheManager().cacheBytes(
+        'embedded_cover_$id',
+        metadata.coverBytes!,
+        extension: metadata.coverExtension ?? '.jpg',
+      );
+      if (localCoverPath?.trim().isNotEmpty == true &&
+          existing.autoScrapedLocalCoverPath != localCoverPath) {
+        existing.autoScrapedLocalCoverPath = localCoverPath;
+        changed = true;
+      }
+    }
+
+    if (!changed) {
+      return;
+    }
+
+    existing.autoScrapedAt = DateTime.now();
+    existing.updatedAt = DateTime.now();
+    existing.lastAttemptAt = DateTime.now();
+    if (!_needsAdditionalAutoScrape(existing)) {
+      existing.status = ScrapingStatus.completed;
+    }
+    await IsarManager.saveMetadata(existing);
+    _applyEmbeddedMetadataToCurrentPlayback(id, metadata);
+    _applyScrapingMetadataToCurrentSong(id, existing);
+    _applyScrapingMetadataToCurrentTrack(id, existing);
+    _refreshLibrarySongMetadata(id);
+  }
+
+  void _applyEmbeddedMetadataToCurrentPlayback(
+    String trackId,
+    EmbeddedAudioMetadata metadata,
+  ) {
+    final songIndex = _playlist.indexWhere((song) => song.id == trackId);
+    if (songIndex >= 0) {
+      final currentSong = _playlist[songIndex];
+      final updatedSong = LibrarySong(
+        id: currentSong.id,
+        sourceId: currentSong.sourceId,
+        sourceName: currentSong.sourceName,
+        title:
+            _firstNonEmpty(metadata.title, currentSong.title) ??
+            currentSong.title,
+        fileName: currentSong.fileName,
+        remotePath: currentSong.remotePath,
+        albumTitle:
+            _firstNonEmpty(metadata.album, currentSong.albumTitle) ??
+            currentSong.albumTitle,
+        artistName:
+            _firstNonEmpty(metadata.artist, currentSong.artistName) ??
+            currentSong.artistName,
+        directoryPath: currentSong.directoryPath,
+        folderAlbumTitle: currentSong.folderAlbumTitle,
+        folderArtistName: currentSong.folderArtistName,
+        scrapedAlbumTitle: currentSong.scrapedAlbumTitle,
+        scrapedArtistName: currentSong.scrapedArtistName,
+        mimeType: currentSong.mimeType,
+        size: currentSong.size,
+        modifiedAt: currentSong.modifiedAt,
+        manuallyScrapedTitle: currentSong.manuallyScrapedTitle,
+        manuallyScrapedArtist: currentSong.manuallyScrapedArtist,
+        manuallyScrapedAlbum: currentSong.manuallyScrapedAlbum,
+        manuallyScrapedCoverUrl: currentSong.manuallyScrapedCoverUrl,
+        manuallyScrapedLocalCoverPath:
+            currentSong.manuallyScrapedLocalCoverPath,
+        manuallyScrapedLyrics: currentSong.manuallyScrapedLyrics,
+        autoScrapedTitle: currentSong.autoScrapedTitle,
+        autoScrapedArtist: currentSong.autoScrapedArtist,
+        autoScrapedAlbum: currentSong.autoScrapedAlbum,
+        autoScrapedCoverUrl: currentSong.autoScrapedCoverUrl,
+        autoScrapedLocalCoverPath: currentSong.autoScrapedLocalCoverPath,
+        autoScrapedLyrics: currentSong.autoScrapedLyrics,
+      );
+      _playlist = List<LibrarySong>.unmodifiable([
+        ..._playlist.sublist(0, songIndex),
+        updatedSong,
+        if (songIndex + 1 < _playlist.length)
+          ..._playlist.sublist(songIndex + 1),
+      ]);
+    }
+
+    final currentTrack = _service.currentTrack;
+    if (currentTrack != null && currentTrack.id == trackId) {
+      _service.updateCurrentTrack(
+        PlayableTrack(
+          id: currentTrack.id,
+          sourceId: currentTrack.sourceId,
+          title:
+              _firstNonEmpty(metadata.title, currentTrack.title) ??
+              currentTrack.title,
+          sourceName: currentTrack.sourceName,
+          remotePath: currentTrack.remotePath,
+          audioSource: currentTrack.audioSource,
+          sourceSizeBytes: currentTrack.sourceSizeBytes,
+          artistName:
+              _firstNonEmpty(metadata.artist, currentTrack.artistName) ??
+              currentTrack.artistName,
+          albumTitle:
+              _firstNonEmpty(metadata.album, currentTrack.albumTitle) ??
+              currentTrack.albumTitle,
+          autoScrapedTitle: currentTrack.autoScrapedTitle,
+          autoScrapedArtist: currentTrack.autoScrapedArtist,
+          autoScrapedAlbum: currentTrack.autoScrapedAlbum,
+          autoScrapedCoverUrl: currentTrack.autoScrapedCoverUrl,
+          localCoverPath: currentTrack.localCoverPath,
+          lyrics: currentTrack.lyrics,
+        ),
+      );
+      _syncState();
+      unawaited(_persistSession());
+    }
+  }
+
+  bool _needsAdditionalAutoScrape(ScrapingMetadata metadata) {
+    final preferences = ref.read(appSettingsControllerProvider).valueOrNull;
+    final needsLyrics = preferences?.enableLyricsScraping ?? false;
+
+    final hasLyrics =
+        _firstNonEmpty(
+          metadata.manuallyScrapedLyrics,
+          metadata.autoScrapedLyrics,
+        ) !=
+        null;
+
+    return needsLyrics && !hasLyrics;
   }
 
   void _refreshLibrarySongMetadata(String songId) {

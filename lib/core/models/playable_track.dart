@@ -38,24 +38,15 @@ class PlayableTrack {
   final String? localCoverPath; // 本地缓存的封面文件路径
   final String? lyrics;
 
-  /// 获取显示标题（优先级：自动刮削 > 原始）
-  String get displayTitle {
-    if (autoScrapedTitle?.isNotEmpty == true) return autoScrapedTitle!;
-    return title;
-  }
+  /// 获取显示标题（使用本地标签结果）
+  String get displayTitle => title;
 
-  /// 获取显示艺术家（优先级：自动刮削 > 原始）
-  String get displayArtist {
-    if (autoScrapedArtist?.isNotEmpty == true) return autoScrapedArtist!;
-    return artistName ?? '';
-  }
+  /// 获取显示艺术家（使用本地标签结果）
+  String get displayArtist => artistName ?? '';
 
-  /// 获取显示专辑（优先级：自动刮削 > 原始）
-  String get displayAlbum {
-    if (autoScrapedAlbum?.isNotEmpty == true) return autoScrapedAlbum!;
-    return albumTitle ?? '';
-  }
+  /// 获取显示专辑（使用本地标签结果）
+  String get displayAlbum => albumTitle ?? '';
 
-  /// 获取显示歌词 
+  /// 获取显示歌词
   String? get displayLyrics => lyrics;
 }

@@ -1100,6 +1100,90 @@ abstract class AppLocalizations {
   /// **'Scraper pipeline'**
   String get scraperPipelineLabel;
 
+  /// No description provided for @lyricsScrapingServiceUrlLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Lyrics service URL'**
+  String get lyricsScrapingServiceUrlLabel;
+
+  /// No description provided for @lyricsScrapingServiceUrlDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the base URL for your lyrics service (for example: https://lrclib.net/api). Leave empty to disable lyrics scraping.'**
+  String get lyricsScrapingServiceUrlDescription;
+
+  /// No description provided for @lyricsScrapingServiceUrlNotConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Not configured'**
+  String get lyricsScrapingServiceUrlNotConfigured;
+
+  /// No description provided for @lyricsScrapingServiceUrlConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Configured'**
+  String get lyricsScrapingServiceUrlConfigured;
+
+  /// No description provided for @lyricsScrapingServiceUrlDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Lyrics service'**
+  String get lyricsScrapingServiceUrlDialogTitle;
+
+  /// No description provided for @lyricsScrapingServiceUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'https://lrclib.net/api'**
+  String get lyricsScrapingServiceUrlHint;
+
+  /// No description provided for @lyricsScrapingServiceUrlRequiredMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure a lyrics scraping service URL in Settings first.'**
+  String get lyricsScrapingServiceUrlRequiredMessage;
+
+  /// No description provided for @lyricsScrapingDisabledMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable lyrics scraping in Settings first.'**
+  String get lyricsScrapingDisabledMessage;
+
+  /// No description provided for @enableLyricsScrapingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable lyrics scraping'**
+  String get enableLyricsScrapingLabel;
+
+  /// No description provided for @enableLyricsScrapingDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'When enabled, the app connects to your configured lyrics service to complete lyrics. This will generate network traffic.'**
+  String get enableLyricsScrapingDescription;
+
+  /// No description provided for @enableDeezerCoverScrapingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Deezer cover completion'**
+  String get enableDeezerCoverScrapingLabel;
+
+  /// No description provided for @enableDeezerCoverScrapingDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'When enabled, the app connects to Deezer to complete track cover art. This will generate network traffic.'**
+  String get enableDeezerCoverScrapingDescription;
+
+  /// No description provided for @enableItunesMetadataScrapingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Use iTunes for metadata'**
+  String get enableItunesMetadataScrapingLabel;
+
+  /// No description provided for @enableItunesMetadataScrapingDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'When enabled, the app connects to third-party metadata services (such as iTunes) to complete cover art and track names. This will generate network traffic. Check the third-party service terms for details.'**
+  String get enableItunesMetadataScrapingDescription;
+
   /// No description provided for @scanLibraryAction.
   ///
   /// In en, this message translates to:
@@ -1802,7 +1886,7 @@ abstract class AppLocalizations {
   /// No description provided for @scrapedAlbumsModeLabel.
   ///
   /// In en, this message translates to:
-  /// **'By scraped data'**
+  /// **'By album tag'**
   String get scrapedAlbumsModeLabel;
 
   /// No description provided for @songDetailsTitle.

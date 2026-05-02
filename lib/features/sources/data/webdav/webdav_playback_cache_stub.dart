@@ -42,6 +42,11 @@ class _UnsupportedWebDavPlaybackCache implements WebDavPlaybackCache {
   }
 
   @override
+  Future<String?> persistentFilePathForEntry(RemoteEntry entry) async {
+    return null;
+  }
+
+  @override
   Stream<List<int>> wrapPlaybackStream({
     required RemoteEntry entry,
     required Stream<List<int>> stream,

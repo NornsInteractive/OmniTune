@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import '../../../core/widgets/top_snackbar.dart';
 import '../../library/application/library_catalog_controller.dart';
 import '../../player/application/player_controller.dart';
+import '../../settings/application/app_settings_controller.dart';
 import '../application/scraping_provider.dart';
 import '../data/lrclib_client.dart';
 import '../data/musicbrainz_scraper.dart';
@@ -61,7 +62,8 @@ class _LyricsScrapingSheetState extends ConsumerState<_LyricsScrapingSheet> {
     super.initState();
     _titleController = TextEditingController(text: widget.title);
     _artistController = TextEditingController(text: widget.artist);
-    if (_titleController.text.trim().isNotEmpty &&
+    if (_isLyricsScrapingReady() &&
+        _titleController.text.trim().isNotEmpty &&
         _artistController.text.trim().isNotEmpty) {
       _search();
     }
@@ -75,6 +77,9 @@ class _LyricsScrapingSheetState extends ConsumerState<_LyricsScrapingSheet> {
   }
 
   Future<void> _search() async {
+    if (!_isLyricsScrapingReady(showMessage: true)) {
+      return;
+    }
     final title = _titleController.text.trim();
     final artist = _artistController.text.trim();
     if (title.isEmpty || artist.isEmpty) {
@@ -136,6 +141,32 @@ class _LyricsScrapingSheetState extends ConsumerState<_LyricsScrapingSheet> {
         });
       }
     }
+  }
+
+  bool _isLyricsScrapingReady({bool showMessage = false}) {
+    final preferences = ref.read(appSettingsControllerProvider).valueOrNull;
+    final l10n = AppLocalizations.of(context)!;
+    final hasServiceUrl =
+        preferences?.lyricsScrapingServiceBaseUrl?.trim().isNotEmpty == true;
+
+    String? message;
+    if (!hasServiceUrl) {
+      message = l10n.lyricsScrapingServiceUrlRequiredMessage;
+    } else if (!(preferences?.enableLyricsScraping ?? false)) {
+      message = l10n.lyricsScrapingDisabledMessage;
+    }
+
+    if (message != null) {
+      if (showMessage && mounted) {
+        showTopSnackBar(context, message);
+        setState(() {
+          _errorText = message;
+          _candidates = const [];
+        });
+      }
+      return false;
+    }
+    return true;
   }
 
   Future<void> _applyLyrics(LrclibLyrics candidate) async {

@@ -12,7 +12,6 @@ import '../../../../core/models/library_song.dart';
 import '../../../../core/widgets/studio_chrome.dart';
 import '../../../library/application/library_catalog_controller.dart';
 import '../../../scraper/presentation/lyrics_scraping_sheet.dart';
-import '../../../scraper/presentation/manual_scraping_sheet.dart';
 import '../../application/player_controller.dart';
 import 'cover_art_image.dart';
 import 'generated_cover_art.dart';
@@ -148,7 +147,6 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
                               ? displayTitle
                               : displayAlbum,
                           nowPlayingLabel: l10n.playerTitle,
-                          manualScrapeTooltip: l10n.manualScrapingActionLabel,
                           lyricsScrapeTooltip: l10n.scrapingUpdateLyricsAction,
                           onCollapse: () {
                             final navigator = Navigator.of(context);
@@ -156,14 +154,6 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
                               navigator.pop();
                             }
                           },
-                          onManualScrape: currentSong == null
-                              ? null
-                              : () {
-                                  showManualScrapingSheet(
-                                    context: context,
-                                    song: currentSong,
-                                  );
-                                },
                           onLyricsScrape: () {
                             showLyricsScrapingSheet(
                               context: context,
@@ -383,20 +373,16 @@ class _PlayerHeader extends StatelessWidget {
   const _PlayerHeader({
     required this.title,
     required this.nowPlayingLabel,
-    required this.manualScrapeTooltip,
     required this.lyricsScrapeTooltip,
     required this.onCollapse,
-    required this.onManualScrape,
     required this.onLyricsScrape,
     required this.onMore,
   });
 
   final String title;
   final String nowPlayingLabel;
-  final String manualScrapeTooltip;
   final String lyricsScrapeTooltip;
   final VoidCallback onCollapse;
-  final VoidCallback? onManualScrape;
   final VoidCallback onLyricsScrape;
   final VoidCallback onMore;
 
@@ -411,17 +397,6 @@ class _PlayerHeader extends StatelessWidget {
               icon: Icons.expand_more_rounded,
               iconColor: _GlacierPalette.onSurfaceVariant,
               onTap: onCollapse,
-            ),
-            const SizedBox(width: 8),
-            Tooltip(
-              message: manualScrapeTooltip,
-              child: _HeaderCircleButton(
-                icon: Icons.auto_fix_high_rounded,
-                iconColor: onManualScrape == null
-                    ? _GlacierPalette.onSurfaceVariant.withValues(alpha: 0.4)
-                    : _GlacierPalette.onSurfaceVariant,
-                onTap: onManualScrape,
-              ),
             ),
             const SizedBox(width: 8),
             Tooltip(

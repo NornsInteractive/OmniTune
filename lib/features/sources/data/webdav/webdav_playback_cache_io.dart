@@ -162,6 +162,16 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
   }
 
   @override
+  Future<String?> persistentFilePathForEntry(RemoteEntry entry) async {
+    await _ensurePersistedTrackCacheLoaded();
+    final targetFile = await _targetFileFor(entry);
+    if (!await targetFile.exists()) {
+      return null;
+    }
+    return targetFile.path;
+  }
+
+  @override
   Stream<List<int>> wrapPlaybackStream({
     required RemoteEntry entry,
     required Stream<List<int>> stream,

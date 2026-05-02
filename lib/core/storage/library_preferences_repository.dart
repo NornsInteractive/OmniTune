@@ -27,6 +27,10 @@ class LibraryPreferences {
     this.backgroundImageAlignmentY = 0,
     this.albumPageSize = 9,
     this.albumViewGrid = false,
+    this.lyricsScrapingServiceBaseUrl,
+    this.enableLyricsScraping = false,
+    this.enableDeezerCoverScraping = false,
+    this.enableItunesMetadataScraping = false,
   });
 
   final Set<String> favoriteTrackIds;
@@ -44,6 +48,10 @@ class LibraryPreferences {
   final double backgroundImageAlignmentY;
   final int albumPageSize;
   final bool albumViewGrid;
+  final String? lyricsScrapingServiceBaseUrl;
+  final bool enableLyricsScraping;
+  final bool enableDeezerCoverScraping;
+  final bool enableItunesMetadataScraping;
 
   PlaybackCacheSettings get playbackCacheSettings {
     return PlaybackCacheSettings(
@@ -69,6 +77,11 @@ class LibraryPreferences {
     double? backgroundImageAlignmentY,
     int? albumPageSize,
     bool? albumViewGrid,
+    String? lyricsScrapingServiceBaseUrl,
+    bool clearLyricsScrapingServiceBaseUrl = false,
+    bool? enableLyricsScraping,
+    bool? enableDeezerCoverScraping,
+    bool? enableItunesMetadataScraping,
   }) {
     return LibraryPreferences(
       favoriteTrackIds: favoriteTrackIds ?? this.favoriteTrackIds,
@@ -100,6 +113,14 @@ class LibraryPreferences {
               .toDouble(),
       albumPageSize: (albumPageSize ?? this.albumPageSize).clamp(1, 60).toInt(),
       albumViewGrid: albumViewGrid ?? this.albumViewGrid,
+      lyricsScrapingServiceBaseUrl: clearLyricsScrapingServiceBaseUrl
+          ? null
+          : lyricsScrapingServiceBaseUrl ?? this.lyricsScrapingServiceBaseUrl,
+      enableLyricsScraping: enableLyricsScraping ?? this.enableLyricsScraping,
+      enableDeezerCoverScraping:
+          enableDeezerCoverScraping ?? this.enableDeezerCoverScraping,
+      enableItunesMetadataScraping:
+          enableItunesMetadataScraping ?? this.enableItunesMetadataScraping,
     );
   }
 }
@@ -177,6 +198,16 @@ class SecureLibraryPreferencesRepository
           .clamp(1, 60)
           .toInt(),
       albumViewGrid: json['albumViewGrid'] as bool? ?? false,
+      lyricsScrapingServiceBaseUrl:
+          (json['lyricsScrapingServiceBaseUrl'] as String?)?.trim().isEmpty ==
+              true
+          ? null
+          : json['lyricsScrapingServiceBaseUrl'] as String?,
+      enableLyricsScraping: json['enableLyricsScraping'] as bool? ?? false,
+      enableDeezerCoverScraping:
+          json['enableDeezerCoverScraping'] as bool? ?? false,
+      enableItunesMetadataScraping:
+          json['enableItunesMetadataScraping'] as bool? ?? false,
     );
   }
 
@@ -210,6 +241,10 @@ class SecureLibraryPreferencesRepository
           .toDouble(),
       'albumPageSize': preferences.albumPageSize.clamp(1, 60),
       'albumViewGrid': preferences.albumViewGrid,
+      'lyricsScrapingServiceBaseUrl': preferences.lyricsScrapingServiceBaseUrl,
+      'enableLyricsScraping': preferences.enableLyricsScraping,
+      'enableDeezerCoverScraping': preferences.enableDeezerCoverScraping,
+      'enableItunesMetadataScraping': preferences.enableItunesMetadataScraping,
     });
     return _storage.write(key: _key, value: raw);
   }
