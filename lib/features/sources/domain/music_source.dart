@@ -59,6 +59,17 @@ abstract class MusicSource {
   Future<String?> readTextFile(String path);
 
   Future<Uint8List?> readBinaryFile(String path);
+
+  Future<Uint8List?> readBinaryFileHead(
+    String path, {
+    int length = 128 * 1024,
+  }) async {
+    final bytes = await readBinaryFile(path);
+    if (bytes == null || bytes.isEmpty || bytes.length <= length) {
+      return bytes;
+    }
+    return Uint8List.sublistView(bytes, 0, length);
+  }
 }
 
 abstract class MusicSourceFactory {

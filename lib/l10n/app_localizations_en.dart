@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'Flux Music';
+  String get appTitle => 'OmniTune';
 
   @override
   String get homeTabLabel => 'Home';
@@ -160,6 +160,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sourceManagementSettingTitle => 'Music sources';
+
+  @override
+  String get songFolderArtworkSettingTitle =>
+      'Use folder image for song covers';
+
+  @override
+  String get songFolderArtworkSettingDescription =>
+      'When a song has no embedded artwork, use cover or folder images from the same directory.';
+
+  @override
+  String get groupAlbumsByArtistSettingTitle =>
+      'Group album-tag view by artist';
+
+  @override
+  String get groupAlbumsByArtistSettingDescription =>
+      'When enabled, album-tag mode groups by album name and artist. When disabled, it groups only by album name.';
 
   @override
   String get sourceManagementDialogDescription =>
@@ -811,6 +827,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hideLyricsAction => 'Hide lyrics';
+
+  @override
+  String get lyricsSourceSidecarLabel => 'Local LRC';
+
+  @override
+  String get lyricsSourceEmbeddedLabel => 'Embedded lyrics';
+
+  @override
+  String get lyricsSourceScrapedLabel => 'Scraped lyrics';
 
   @override
   String get playAction => 'Play';

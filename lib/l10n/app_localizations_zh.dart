@@ -9,7 +9,7 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
-  String get appTitle => 'Flux Music';
+  String get appTitle => 'OmniTune';
 
   @override
   String get homeTabLabel => '首页';
@@ -154,6 +154,20 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get sourceManagementSettingTitle => '音乐音源';
+
+  @override
+  String get songFolderArtworkSettingTitle => '歌曲缺少内嵌封面时使用目录图片';
+
+  @override
+  String get songFolderArtworkSettingDescription =>
+      '当歌曲没有内嵌封面时，使用同目录下的 cover、folder 等图片作为封面。';
+
+  @override
+  String get groupAlbumsByArtistSettingTitle => '按专辑字段分组时同时区分歌手';
+
+  @override
+  String get groupAlbumsByArtistSettingDescription =>
+      '开启后，按专辑字段模式会按专辑名加歌手分组；关闭后只按专辑名分组。';
 
   @override
   String get sourceManagementDialogDescription =>
@@ -768,6 +782,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get hideLyricsAction => '收起歌词';
+
+  @override
+  String get lyricsSourceSidecarLabel => '本地 LRC';
+
+  @override
+  String get lyricsSourceEmbeddedLabel => '内嵌歌词';
+
+  @override
+  String get lyricsSourceScrapedLabel => '刮削歌词';
 
   @override
   String get playAction => '播放';

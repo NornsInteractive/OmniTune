@@ -7,14 +7,17 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:music/features/settings/presentation/add_source_page.dart';
 import 'package:music/l10n/app_localizations.dart';
 
+import '../../../core/database/isar_manager.dart';
 import '../../../core/models/library_song.dart';
 import '../../../core/models/remote_entry.dart';
 import '../../../core/widgets/studio_chrome.dart';
 import '../../../core/widgets/top_snackbar.dart';
 import '../../player/application/player_controller.dart';
 import '../../player/presentation/widgets/track_cover_thumbnail.dart';
+import '../../settings/application/app_settings_controller.dart';
 import '../application/library_catalog_controller.dart';
 import '../application/library_controller.dart';
+import 'folder_artwork_provider.dart';
 
 enum LibraryCollectionSection { favorites, liked, allSongs }
 
@@ -998,13 +1001,11 @@ class _SongCard extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  TrackCoverThumbnail(
-                    title: song.displayTitle,
+                  _LibraryTrackThumbnail(
+                    song: song,
                     subtitle: '${song.displayArtist} · ${song.displayAlbum}',
                     size: coverSize,
                     borderRadius: 12,
-                    localCoverPath: song.displayLocalCoverPath,
-                    coverUrl: song.displayCoverUrl,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -1059,6 +1060,71 @@ class _SongCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _LibraryTrackThumbnail extends ConsumerWidget {
+  const _LibraryTrackThumbnail({
+    required this.song,
+    required this.subtitle,
+    required this.size,
+    required this.borderRadius,
+    this.isCurrentTrack = false,
+  });
+
+  final LibrarySong song;
+  final String subtitle;
+  final double size;
+  final double borderRadius;
+  final bool isCurrentTrack;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final preferences = ref.watch(appSettingsControllerProvider).valueOrNull;
+    final metadata = IsarManager.getMetadata(song.id);
+    final hasResolvedSongCover =
+        song.displayLocalCoverPath?.trim().isNotEmpty == true ||
+        song.displayCoverUrl?.trim().isNotEmpty == true;
+    final hasManualCover =
+        (metadata?.manuallyScrapedLocalCoverPath?.trim().isNotEmpty ?? false) ||
+        (metadata?.manuallyScrapedCoverUrl?.trim().isNotEmpty ?? false);
+    final hasEmbeddedCover = metadata?.autoScrapedCoverSource == 'embedded';
+    final shouldUseFolderArtwork =
+        (preferences?.enableFolderArtworkForSongs ?? false) &&
+        !hasManualCover &&
+        !hasEmbeddedCover;
+
+    if (!shouldUseFolderArtwork || (metadata == null && hasResolvedSongCover)) {
+      return TrackCoverThumbnail(
+        title: song.displayTitle,
+        subtitle: subtitle,
+        size: size,
+        borderRadius: borderRadius,
+        localCoverPath: song.displayLocalCoverPath,
+        coverUrl: song.displayCoverUrl,
+        isCurrentTrack: isCurrentTrack,
+      );
+    }
+
+    final folderArtwork = ref.watch(
+      folderArtworkProvider(
+        FolderArtworkRequest(
+          sourceId: song.sourceId,
+          directoryPath: song.directoryPath,
+        ),
+      ),
+    );
+    final fallbackPath = folderArtwork.valueOrNull?.localPath;
+
+    return TrackCoverThumbnail(
+      title: song.displayTitle,
+      subtitle: subtitle,
+      size: size,
+      borderRadius: borderRadius,
+      localCoverPath: fallbackPath ?? song.displayLocalCoverPath,
+      coverUrl: fallbackPath == null ? song.displayCoverUrl : null,
+      isCurrentTrack: isCurrentTrack,
     );
   }
 }
@@ -1322,13 +1388,20 @@ class _EntryLeading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (entry.kind == RemoteEntryKind.audio) {
+      if (track != null) {
+        return _LibraryTrackThumbnail(
+          song: track!,
+          subtitle: track!.displayArtist,
+          size: 56,
+          borderRadius: 18,
+          isCurrentTrack: isCurrentTrack,
+        );
+      }
       return TrackCoverThumbnail(
-        title: track?.displayTitle ?? entry.title,
-        subtitle: track?.displayArtist ?? entry.path,
+        title: entry.title,
+        subtitle: entry.path,
         size: 56,
         borderRadius: 18,
-        localCoverPath: track?.displayLocalCoverPath,
-        coverUrl: track?.displayCoverUrl,
         isCurrentTrack: isCurrentTrack,
       );
     }
@@ -1373,13 +1446,11 @@ class _TrackActionHeader extends StatelessWidget {
           ),
           child: Row(
             children: [
-              TrackCoverThumbnail(
-                title: track.displayTitle,
+              _LibraryTrackThumbnail(
+                song: track,
                 subtitle: track.displayArtist,
                 size: 56,
                 borderRadius: 18,
-                localCoverPath: track.displayLocalCoverPath,
-                coverUrl: track.displayCoverUrl,
               ),
               const SizedBox(width: 12),
               Expanded(

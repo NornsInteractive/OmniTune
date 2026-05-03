@@ -20,6 +20,18 @@ fi
 
 export GRADLE_OPTS="${GRADLE_OPTS:-} -Dorg.gradle.daemon=false -Dorg.gradle.workers.max=1"
 
+gradle_dart_defines=()
+for arg in "$@"; do
+  case "$arg" in
+    --dart-define=*)
+      define_value="${arg#--dart-define=}"
+      gradle_dart_defines+=(
+        "$(printf '%s' "$define_value" | base64 | tr -d '\n')"
+      )
+      ;;
+  esac
+done
+
 current_version="$(grep '^version:' "$PUBSPEC_PATH" | awk '{print $2}')"
 version_name="${current_version%%+*}"
 version_code="${current_version##*+}"
@@ -40,4 +52,8 @@ rm -rf "$ROOT_DIR/.dart_tool/flutter_build"
 flutter build apk --release --config-only --no-pub "$@"
 
 cd "$ROOT_DIR/android"
-./gradlew assembleRelease --no-daemon -Dorg.gradle.workers.max=1
+gradle_args=(assembleRelease --no-daemon -Dorg.gradle.workers.max=1)
+if [[ ${#gradle_dart_defines[@]} -gt 0 ]]; then
+  gradle_args+=("-Pdart-defines=$(IFS=,; echo "${gradle_dart_defines[*]}")")
+fi
+./gradlew "${gradle_args[@]}"

@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as p;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/audio/player_service.dart';
+import '../../../core/audio/system_audio_handler.dart';
 import '../../../core/database/isar_manager.dart';
 import '../../../core/database/scraping_metadata.dart';
 import '../../../core/models/app_preferences.dart';
@@ -52,6 +54,8 @@ class CacheProgressSegment {
 
 enum PlayerPlaybackMode { list, repeatOne, shuffle }
 
+enum PlayerLyricsSource { none, sidecarFile, embeddedTag, scraped }
+
 class PlayerViewState {
   const PlayerViewState({
     required this.currentTrack,
@@ -64,6 +68,7 @@ class PlayerViewState {
     required this.currentIndex,
     required this.playbackMode,
     this.lyrics = const [],
+    this.lyricsSource = PlayerLyricsSource.none,
     this.cacheSegments = const [],
     this.errorMessage,
   });
@@ -78,6 +83,7 @@ class PlayerViewState {
   final int currentIndex;
   final PlayerPlaybackMode playbackMode;
   final List<LyricLine> lyrics;
+  final PlayerLyricsSource lyricsSource;
   final List<CacheProgressSegment> cacheSegments;
   final String? errorMessage;
 
@@ -139,6 +145,7 @@ class PlayerViewState {
     List<LibrarySong> playlist = const [],
     int currentIndex = -1,
     PlayerPlaybackMode playbackMode = PlayerPlaybackMode.list,
+    PlayerLyricsSource lyricsSource = PlayerLyricsSource.none,
     String? errorMessage,
   }) {
     return PlayerViewState(
@@ -152,6 +159,7 @@ class PlayerViewState {
       currentIndex: currentIndex,
       playbackMode: playbackMode,
       lyrics: lyrics,
+      lyricsSource: lyricsSource,
       cacheSegments: cacheSegments,
       errorMessage: errorMessage,
     );
@@ -169,6 +177,7 @@ class PlayerViewState {
       currentIndex: -1,
       playbackMode: PlayerPlaybackMode.list,
       lyrics: [],
+      lyricsSource: PlayerLyricsSource.none,
       cacheSegments: [],
     );
   }
@@ -187,6 +196,7 @@ class PlayerController extends _$PlayerController {
   StreamSubscription<PlayerException>? _errorSubscription;
   StreamSubscription<PlaybackCacheSnapshot>? _cacheSubscription;
   List<LyricLine> _lyrics = const [];
+  PlayerLyricsSource _lyricsSource = PlayerLyricsSource.none;
   List<LibrarySong> _playlist = const [];
   int _currentIndex = -1;
   PlayerPlaybackMode _playbackMode = PlayerPlaybackMode.list;
@@ -195,6 +205,9 @@ class PlayerController extends _$PlayerController {
   bool _restoreStarted = false;
   DateTime _lastPositionPersistedAt = DateTime.fromMillisecondsSinceEpoch(0);
   int _playRequestSerial = 0;
+  int _playlistRevision = 0;
+  int _lastSystemQueueRevision = -1;
+  String? _lastSystemCurrentItemKey = '__uninitialized__';
   final Set<String> _inFlightAutoScrapeSongIds = <String>{};
 
   @override
@@ -209,6 +222,15 @@ class PlayerController extends _$PlayerController {
     ) {
       _syncLocalePreference(next);
     });
+    if (isSystemAudioHandlerInitialized) {
+      systemAudioHandler.bindCallbacks(
+        onPlay: play,
+        onPause: pause,
+        onStop: stop,
+        onSkipToNext: playNext,
+        onSkipToPrevious: playPrevious,
+      );
+    }
     _bindStreams();
     _restorePersistedSession();
     ref.onDispose(_disposeSubscriptions);
@@ -217,6 +239,7 @@ class PlayerController extends _$PlayerController {
       playlist: _playlist,
       currentIndex: _currentIndex,
       playbackMode: _playbackMode,
+      lyricsSource: _lyricsSource,
     );
   }
 
@@ -292,7 +315,7 @@ class PlayerController extends _$PlayerController {
     final nextPlaylist = List<LibrarySong>.of(_playlist)..removeAt(index);
 
     if (nextPlaylist.isEmpty) {
-      _lyrics = const [];
+      _clearLyrics();
       _replacePlaylist(const [], currentIndex: -1);
       await _service.stop();
       await _sessionRepository.clear();
@@ -386,6 +409,25 @@ class PlayerController extends _$PlayerController {
     unawaited(_persistSession());
   }
 
+  Future<void> play() async {
+    if (_service.currentTrack == null || _service.isPlaying) {
+      return;
+    }
+    await _service.play();
+    _scheduleAutoScrapeForCurrentTrack();
+    _syncState();
+    unawaited(_persistSession());
+  }
+
+  Future<void> pause() async {
+    if (!_service.isPlaying) {
+      return;
+    }
+    await _service.pause();
+    _syncState();
+    unawaited(_persistSession());
+  }
+
   Future<void> seek(Duration position) async {
     await _service.seek(position);
     _syncState();
@@ -445,15 +487,18 @@ class PlayerController extends _$PlayerController {
   }
 
   void _syncState({String? errorMessage}) {
-    state = PlayerViewState.fromService(
+    final nextState = PlayerViewState.fromService(
       _service,
       lyrics: _lyrics,
+      lyricsSource: _lyricsSource,
       cacheSegments: _resolveCacheSegments(_service.currentTrack),
       playlist: _playlist,
       currentIndex: _currentIndex,
       playbackMode: _playbackMode,
       errorMessage: errorMessage,
     );
+    state = nextState;
+    _syncSystemAudioState(nextState);
   }
 
   void _disposeSubscriptions() {
@@ -498,19 +543,16 @@ class PlayerController extends _$PlayerController {
     void Function()? onTrackStarted,
   }) async {
     final requestSerial = ++_playRequestSerial;
-    _lyrics = const [];
+    _clearLyrics();
     _syncState();
 
     final source = await ref
         .read(musicSourceSessionManagerProvider)
         .get(profile);
+    await _service.stop();
+    _syncState();
 
-    // 快速启动播放：并行加载歌词和构建音轨
-    final lyricsFuture = _loadLyrics(source, entry.path);
-    final trackFuture = source.buildPlayableTrack(entry);
-
-    // 等待音轨准备就绪
-    final builtTrack = await trackFuture;
+    final builtTrack = await source.buildPlayableTrack(entry);
     if (requestSerial != _playRequestSerial) {
       return;
     }
@@ -520,7 +562,13 @@ class PlayerController extends _$PlayerController {
     );
     final scrapedLyrics = _parseLyrics(track.displayLyrics);
     if (scrapedLyrics.isNotEmpty) {
-      _lyrics = scrapedLyrics;
+      _setLyrics(
+        scrapedLyrics,
+        _resolveStoredLyricsSource(
+          entry.uniqueId,
+          rawLyrics: track.displayLyrics,
+        ),
+      );
     }
 
     // 立即播放，不等待歌词加载；playTrack 会先同步写入 currentTrack。
@@ -530,14 +578,19 @@ class PlayerController extends _$PlayerController {
     _syncState();
     unawaited(_persistSession(positionOverride: Duration.zero));
 
-    // 在后台加载歌词
-    final lyrics = await lyricsFuture;
+    final lyrics = await _loadLyrics(source, entry.path);
     if (requestSerial == _playRequestSerial &&
         _service.currentTrack?.id == track.id) {
       if (lyrics.isNotEmpty) {
-        _lyrics = lyrics;
+        _setLyrics(lyrics, PlayerLyricsSource.sidecarFile);
       } else if (_lyrics.isEmpty && scrapedLyrics.isNotEmpty) {
-        _lyrics = scrapedLyrics;
+        _setLyrics(
+          scrapedLyrics,
+          _resolveStoredLyricsSource(
+            entry.uniqueId,
+            rawLyrics: track.displayLyrics,
+          ),
+        );
       }
       _syncState();
     }
@@ -571,7 +624,9 @@ class PlayerController extends _$PlayerController {
 
     final requestSerial = ++_playRequestSerial;
     _currentIndex = index;
-    _lyrics = const [];
+    _clearLyrics();
+    _syncState();
+    await _service.stop();
     _syncState();
 
     final song = _playlist[index];
@@ -640,7 +695,6 @@ class PlayerController extends _$PlayerController {
     final source = await ref
         .read(musicSourceSessionManagerProvider)
         .get(profile);
-    final lyricsFuture = _loadLyrics(source, song.remotePath);
     final track = await source.buildPlayableTrack(song.toRemoteEntry());
     if (requestSerial != _playRequestSerial) {
       return;
@@ -657,9 +711,12 @@ class PlayerController extends _$PlayerController {
       sourceSizeBytes: track.sourceSizeBytes,
       artistName: displaySong.artistName,
       albumTitle: displaySong.albumTitle,
-      autoScrapedTitle: null,
-      autoScrapedArtist: null,
-      autoScrapedAlbum: null,
+      autoScrapedTitle:
+          displaySong.manuallyScrapedTitle ?? displaySong.autoScrapedTitle,
+      autoScrapedArtist:
+          displaySong.manuallyScrapedArtist ?? displaySong.autoScrapedArtist,
+      autoScrapedAlbum:
+          displaySong.manuallyScrapedAlbum ?? displaySong.autoScrapedAlbum,
       autoScrapedCoverUrl:
           displaySong.manuallyScrapedCoverUrl ??
           displaySong.autoScrapedCoverUrl,
@@ -671,19 +728,31 @@ class PlayerController extends _$PlayerController {
     );
     final scrapedLyrics = _parseLyrics(enhancedTrack.displayLyrics);
     if (scrapedLyrics.isNotEmpty) {
-      _lyrics = scrapedLyrics;
+      _setLyrics(
+        scrapedLyrics,
+        _resolveStoredLyricsSource(
+          song.id,
+          rawLyrics: enhancedTrack.displayLyrics,
+        ),
+      );
     }
     await _service.loadTrack(enhancedTrack, initialPosition: initialPosition);
     _syncState();
     unawaited(_persistSession(positionOverride: initialPosition));
 
-    final lyrics = await lyricsFuture;
+    final lyrics = await _loadLyrics(source, song.remotePath);
     if (requestSerial == _playRequestSerial &&
         _service.currentTrack?.id == enhancedTrack.id) {
       if (lyrics.isNotEmpty) {
-        _lyrics = lyrics;
+        _setLyrics(lyrics, PlayerLyricsSource.sidecarFile);
       } else if (_lyrics.isEmpty && scrapedLyrics.isNotEmpty) {
-        _lyrics = scrapedLyrics;
+        _setLyrics(
+          scrapedLyrics,
+          _resolveStoredLyricsSource(
+            song.id,
+            rawLyrics: enhancedTrack.displayLyrics,
+          ),
+        );
       }
       _syncState();
     }
@@ -773,11 +842,127 @@ class PlayerController extends _$PlayerController {
     required int currentIndex,
   }) {
     _playlist = List<LibrarySong>.unmodifiable(playlist);
+    _playlistRevision++;
     _currentIndex = currentIndex >= 0 && currentIndex < _playlist.length
         ? currentIndex
         : -1;
     _syncState();
   }
+
+  void _syncSystemAudioState(PlayerViewState nextState) {
+    if (!isSystemAudioHandlerInitialized) {
+      return;
+    }
+    final currentSong =
+        nextState.hasPlaylist &&
+            nextState.currentIndex >= 0 &&
+            nextState.currentIndex < nextState.playlistCount
+        ? nextState.playlist[nextState.currentIndex]
+        : null;
+    final currentTrack = nextState.currentTrack;
+    final currentItemId = currentSong?.id ?? currentTrack?.id;
+    final currentItemTitle =
+        currentSong?.displayTitle ?? currentTrack?.displayTitle;
+    final currentItemArtist =
+        currentSong?.displayArtist ?? currentTrack?.displayArtist;
+    final currentItemAlbum =
+        currentSong?.displayAlbum ?? currentTrack?.displayAlbum;
+    final currentItemLocalCover =
+        currentSong?.displayLocalCoverPath ?? currentTrack?.localCoverPath;
+    final currentItemRemoteCover =
+        currentSong?.displayCoverUrl ?? currentTrack?.autoScrapedCoverUrl;
+    final currentItemKey = currentItemId == null
+        ? null
+        : [
+            currentItemId,
+            currentItemTitle,
+            currentItemArtist,
+            currentItemAlbum,
+            currentItemLocalCover,
+            currentItemRemoteCover,
+            nextState.currentIndex,
+          ].join('|');
+    if (_lastSystemQueueRevision != _playlistRevision) {
+      _lastSystemQueueRevision = _playlistRevision;
+      final queueItems = nextState.playlist
+          .map(
+            (song) => MediaItem(
+              id: song.id,
+              title: song.displayTitle,
+              album: _hasText(song.displayAlbum) ? song.displayAlbum : null,
+              artist: _hasText(song.displayArtist) ? song.displayArtist : null,
+            ),
+          )
+          .toList(growable: false);
+      systemAudioHandler.updateQueue(queueItems);
+    }
+    if (_lastSystemCurrentItemKey != currentItemKey) {
+      _lastSystemCurrentItemKey = currentItemKey;
+      final mediaItem = currentItemId == null
+          ? null
+          : MediaItem(
+              id: currentItemId,
+              title: currentItemTitle ?? '',
+              album: _hasText(currentItemAlbum) ? currentItemAlbum : null,
+              artist: _hasText(currentItemArtist) ? currentItemArtist : null,
+              artUri: _artUriForState(currentSong, currentTrack),
+              extras: <String, dynamic>{
+                if (_hasText(currentSong?.sourceId ?? currentTrack?.sourceId))
+                  'sourceId': currentSong?.sourceId ?? currentTrack!.sourceId,
+                if (_hasText(currentTrack?.sourceName))
+                  'sourceName': currentTrack!.sourceName,
+                if (_hasText(
+                  currentSong?.remotePath ?? currentTrack?.remotePath,
+                ))
+                  'remotePath':
+                      currentSong?.remotePath ?? currentTrack!.remotePath,
+              },
+            );
+      systemAudioHandler.updateCurrentItem(mediaItem);
+    }
+
+    systemAudioHandler.updateState(
+      playing: nextState.isPlaying,
+      processingState: _audioProcessingState(nextState.processingState),
+      position: nextState.position,
+      bufferedPosition: nextState.bufferedPosition,
+      speed: 1.0,
+      queueIndex: nextState.currentIndex >= 0 ? nextState.currentIndex : null,
+      canSkipToPrevious: nextState.canPlayPrevious,
+      canSkipToNext: nextState.canPlayNext,
+    );
+  }
+
+  AudioProcessingState _audioProcessingState(ProcessingState state) {
+    return switch (state) {
+      ProcessingState.idle => AudioProcessingState.idle,
+      ProcessingState.loading => AudioProcessingState.loading,
+      ProcessingState.buffering => AudioProcessingState.buffering,
+      ProcessingState.ready => AudioProcessingState.ready,
+      ProcessingState.completed => AudioProcessingState.completed,
+    };
+  }
+
+  Uri? _artUriForState(LibrarySong? song, PlayableTrack? track) {
+    final localPath = _firstNonEmpty(
+      song?.displayLocalCoverPath,
+      track?.localCoverPath,
+    );
+    if (_hasText(localPath)) {
+      return Uri.file(localPath!);
+    }
+
+    final remoteUrl = _firstNonEmpty(
+      song?.displayCoverUrl,
+      track?.autoScrapedCoverUrl,
+    );
+    if (_hasText(remoteUrl)) {
+      return Uri.tryParse(remoteUrl!);
+    }
+    return null;
+  }
+
+  bool _hasText(String? value) => value?.trim().isNotEmpty == true;
 
   int? _resolveNextIndex() {
     if (_playlist.isEmpty) {
@@ -1007,6 +1192,65 @@ class PlayerController extends _$PlayerController {
     return null;
   }
 
+  void _clearLyrics() {
+    _lyrics = const [];
+    _lyricsSource = PlayerLyricsSource.none;
+  }
+
+  void _setLyrics(List<LyricLine> lyrics, PlayerLyricsSource source) {
+    _lyrics = lyrics;
+    _lyricsSource = lyrics.isEmpty ? PlayerLyricsSource.none : source;
+  }
+
+  PlayerLyricsSource _resolveStoredLyricsSource(
+    String trackId, {
+    String? rawLyrics,
+  }) {
+    final metadata = IsarManager.getMetadata(trackId);
+    return _resolveLyricsSourceFromMetadata(metadata, rawLyrics: rawLyrics);
+  }
+
+  PlayerLyricsSource _resolveLyricsSourceFromMetadata(
+    ScrapingMetadata? metadata, {
+    String? rawLyrics,
+  }) {
+    final normalizedLyrics = rawLyrics?.trim();
+    if (normalizedLyrics == null || normalizedLyrics.isEmpty) {
+      return PlayerLyricsSource.none;
+    }
+
+    if (_sameNormalizedText(
+      metadata?.manuallyScrapedLyrics,
+      normalizedLyrics,
+    )) {
+      return PlayerLyricsSource.scraped;
+    }
+
+    if (_sameNormalizedText(metadata?.autoScrapedLyrics, normalizedLyrics)) {
+      return switch (metadata?.autoScrapedLyricsSource) {
+        'embedded' => PlayerLyricsSource.embeddedTag,
+        'scraped' => PlayerLyricsSource.scraped,
+        _ =>
+          metadata?.embeddedMetadataReadAt != null
+              ? PlayerLyricsSource.embeddedTag
+              : PlayerLyricsSource.scraped,
+      };
+    }
+
+    if (metadata?.embeddedMetadataReadAt != null) {
+      return PlayerLyricsSource.embeddedTag;
+    }
+    return PlayerLyricsSource.scraped;
+  }
+
+  bool _sameNormalizedText(String? left, String? right) {
+    final normalizedLeft = left?.trim();
+    final normalizedRight = right?.trim();
+    return normalizedLeft != null &&
+        normalizedLeft.isNotEmpty &&
+        normalizedLeft == normalizedRight;
+  }
+
   void _syncLocalePreference(AsyncValue<LibraryPreferences> appSettings) {
     _localePreference = appSettings.maybeWhen(
       data: (prefs) => prefs.localePreference,
@@ -1034,9 +1278,21 @@ class PlayerController extends _$PlayerController {
       sourceSizeBytes: currentTrack.sourceSizeBytes,
       artistName: currentTrack.artistName,
       albumTitle: currentTrack.albumTitle,
-      autoScrapedTitle: null,
-      autoScrapedArtist: null,
-      autoScrapedAlbum: null,
+      autoScrapedTitle: _firstNonEmpty(
+        metadata.manuallyScrapedTitle,
+        metadata.autoScrapedTitle,
+        currentTrack.autoScrapedTitle,
+      ),
+      autoScrapedArtist: _firstNonEmpty(
+        metadata.manuallyScrapedArtist,
+        metadata.autoScrapedArtist,
+        currentTrack.autoScrapedArtist,
+      ),
+      autoScrapedAlbum: _firstNonEmpty(
+        metadata.manuallyScrapedAlbum,
+        metadata.autoScrapedAlbum,
+        currentTrack.autoScrapedAlbum,
+      ),
       autoScrapedCoverUrl: _firstNonEmpty(
         metadata.manuallyScrapedCoverUrl,
         metadata.autoScrapedCoverUrl,
@@ -1058,7 +1314,13 @@ class PlayerController extends _$PlayerController {
 
     final scrapedLyrics = _parseLyrics(updatedTrack.displayLyrics);
     if (scrapedLyrics.isNotEmpty) {
-      _lyrics = scrapedLyrics;
+      _setLyrics(
+        scrapedLyrics,
+        _resolveLyricsSourceFromMetadata(
+          metadata,
+          rawLyrics: updatedTrack.displayLyrics,
+        ),
+      );
     }
 
     if (syncState) {
@@ -1095,9 +1357,12 @@ class PlayerController extends _$PlayerController {
       mimeType: currentSong.mimeType,
       size: currentSong.size,
       modifiedAt: currentSong.modifiedAt,
-      manuallyScrapedTitle: null,
-      manuallyScrapedArtist: null,
-      manuallyScrapedAlbum: null,
+      manuallyScrapedTitle:
+          metadata.manuallyScrapedTitle ?? currentSong.manuallyScrapedTitle,
+      manuallyScrapedArtist:
+          metadata.manuallyScrapedArtist ?? currentSong.manuallyScrapedArtist,
+      manuallyScrapedAlbum:
+          metadata.manuallyScrapedAlbum ?? currentSong.manuallyScrapedAlbum,
       manuallyScrapedCoverUrl:
           metadata.manuallyScrapedCoverUrl ??
           currentSong.manuallyScrapedCoverUrl,
@@ -1106,9 +1371,12 @@ class PlayerController extends _$PlayerController {
           currentSong.manuallyScrapedLocalCoverPath,
       manuallyScrapedLyrics:
           metadata.manuallyScrapedLyrics ?? currentSong.manuallyScrapedLyrics,
-      autoScrapedTitle: null,
-      autoScrapedArtist: null,
-      autoScrapedAlbum: null,
+      autoScrapedTitle:
+          metadata.autoScrapedTitle ?? currentSong.autoScrapedTitle,
+      autoScrapedArtist:
+          metadata.autoScrapedArtist ?? currentSong.autoScrapedArtist,
+      autoScrapedAlbum:
+          metadata.autoScrapedAlbum ?? currentSong.autoScrapedAlbum,
       autoScrapedCoverUrl:
           metadata.autoScrapedCoverUrl ?? currentSong.autoScrapedCoverUrl,
       autoScrapedLocalCoverPath:
@@ -1128,7 +1396,13 @@ class PlayerController extends _$PlayerController {
 
     final scrapedLyrics = _parseLyrics(updatedSong.displayLyrics);
     if (scrapedLyrics.isNotEmpty) {
-      _lyrics = scrapedLyrics;
+      _setLyrics(
+        scrapedLyrics,
+        _resolveLyricsSourceFromMetadata(
+          metadata,
+          rawLyrics: updatedSong.displayLyrics,
+        ),
+      );
     }
 
     _syncState();
@@ -1371,9 +1645,18 @@ class PlayerController extends _$PlayerController {
         hasText(metadata.autoScrapedTitle) ||
         hasText(metadata.autoScrapedArtist) ||
         hasText(metadata.autoScrapedAlbum) ||
+        hasText(metadata.autoScrapedAlbumArtist) ||
+        hasText(metadata.autoScrapedGenre) ||
+        hasText(metadata.autoScrapedYear) ||
+        hasText(metadata.autoScrapedComposer) ||
+        hasText(metadata.autoScrapedComment) ||
         hasText(metadata.autoScrapedCoverUrl) ||
         hasText(metadata.autoScrapedLocalCoverPath) ||
-        hasText(metadata.autoScrapedLyrics);
+        hasText(metadata.autoScrapedLyrics) ||
+        metadata.autoScrapedTrackNumber != null ||
+        metadata.autoScrapedTrackTotal != null ||
+        metadata.autoScrapedDiscNumber != null ||
+        metadata.autoScrapedDiscTotal != null;
   }
 
   void _scheduleAutoScrapeForSong(LibrarySong song) {
@@ -1533,10 +1816,17 @@ class PlayerController extends _$PlayerController {
       scrapedMetadata.localCoverPath,
       metadata.autoScrapedLocalCoverPath,
     );
+    if ((scrapedMetadata.coverUrl?.trim().isNotEmpty ?? false) ||
+        (scrapedMetadata.localCoverPath?.trim().isNotEmpty ?? false)) {
+      metadata.autoScrapedCoverSource = 'scraped';
+    }
     metadata.autoScrapedLyrics = _firstNonEmpty(
       scrapedMetadata.lyrics,
       metadata.autoScrapedLyrics,
     );
+    if (scrapedMetadata.lyrics?.trim().isNotEmpty == true) {
+      metadata.autoScrapedLyricsSource = 'scraped';
+    }
     metadata.autoScrapedAt = DateTime.now();
     metadata.status = status;
     metadata.errorMessage = null;
@@ -1693,6 +1983,62 @@ class PlayerController extends _$PlayerController {
       existing.autoScrapedAlbum = metadata.album;
       changed = true;
     }
+    if (metadata.albumArtist?.trim().isNotEmpty == true &&
+        existing.autoScrapedAlbumArtist != metadata.albumArtist) {
+      existing.autoScrapedAlbumArtist = metadata.albumArtist;
+      changed = true;
+    }
+    if (metadata.genre?.trim().isNotEmpty == true &&
+        existing.autoScrapedGenre != metadata.genre) {
+      existing.autoScrapedGenre = metadata.genre;
+      changed = true;
+    }
+    if (metadata.year?.trim().isNotEmpty == true &&
+        existing.autoScrapedYear != metadata.year) {
+      existing.autoScrapedYear = metadata.year;
+      changed = true;
+    }
+    if (metadata.composer?.trim().isNotEmpty == true &&
+        existing.autoScrapedComposer != metadata.composer) {
+      existing.autoScrapedComposer = metadata.composer;
+      changed = true;
+    }
+    if (metadata.comment?.trim().isNotEmpty == true &&
+        existing.autoScrapedComment != metadata.comment) {
+      existing.autoScrapedComment = metadata.comment;
+      changed = true;
+    }
+    if (metadata.lyrics?.trim().isNotEmpty == true &&
+        existing.autoScrapedLyrics != metadata.lyrics) {
+      existing.autoScrapedLyrics = metadata.lyrics;
+      existing.autoScrapedLyricsSource = 'embedded';
+      changed = true;
+    }
+    if (metadata.lyrics?.trim().isNotEmpty == true &&
+        existing.autoScrapedLyricsSource != 'embedded') {
+      existing.autoScrapedLyricsSource = 'embedded';
+      changed = true;
+    }
+    if (metadata.trackNumber != null &&
+        existing.autoScrapedTrackNumber != metadata.trackNumber) {
+      existing.autoScrapedTrackNumber = metadata.trackNumber;
+      changed = true;
+    }
+    if (metadata.trackTotal != null &&
+        existing.autoScrapedTrackTotal != metadata.trackTotal) {
+      existing.autoScrapedTrackTotal = metadata.trackTotal;
+      changed = true;
+    }
+    if (metadata.discNumber != null &&
+        existing.autoScrapedDiscNumber != metadata.discNumber) {
+      existing.autoScrapedDiscNumber = metadata.discNumber;
+      changed = true;
+    }
+    if (metadata.discTotal != null &&
+        existing.autoScrapedDiscTotal != metadata.discTotal) {
+      existing.autoScrapedDiscTotal = metadata.discTotal;
+      changed = true;
+    }
     if (metadata.hasCover) {
       final localCoverPath = await CoverArtCacheManager().cacheBytes(
         'embedded_cover_$id',
@@ -1702,6 +2048,11 @@ class PlayerController extends _$PlayerController {
       if (localCoverPath?.trim().isNotEmpty == true &&
           existing.autoScrapedLocalCoverPath != localCoverPath) {
         existing.autoScrapedLocalCoverPath = localCoverPath;
+        existing.autoScrapedCoverSource = 'embedded';
+        changed = true;
+      }
+      if (existing.autoScrapedCoverSource != 'embedded') {
+        existing.autoScrapedCoverSource = 'embedded';
         changed = true;
       }
     }
@@ -1711,6 +2062,7 @@ class PlayerController extends _$PlayerController {
     }
 
     existing.autoScrapedAt = DateTime.now();
+    existing.embeddedMetadataReadAt = DateTime.now();
     existing.updatedAt = DateTime.now();
     existing.lastAttemptAt = DateTime.now();
     if (!_needsAdditionalAutoScrape(existing)) {

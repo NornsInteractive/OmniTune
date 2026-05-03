@@ -126,6 +126,18 @@ class FtpMusicSource implements MusicSource {
     }
   }
 
+  @override
+  Future<Uint8List?> readBinaryFileHead(
+    String path, {
+    int length = 128 * 1024,
+  }) async {
+    final bytes = await readBinaryFile(path);
+    if (bytes == null || bytes.isEmpty || bytes.length <= length) {
+      return bytes;
+    }
+    return Uint8List.sublistView(bytes, 0, length);
+  }
+
   int get _port => _uri.hasPort ? _uri.port : _defaultPort;
 
   int get _defaultPort => _securityType == SecurityType.ftps ? 990 : 21;

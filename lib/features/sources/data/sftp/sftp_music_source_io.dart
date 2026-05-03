@@ -140,6 +140,24 @@ class SftpMusicSource implements MusicSource {
     }
   }
 
+  @override
+  Future<Uint8List?> readBinaryFileHead(
+    String path, {
+    int length = 128 * 1024,
+  }) async {
+    try {
+      await connect();
+      final file = await _sftp.open(_remoteFilePath(path));
+      try {
+        return await file.readBytes(length: length, offset: 0);
+      } finally {
+        await file.close();
+      }
+    } catch (_) {
+      return null;
+    }
+  }
+
   SftpClient get _sftp {
     final client = _sftpClient;
     if (client == null) {

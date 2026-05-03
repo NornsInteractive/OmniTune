@@ -244,7 +244,14 @@ class ScrapingMetadataRepository {
       metadata.autoScrapedAlbum = album;
       metadata.autoScrapedCoverUrl = coverUrl;
       metadata.autoScrapedLocalCoverPath = localCoverPath;
+      if ((coverUrl?.trim().isNotEmpty ?? false) ||
+          (localCoverPath?.trim().isNotEmpty ?? false)) {
+        metadata.autoScrapedCoverSource = 'scraped';
+      }
       metadata.autoScrapedLyrics = lyrics;
+      if (lyrics?.trim().isNotEmpty == true) {
+        metadata.autoScrapedLyricsSource = 'scraped';
+      }
       metadata.matchScore = matchScore;
       metadata.autoScrapedAt = DateTime.now();
       metadata.status = ScrapingStatus.completed;

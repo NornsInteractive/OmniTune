@@ -39,13 +39,13 @@ class PlayableTrack {
   final String? lyrics;
 
   /// 获取显示标题（使用本地标签结果）
-  String get displayTitle => title;
+  String get displayTitle => autoScrapedTitle ?? title;
 
   /// 获取显示艺术家（使用本地标签结果）
-  String get displayArtist => artistName ?? '';
+  String get displayArtist => autoScrapedArtist ?? artistName ?? '';
 
   /// 获取显示专辑（使用本地标签结果）
-  String get displayAlbum => albumTitle ?? '';
+  String get displayAlbum => autoScrapedAlbum ?? albumTitle ?? '';
 
   /// 获取显示歌词
   String? get displayLyrics => lyrics;

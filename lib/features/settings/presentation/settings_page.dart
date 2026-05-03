@@ -811,6 +811,11 @@ class SettingsPage extends ConsumerWidget {
                             ),
                           ),
                         ),
+                        // OMNITUNE_PRESERVE_COMMENT:
+                        // Background image setting is intentionally disabled.
+                        // Keep this block commented out unless the user
+                        // explicitly asks to restore the feature.
+                        /*
                         const SizedBox(height: 12),
                         divider(),
                         const SizedBox(height: 12),
@@ -829,6 +834,7 @@ class SettingsPage extends ConsumerWidget {
                             preferences: preferences,
                           ),
                         ),
+                        */
                       ],
                     ),
                     const SizedBox(height: 14),
@@ -859,6 +865,46 @@ class SettingsPage extends ConsumerWidget {
                             sources: sources,
                             selectedSource: browser?.selectedSource,
                           ),
+                        ),
+                        const SizedBox(height: 12),
+                        divider(),
+                        const SizedBox(height: 12),
+                        SwitchListTile.adaptive(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          visualDensity: const VisualDensity(
+                            horizontal: -2,
+                            vertical: -2,
+                          ),
+                          title: Text(l10n.songFolderArtworkSettingTitle),
+                          subtitle: Text(
+                            l10n.songFolderArtworkSettingDescription,
+                          ),
+                          value: preferences.enableFolderArtworkForSongs,
+                          onChanged: (value) {
+                            appSettingsController
+                                .setEnableFolderArtworkForSongs(value);
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        divider(),
+                        const SizedBox(height: 12),
+                        SwitchListTile.adaptive(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          visualDensity: const VisualDensity(
+                            horizontal: -2,
+                            vertical: -2,
+                          ),
+                          title: Text(l10n.groupAlbumsByArtistSettingTitle),
+                          subtitle: Text(
+                            l10n.groupAlbumsByArtistSettingDescription,
+                          ),
+                          value: preferences.groupMetadataAlbumsByArtist,
+                          onChanged: (value) {
+                            appSettingsController
+                                .setGroupMetadataAlbumsByArtist(value);
+                          },
                         ),
                       ],
                     ),

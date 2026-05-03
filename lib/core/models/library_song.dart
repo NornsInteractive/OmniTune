@@ -70,23 +70,36 @@ class LibrarySong {
   final String? autoScrapedLyrics;
 
   String get metadataAlbumTitle =>
-      (scrapedAlbumTitle?.trim().isNotEmpty ?? false)
-      ? scrapedAlbumTitle!.trim()
-      : albumTitle;
+      _firstNonEmpty(
+        manuallyScrapedAlbum,
+        autoScrapedAlbum,
+        scrapedAlbumTitle,
+        albumTitle,
+      ) ??
+      albumTitle;
 
   String get metadataArtistName =>
-      (scrapedArtistName?.trim().isNotEmpty ?? false)
-      ? scrapedArtistName!.trim()
-      : artistName;
+      _firstNonEmpty(
+        manuallyScrapedArtist,
+        autoScrapedArtist,
+        scrapedArtistName,
+        artistName,
+      ) ??
+      artistName;
 
   /// 获取显示标题（使用扫描/本地标签结果）
-  String get displayTitle => title;
+  String get displayTitle =>
+      _firstNonEmpty(manuallyScrapedTitle, autoScrapedTitle, title) ?? title;
 
   /// 获取显示艺术家（使用扫描/本地标签结果）
-  String get displayArtist => artistName;
+  String get displayArtist =>
+      _firstNonEmpty(manuallyScrapedArtist, autoScrapedArtist, artistName) ??
+      artistName;
 
   /// 获取显示专辑（使用扫描/本地标签结果）
-  String get displayAlbum => albumTitle;
+  String get displayAlbum =>
+      _firstNonEmpty(manuallyScrapedAlbum, autoScrapedAlbum, albumTitle) ??
+      albumTitle;
 
   /// 获取显示封面图（优先级：手动 > 自动）
   String? get displayCoverUrl => manuallyScrapedCoverUrl ?? autoScrapedCoverUrl;
@@ -188,5 +201,20 @@ class LibrarySong {
       autoScrapedLocalCoverPath: json['autoScrapedLocalCoverPath'] as String?,
       autoScrapedLyrics: json['autoScrapedLyrics'] as String?,
     );
+  }
+
+  static String? _firstNonEmpty(
+    String? first,
+    String? second,
+    String? third, [
+    String? fourth,
+  ]) {
+    for (final value in [first, second, third, fourth]) {
+      final trimmed = value?.trim();
+      if (trimmed?.isNotEmpty == true) {
+        return trimmed;
+      }
+    }
+    return null;
   }
 }

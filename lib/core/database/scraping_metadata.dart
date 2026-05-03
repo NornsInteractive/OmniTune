@@ -1,26 +1,26 @@
 /// 刮削状态枚举
 enum ScrapingStatus {
-  pending,      // 待刮削
-  scraping,     // 刮削中
-  completed,    // 已完成
-  failed,       // 失败
+  pending, // 待刮削
+  scraping, // 刮削中
+  completed, // 已完成
+  failed, // 失败
 }
 
 /// 刮削优先级枚举
 enum ScrapingPriority {
-  low,      // 背景队列
-  high,     // 播放优先
+  low, // 背景队列
+  high, // 播放优先
 }
 
 /// 刮削结果来源枚举
 enum ScrapingSource {
-  manual,        // 手动刮削
-  automatic,     // 自动刮削
+  manual, // 手动刮削
+  automatic, // 自动刮削
 }
 
 /// 刮削元数据模型（使用 JSON 序列化，不依赖 Isar）
 class ScrapingMetadata {
-  String id;  // 唯一标识符
+  String id; // 唯一标识符
 
   // ===== 标识字段 =====
   /// 音源 ID（唯一标识符的一部分）
@@ -37,7 +37,7 @@ class ScrapingMetadata {
   String? manuallyScrapedArtist;
   String? manuallyScrapedAlbum;
   String? manuallyScrapedCoverUrl;
-  String? manuallyScrapedLocalCoverPath;  // 本地缓存的手动刮削封面路径
+  String? manuallyScrapedLocalCoverPath; // 本地缓存的手动刮削封面路径
   String? manuallyScrapedLyrics;
   DateTime? manualScrapedAt;
 
@@ -45,10 +45,22 @@ class ScrapingMetadata {
   String? autoScrapedTitle;
   String? autoScrapedArtist;
   String? autoScrapedAlbum;
+  String? autoScrapedAlbumArtist;
+  String? autoScrapedGenre;
+  String? autoScrapedYear;
+  String? autoScrapedComposer;
+  String? autoScrapedComment;
   String? autoScrapedCoverUrl;
-  String? autoScrapedLocalCoverPath;  // 本地缓存的自动刮削封面路径
+  String? autoScrapedLocalCoverPath; // 本地缓存的自动刮削封面路径
+  String? autoScrapedCoverSource;
   String? autoScrapedLyrics;
+  String? autoScrapedLyricsSource;
+  int? autoScrapedTrackNumber;
+  int? autoScrapedTrackTotal;
+  int? autoScrapedDiscNumber;
+  int? autoScrapedDiscTotal;
   DateTime? autoScrapedAt;
+  DateTime? embeddedMetadataReadAt;
 
   // ===== 刮削状态 =====
   /// 当前刮削状态
@@ -100,10 +112,22 @@ class ScrapingMetadata {
     this.autoScrapedTitle,
     this.autoScrapedArtist,
     this.autoScrapedAlbum,
+    this.autoScrapedAlbumArtist,
+    this.autoScrapedGenre,
+    this.autoScrapedYear,
+    this.autoScrapedComposer,
+    this.autoScrapedComment,
     this.autoScrapedCoverUrl,
     this.autoScrapedLocalCoverPath,
+    this.autoScrapedCoverSource,
     this.autoScrapedLyrics,
+    this.autoScrapedLyricsSource,
+    this.autoScrapedTrackNumber,
+    this.autoScrapedTrackTotal,
+    this.autoScrapedDiscNumber,
+    this.autoScrapedDiscTotal,
     this.autoScrapedAt,
+    this.embeddedMetadataReadAt,
     this.status = ScrapingStatus.pending,
     this.errorMessage,
     this.retryCount = 0,
@@ -112,8 +136,8 @@ class ScrapingMetadata {
     DateTime? updatedAt,
     this.lastAttemptAt,
     this.matchScore = 0.0,
-  })  : createdAt = createdAt ?? DateTime.now(),
-        updatedAt = updatedAt ?? DateTime.now() {
+  }) : createdAt = createdAt ?? DateTime.now(),
+       updatedAt = updatedAt ?? DateTime.now() {
     if (id.isEmpty) {
       id = '$sourceId::$filePath';
     }
@@ -121,35 +145,47 @@ class ScrapingMetadata {
 
   /// 转换为 JSON
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'sourceId': sourceId,
-        'filePath': filePath,
-        'filenameWithoutExt': filenameWithoutExt,
-        'originalFileName': originalFileName,
-        'originalArtist': originalArtist,
-        'manuallyScrapedTitle': manuallyScrapedTitle,
-        'manuallyScrapedArtist': manuallyScrapedArtist,
-        'manuallyScrapedAlbum': manuallyScrapedAlbum,
-        'manuallyScrapedCoverUrl': manuallyScrapedCoverUrl,
-        'manuallyScrapedLocalCoverPath': manuallyScrapedLocalCoverPath,
-        'manuallyScrapedLyrics': manuallyScrapedLyrics,
-        'manualScrapedAt': manualScrapedAt?.toIso8601String(),
-        'autoScrapedTitle': autoScrapedTitle,
-        'autoScrapedArtist': autoScrapedArtist,
-        'autoScrapedAlbum': autoScrapedAlbum,
-        'autoScrapedCoverUrl': autoScrapedCoverUrl,
-        'autoScrapedLocalCoverPath': autoScrapedLocalCoverPath,
-        'autoScrapedLyrics': autoScrapedLyrics,
-        'autoScrapedAt': autoScrapedAt?.toIso8601String(),
-        'status': status.toString().split('.').last,
-        'errorMessage': errorMessage,
-        'retryCount': retryCount,
-        'lastPriority': lastPriority.toString().split('.').last,
-        'createdAt': createdAt.toIso8601String(),
-        'updatedAt': updatedAt.toIso8601String(),
-        'lastAttemptAt': lastAttemptAt?.toIso8601String(),
-        'matchScore': matchScore,
-      };
+    'id': id,
+    'sourceId': sourceId,
+    'filePath': filePath,
+    'filenameWithoutExt': filenameWithoutExt,
+    'originalFileName': originalFileName,
+    'originalArtist': originalArtist,
+    'manuallyScrapedTitle': manuallyScrapedTitle,
+    'manuallyScrapedArtist': manuallyScrapedArtist,
+    'manuallyScrapedAlbum': manuallyScrapedAlbum,
+    'manuallyScrapedCoverUrl': manuallyScrapedCoverUrl,
+    'manuallyScrapedLocalCoverPath': manuallyScrapedLocalCoverPath,
+    'manuallyScrapedLyrics': manuallyScrapedLyrics,
+    'manualScrapedAt': manualScrapedAt?.toIso8601String(),
+    'autoScrapedTitle': autoScrapedTitle,
+    'autoScrapedArtist': autoScrapedArtist,
+    'autoScrapedAlbum': autoScrapedAlbum,
+    'autoScrapedAlbumArtist': autoScrapedAlbumArtist,
+    'autoScrapedGenre': autoScrapedGenre,
+    'autoScrapedYear': autoScrapedYear,
+    'autoScrapedComposer': autoScrapedComposer,
+    'autoScrapedComment': autoScrapedComment,
+    'autoScrapedCoverUrl': autoScrapedCoverUrl,
+    'autoScrapedLocalCoverPath': autoScrapedLocalCoverPath,
+    'autoScrapedCoverSource': autoScrapedCoverSource,
+    'autoScrapedLyrics': autoScrapedLyrics,
+    'autoScrapedLyricsSource': autoScrapedLyricsSource,
+    'autoScrapedTrackNumber': autoScrapedTrackNumber,
+    'autoScrapedTrackTotal': autoScrapedTrackTotal,
+    'autoScrapedDiscNumber': autoScrapedDiscNumber,
+    'autoScrapedDiscTotal': autoScrapedDiscTotal,
+    'autoScrapedAt': autoScrapedAt?.toIso8601String(),
+    'embeddedMetadataReadAt': embeddedMetadataReadAt?.toIso8601String(),
+    'status': status.toString().split('.').last,
+    'errorMessage': errorMessage,
+    'retryCount': retryCount,
+    'lastPriority': lastPriority.toString().split('.').last,
+    'createdAt': createdAt.toIso8601String(),
+    'updatedAt': updatedAt.toIso8601String(),
+    'lastAttemptAt': lastAttemptAt?.toIso8601String(),
+    'matchScore': matchScore,
+  };
 
   /// 从 JSON 创建
   factory ScrapingMetadata.fromJson(Map<String, dynamic> json) {
@@ -164,7 +200,8 @@ class ScrapingMetadata {
       manuallyScrapedArtist: json['manuallyScrapedArtist'] as String?,
       manuallyScrapedAlbum: json['manuallyScrapedAlbum'] as String?,
       manuallyScrapedCoverUrl: json['manuallyScrapedCoverUrl'] as String?,
-      manuallyScrapedLocalCoverPath: json['manuallyScrapedLocalCoverPath'] as String?,
+      manuallyScrapedLocalCoverPath:
+          json['manuallyScrapedLocalCoverPath'] as String?,
       manuallyScrapedLyrics: json['manuallyScrapedLyrics'] as String?,
       manualScrapedAt: json['manualScrapedAt'] != null
           ? DateTime.parse(json['manualScrapedAt'] as String)
@@ -172,11 +209,25 @@ class ScrapingMetadata {
       autoScrapedTitle: json['autoScrapedTitle'] as String?,
       autoScrapedArtist: json['autoScrapedArtist'] as String?,
       autoScrapedAlbum: json['autoScrapedAlbum'] as String?,
+      autoScrapedAlbumArtist: json['autoScrapedAlbumArtist'] as String?,
+      autoScrapedGenre: json['autoScrapedGenre'] as String?,
+      autoScrapedYear: json['autoScrapedYear'] as String?,
+      autoScrapedComposer: json['autoScrapedComposer'] as String?,
+      autoScrapedComment: json['autoScrapedComment'] as String?,
       autoScrapedCoverUrl: json['autoScrapedCoverUrl'] as String?,
       autoScrapedLocalCoverPath: json['autoScrapedLocalCoverPath'] as String?,
+      autoScrapedCoverSource: json['autoScrapedCoverSource'] as String?,
       autoScrapedLyrics: json['autoScrapedLyrics'] as String?,
+      autoScrapedLyricsSource: json['autoScrapedLyricsSource'] as String?,
+      autoScrapedTrackNumber: json['autoScrapedTrackNumber'] as int?,
+      autoScrapedTrackTotal: json['autoScrapedTrackTotal'] as int?,
+      autoScrapedDiscNumber: json['autoScrapedDiscNumber'] as int?,
+      autoScrapedDiscTotal: json['autoScrapedDiscTotal'] as int?,
       autoScrapedAt: json['autoScrapedAt'] != null
           ? DateTime.parse(json['autoScrapedAt'] as String)
+          : null,
+      embeddedMetadataReadAt: json['embeddedMetadataReadAt'] != null
+          ? DateTime.parse(json['embeddedMetadataReadAt'] as String)
           : null,
       status: _parseScrapingStatus(json['status'] as String?),
       errorMessage: json['errorMessage'] as String?,
@@ -213,7 +264,8 @@ class ScrapingMetadata {
   }
 
   @override
-  String toString() => '''
+  String toString() =>
+      '''
 ScrapingMetadata(
   id: $id,
   filePath: $filePath,

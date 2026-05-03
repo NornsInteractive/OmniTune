@@ -29,6 +29,8 @@ class LibraryPreferences {
     this.albumViewGrid = false,
     this.lyricsScrapingServiceBaseUrl,
     this.enableLyricsScraping = false,
+    this.enableFolderArtworkForSongs = true,
+    this.groupMetadataAlbumsByArtist = false,
     this.enableDeezerCoverScraping = false,
     this.enableItunesMetadataScraping = false,
   });
@@ -50,6 +52,8 @@ class LibraryPreferences {
   final bool albumViewGrid;
   final String? lyricsScrapingServiceBaseUrl;
   final bool enableLyricsScraping;
+  final bool enableFolderArtworkForSongs;
+  final bool groupMetadataAlbumsByArtist;
   final bool enableDeezerCoverScraping;
   final bool enableItunesMetadataScraping;
 
@@ -80,6 +84,8 @@ class LibraryPreferences {
     String? lyricsScrapingServiceBaseUrl,
     bool clearLyricsScrapingServiceBaseUrl = false,
     bool? enableLyricsScraping,
+    bool? enableFolderArtworkForSongs,
+    bool? groupMetadataAlbumsByArtist,
     bool? enableDeezerCoverScraping,
     bool? enableItunesMetadataScraping,
   }) {
@@ -117,6 +123,10 @@ class LibraryPreferences {
           ? null
           : lyricsScrapingServiceBaseUrl ?? this.lyricsScrapingServiceBaseUrl,
       enableLyricsScraping: enableLyricsScraping ?? this.enableLyricsScraping,
+      enableFolderArtworkForSongs:
+          enableFolderArtworkForSongs ?? this.enableFolderArtworkForSongs,
+      groupMetadataAlbumsByArtist:
+          groupMetadataAlbumsByArtist ?? this.groupMetadataAlbumsByArtist,
       enableDeezerCoverScraping:
           enableDeezerCoverScraping ?? this.enableDeezerCoverScraping,
       enableItunesMetadataScraping:
@@ -204,6 +214,10 @@ class SecureLibraryPreferencesRepository
           ? null
           : json['lyricsScrapingServiceBaseUrl'] as String?,
       enableLyricsScraping: json['enableLyricsScraping'] as bool? ?? false,
+      enableFolderArtworkForSongs:
+          json['enableFolderArtworkForSongs'] as bool? ?? true,
+      groupMetadataAlbumsByArtist:
+          json['groupMetadataAlbumsByArtist'] as bool? ?? false,
       enableDeezerCoverScraping:
           json['enableDeezerCoverScraping'] as bool? ?? false,
       enableItunesMetadataScraping:
@@ -243,6 +257,8 @@ class SecureLibraryPreferencesRepository
       'albumViewGrid': preferences.albumViewGrid,
       'lyricsScrapingServiceBaseUrl': preferences.lyricsScrapingServiceBaseUrl,
       'enableLyricsScraping': preferences.enableLyricsScraping,
+      'enableFolderArtworkForSongs': preferences.enableFolderArtworkForSongs,
+      'groupMetadataAlbumsByArtist': preferences.groupMetadataAlbumsByArtist,
       'enableDeezerCoverScraping': preferences.enableDeezerCoverScraping,
       'enableItunesMetadataScraping': preferences.enableItunesMetadataScraping,
     });

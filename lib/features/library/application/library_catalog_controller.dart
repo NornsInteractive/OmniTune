@@ -15,6 +15,7 @@ import '../../../core/storage/cover_art_cache_manager.dart';
 import '../../../core/storage/library_preferences_repository.dart';
 import '../../../core/utils/audio_embedded_metadata_reader.dart';
 import '../../../core/utils/debug_logger.dart';
+import '../../settings/application/app_settings_controller.dart';
 import '../../sources/application/source_session_manager.dart';
 import '../../sources/application/sources_controller.dart';
 import '../../sources/domain/music_source.dart';
@@ -135,9 +136,38 @@ class _SourceScanResult {
 
 @Riverpod(keepAlive: true)
 class LibraryCatalogController extends _$LibraryCatalogController {
+  static const int _embeddedMetadataReadLength = 128 * 1024;
+  static const int _embeddedMetadataHydrationConcurrency = 3;
+  static const int _embeddedMetadataRefreshBatchSize = 8;
+
+  int _metadataHydrationGeneration = 0;
+
   @override
   Future<LibraryCatalogState> build() async {
     DebugLogger.info('LibraryCatalogController.build', '开始加载库');
+    ref.listen<AsyncValue<LibraryPreferences>>(appSettingsControllerProvider, (
+      previous,
+      next,
+    ) {
+      final previousValue = previous?.valueOrNull;
+      final nextValue = next.valueOrNull;
+      if (previousValue == null || nextValue == null) {
+        return;
+      }
+      if (previousValue.groupMetadataAlbumsByArtist ==
+          nextValue.groupMetadataAlbumsByArtist) {
+        return;
+      }
+
+      final current = state.valueOrNull;
+      if (current == null) {
+        return;
+      }
+
+      state = AsyncData(
+        current.copyWith(metadataAlbums: _buildMetadataAlbums(current.tracks)),
+      );
+    });
     final preferences = await ref
         .watch(libraryPreferencesRepositoryProvider)
         .load();
@@ -356,6 +386,7 @@ class LibraryCatalogController extends _$LibraryCatalogController {
           lastScanError: scanErrors.isEmpty ? null : scanErrors.join('\n'),
         ),
       );
+      unawaited(_hydrateEmbeddedMetadataInBackground(sources, discovered));
     } catch (error) {
       state = AsyncData(
         (state.valueOrNull ?? current).copyWith(
@@ -442,6 +473,7 @@ class LibraryCatalogController extends _$LibraryCatalogController {
           clearLastScanError: true,
         ),
       );
+      unawaited(_hydrateEmbeddedMetadataInBackground([source], result.tracks));
     } on DirectoryReadFailure catch (error) {
       state = AsyncData(
         (state.valueOrNull ?? current).copyWith(
@@ -536,14 +568,7 @@ class LibraryCatalogController extends _$LibraryCatalogController {
           continue;
         }
 
-        discovered.add(
-          await _mapSong(
-            source,
-            entry,
-            session: session,
-            waitForScraping: false,
-          ),
-        );
+        discovered.add(await _mapSong(source, entry, session: session));
       }
 
       if (scannedDirectoryCount % 4 == 0) {
@@ -565,7 +590,6 @@ class LibraryCatalogController extends _$LibraryCatalogController {
     SourceProfile source,
     RemoteEntry entry, {
     required MusicSource session,
-    bool waitForScraping = true,
   }) async {
     final directory = p.posix.dirname(entry.path);
     final folderSegments = directory
@@ -578,11 +602,6 @@ class LibraryCatalogController extends _$LibraryCatalogController {
     final folderArtistName = folderSegments.length >= 2
         ? folderSegments[folderSegments.length - 2]
         : source.name;
-    final embeddedMetadata = await _readEmbeddedMetadata(session, entry);
-    final embeddedCoverPath = await _cacheEmbeddedCover(
-      entry.uniqueId,
-      embeddedMetadata,
-    );
 
     // 从数据库中查找是否有此歌曲的刮削数据
     final scrapingMetadata = IsarManager.getMetadata(entry.uniqueId);
@@ -610,19 +629,19 @@ class LibraryCatalogController extends _$LibraryCatalogController {
     } else {
       DebugLogger.scraping(
         'LibraryCatalogController._mapSong',
-        '创建歌曲: ${entry.name}（刮削将在播放时进行）',
+        '创建歌曲: ${entry.name}（标签将在后台异步读取）',
       );
     }
 
-    final song = LibrarySong(
+    return LibrarySong(
       id: entry.uniqueId,
       sourceId: source.id,
       sourceName: source.name,
-      title: embeddedMetadata?.title ?? entry.title,
+      title: entry.title,
       fileName: entry.name,
       remotePath: entry.path,
-      albumTitle: embeddedMetadata?.album ?? folderAlbumTitle,
-      artistName: embeddedMetadata?.artist ?? folderArtistName,
+      albumTitle: folderAlbumTitle,
+      artistName: folderArtistName,
       directoryPath: directory,
       folderAlbumTitle: folderAlbumTitle,
       folderArtistName: folderArtistName,
@@ -631,21 +650,19 @@ class LibraryCatalogController extends _$LibraryCatalogController {
       mimeType: entry.mimeType,
       size: entry.size,
       modifiedAt: entry.modifiedAt,
-      manuallyScrapedTitle: null,
-      manuallyScrapedArtist: null,
-      manuallyScrapedAlbum: null,
+      manuallyScrapedTitle: scrapingMetadata?.manuallyScrapedTitle,
+      manuallyScrapedArtist: scrapingMetadata?.manuallyScrapedArtist,
+      manuallyScrapedAlbum: scrapingMetadata?.manuallyScrapedAlbum,
       manuallyScrapedCoverUrl: manuallyScrapedCoverUrl,
       manuallyScrapedLocalCoverPath: manuallyScrapedLocalCoverPath,
       manuallyScrapedLyrics: manuallyScrapedLyrics,
-      autoScrapedTitle: null,
-      autoScrapedArtist: null,
-      autoScrapedAlbum: null,
+      autoScrapedTitle: scrapingMetadata?.autoScrapedTitle,
+      autoScrapedArtist: scrapingMetadata?.autoScrapedArtist,
+      autoScrapedAlbum: scrapingMetadata?.autoScrapedAlbum,
       autoScrapedCoverUrl: autoScrapedCoverUrl,
-      autoScrapedLocalCoverPath: embeddedCoverPath ?? autoScrapedLocalCoverPath,
+      autoScrapedLocalCoverPath: autoScrapedLocalCoverPath,
       autoScrapedLyrics: autoScrapedLyrics,
     );
-
-    return song;
   }
 
   /// 对歌曲列表应用已缓存的刮削数据（app 初始化或扫描时调用）
@@ -655,78 +672,9 @@ class LibraryCatalogController extends _$LibraryCatalogController {
       final cachedMetadata = IsarManager.getMetadata(track.id);
       if (cachedMetadata != null && _hasSavedScrapingData(cachedMetadata)) {
         appliedCount++;
-        // 应用缓存的刮削数据
-        return LibrarySong(
-          id: track.id,
-          sourceId: track.sourceId,
-          sourceName: track.sourceName,
-          title: track.title,
-          fileName: track.fileName,
-          remotePath: track.remotePath,
-          albumTitle: track.albumTitle,
-          artistName: track.artistName,
-          directoryPath: track.directoryPath,
-          folderAlbumTitle: track.folderAlbumTitle,
-          folderArtistName: track.folderArtistName,
-          scrapedAlbumTitle: track.scrapedAlbumTitle,
-          scrapedArtistName: track.scrapedArtistName,
-          mimeType: track.mimeType,
-          size: track.size,
-          modifiedAt: track.modifiedAt,
-          manuallyScrapedTitle: null,
-          manuallyScrapedArtist: null,
-          manuallyScrapedAlbum: null,
-          manuallyScrapedCoverUrl:
-              cachedMetadata.manuallyScrapedCoverUrl ??
-              track.manuallyScrapedCoverUrl,
-          manuallyScrapedLocalCoverPath:
-              cachedMetadata.manuallyScrapedLocalCoverPath ??
-              track.manuallyScrapedLocalCoverPath,
-          manuallyScrapedLyrics:
-              cachedMetadata.manuallyScrapedLyrics ??
-              track.manuallyScrapedLyrics,
-          autoScrapedTitle: null,
-          autoScrapedArtist: null,
-          autoScrapedAlbum: null,
-          autoScrapedCoverUrl:
-              cachedMetadata.autoScrapedCoverUrl ?? track.autoScrapedCoverUrl,
-          autoScrapedLocalCoverPath:
-              cachedMetadata.autoScrapedLocalCoverPath ??
-              track.autoScrapedLocalCoverPath,
-          autoScrapedLyrics:
-              cachedMetadata.autoScrapedLyrics ?? track.autoScrapedLyrics,
-        );
+        return _mergeCachedMetadataIntoSong(track, cachedMetadata);
       }
-      return LibrarySong(
-        id: track.id,
-        sourceId: track.sourceId,
-        sourceName: track.sourceName,
-        title: track.title,
-        fileName: track.fileName,
-        remotePath: track.remotePath,
-        albumTitle: track.albumTitle,
-        artistName: track.artistName,
-        directoryPath: track.directoryPath,
-        folderAlbumTitle: track.folderAlbumTitle,
-        folderArtistName: track.folderArtistName,
-        scrapedAlbumTitle: track.scrapedAlbumTitle,
-        scrapedArtistName: track.scrapedArtistName,
-        mimeType: track.mimeType,
-        size: track.size,
-        modifiedAt: track.modifiedAt,
-        manuallyScrapedTitle: null,
-        manuallyScrapedArtist: null,
-        manuallyScrapedAlbum: null,
-        manuallyScrapedCoverUrl: track.manuallyScrapedCoverUrl,
-        manuallyScrapedLocalCoverPath: track.manuallyScrapedLocalCoverPath,
-        manuallyScrapedLyrics: track.manuallyScrapedLyrics,
-        autoScrapedTitle: null,
-        autoScrapedArtist: null,
-        autoScrapedAlbum: null,
-        autoScrapedCoverUrl: track.autoScrapedCoverUrl,
-        autoScrapedLocalCoverPath: track.autoScrapedLocalCoverPath,
-        autoScrapedLyrics: track.autoScrapedLyrics,
-      );
+      return track;
     }).toList();
 
     if (appliedCount > 0) {
@@ -753,9 +701,16 @@ class LibraryCatalogController extends _$LibraryCatalogController {
 
   List<LibraryAlbum> _buildMetadataAlbums(List<LibrarySong> tracks) {
     final grouped = <String, List<LibrarySong>>{};
+    final groupByArtist =
+        ref
+            .read(appSettingsControllerProvider)
+            .valueOrNull
+            ?.groupMetadataAlbumsByArtist ??
+        false;
     for (final track in tracks) {
-      final key =
-          '${track.sourceId}::${track.metadataArtistName.toLowerCase()}::${track.metadataAlbumTitle.toLowerCase()}';
+      final key = groupByArtist
+          ? '${track.sourceId}::${track.metadataArtistName.toLowerCase()}::${track.metadataAlbumTitle.toLowerCase()}'
+          : '${track.sourceId}::${track.metadataAlbumTitle.toLowerCase()}';
       grouped.putIfAbsent(key, () => []).add(track);
     }
     return _toAlbums(
@@ -769,14 +724,11 @@ class LibraryCatalogController extends _$LibraryCatalogController {
     MusicSource session,
     RemoteEntry entry,
   ) async {
-    final extension = p.extension(entry.name).toLowerCase();
-    const supportedExtensions = {'.mp3', '.flac'};
-    if (!supportedExtensions.contains(extension)) {
-      return null;
-    }
-
     try {
-      final bytes = await session.readBinaryFile(entry.path);
+      final bytes = await session.readBinaryFileHead(
+        entry.path,
+        length: _embeddedMetadataReadLength,
+      );
       if (bytes == null || bytes.isEmpty) {
         return null;
       }
@@ -790,20 +742,6 @@ class LibraryCatalogController extends _$LibraryCatalogController {
       );
       return null;
     }
-  }
-
-  Future<String?> _cacheEmbeddedCover(
-    String trackId,
-    EmbeddedAudioMetadata? metadata,
-  ) async {
-    if (metadata?.hasCover != true) {
-      return null;
-    }
-    return CoverArtCacheManager().cacheBytes(
-      'scan_embedded_cover_$trackId',
-      metadata!.coverBytes!,
-      extension: metadata.coverExtension ?? '.jpg',
-    );
   }
 
   List<LibraryAlbum> _toAlbums(
@@ -879,53 +817,14 @@ class LibraryCatalogController extends _$LibraryCatalogController {
 
       // 仅更新该歌曲，不重新加载整个列表
       final updatedTracks = currentState.tracks.map((track) {
-        if (track.id == songId) {
-          DebugLogger.info(
-            'LibraryCatalogController.refreshSongMetadata',
-            '找到要更新的歌曲: ${track.title} -> ${cachedMetadata.autoScrapedTitle}',
-          );
-          return LibrarySong(
-            id: track.id,
-            sourceId: track.sourceId,
-            sourceName: track.sourceName,
-            title: track.title,
-            fileName: track.fileName,
-            remotePath: track.remotePath,
-            albumTitle: track.albumTitle,
-            artistName: track.artistName,
-            directoryPath: track.directoryPath,
-            folderAlbumTitle: track.folderAlbumTitle,
-            folderArtistName: track.folderArtistName,
-            scrapedAlbumTitle: track.scrapedAlbumTitle,
-            scrapedArtistName: track.scrapedArtistName,
-            mimeType: track.mimeType,
-            size: track.size,
-            modifiedAt: track.modifiedAt,
-            manuallyScrapedTitle: null,
-            manuallyScrapedArtist: null,
-            manuallyScrapedAlbum: null,
-            manuallyScrapedCoverUrl:
-                cachedMetadata.manuallyScrapedCoverUrl ??
-                track.manuallyScrapedCoverUrl,
-            manuallyScrapedLocalCoverPath:
-                cachedMetadata.manuallyScrapedLocalCoverPath ??
-                track.manuallyScrapedLocalCoverPath,
-            manuallyScrapedLyrics:
-                cachedMetadata.manuallyScrapedLyrics ??
-                track.manuallyScrapedLyrics,
-            autoScrapedTitle: null,
-            autoScrapedArtist: null,
-            autoScrapedAlbum: null,
-            autoScrapedCoverUrl:
-                cachedMetadata.autoScrapedCoverUrl ?? track.autoScrapedCoverUrl,
-            autoScrapedLocalCoverPath:
-                cachedMetadata.autoScrapedLocalCoverPath ??
-                track.autoScrapedLocalCoverPath,
-            autoScrapedLyrics:
-                cachedMetadata.autoScrapedLyrics ?? track.autoScrapedLyrics,
-          );
+        if (track.id != songId) {
+          return track;
         }
-        return track;
+        DebugLogger.info(
+          'LibraryCatalogController.refreshSongMetadata',
+          '找到要更新的歌曲: ${track.title} -> ${cachedMetadata.autoScrapedTitle}',
+        );
+        return _mergeCachedMetadataIntoSong(track, cachedMetadata);
       }).toList();
 
       DebugLogger.success(
@@ -954,6 +853,347 @@ class LibraryCatalogController extends _$LibraryCatalogController {
     }
   }
 
+  void refreshSongsMetadata(Iterable<String> songIds) {
+    final targetIds = songIds.toSet();
+    if (targetIds.isEmpty) {
+      return;
+    }
+
+    final currentState = state.valueOrNull;
+    if (currentState == null) {
+      return;
+    }
+
+    var changed = false;
+    final updatedTracks = currentState.tracks
+        .map((track) {
+          if (!targetIds.contains(track.id)) {
+            return track;
+          }
+          final cachedMetadata = IsarManager.getMetadata(track.id);
+          if (cachedMetadata == null ||
+              !_hasSavedScrapingData(cachedMetadata)) {
+            return track;
+          }
+          changed = true;
+          return _mergeCachedMetadataIntoSong(track, cachedMetadata);
+        })
+        .toList(growable: false);
+
+    if (!changed) {
+      return;
+    }
+
+    state = AsyncData(
+      currentState.copyWith(
+        tracks: updatedTracks,
+        folderAlbums: _buildFolderAlbums(updatedTracks),
+        metadataAlbums: _buildMetadataAlbums(updatedTracks),
+      ),
+    );
+  }
+
+  Future<void> _hydrateEmbeddedMetadataInBackground(
+    List<SourceProfile> sources,
+    List<LibrarySong> tracks,
+  ) async {
+    final generation = ++_metadataHydrationGeneration;
+    final sourceById = {for (final source in sources) source.id: source};
+    final queue = Queue<LibrarySong>()
+      ..addAll(tracks.where(_shouldHydrateEmbeddedMetadata));
+    if (queue.isEmpty) {
+      return;
+    }
+
+    final sessions = <String, MusicSource>{};
+    final updatedSongIds = <String>{};
+    final workerCount = queue.length < _embeddedMetadataHydrationConcurrency
+        ? queue.length
+        : _embeddedMetadataHydrationConcurrency;
+
+    Future<void> flushUpdates() async {
+      if (updatedSongIds.isEmpty ||
+          generation != _metadataHydrationGeneration) {
+        return;
+      }
+      refreshSongsMetadata(updatedSongIds.toList(growable: false));
+      updatedSongIds.clear();
+    }
+
+    Future<void> worker() async {
+      while (generation == _metadataHydrationGeneration) {
+        if (queue.isEmpty) {
+          return;
+        }
+        final track = queue.removeFirst();
+        final source = sourceById[track.sourceId];
+        if (source == null) {
+          continue;
+        }
+
+        try {
+          final session = sessions[source.id] ??= await ref
+              .read(musicSourceSessionManagerProvider)
+              .get(source);
+          final metadata = await _readEmbeddedMetadata(
+            session,
+            track.toRemoteEntry(),
+          );
+          if (generation != _metadataHydrationGeneration) {
+            continue;
+          }
+          if (metadata == null) {
+            await _markEmbeddedMetadataAttempted(track);
+            continue;
+          }
+
+          final changed = await _persistEmbeddedMetadata(track, metadata);
+          if (!changed) {
+            continue;
+          }
+
+          updatedSongIds.add(track.id);
+          if (updatedSongIds.length >= _embeddedMetadataRefreshBatchSize) {
+            await flushUpdates();
+          }
+        } catch (e, stack) {
+          DebugLogger.error(
+            'LibraryCatalogController._hydrateEmbeddedMetadataInBackground',
+            '后台读取标签失败: ${track.remotePath}',
+            e.toString(),
+            stack,
+          );
+        }
+      }
+    }
+
+    await Future.wait(List.generate(workerCount, (_) => worker()));
+    await flushUpdates();
+  }
+
+  bool _shouldHydrateEmbeddedMetadata(LibrarySong track) {
+    final cachedMetadata = IsarManager.getMetadata(track.id);
+    if (cachedMetadata == null) {
+      return true;
+    }
+    return cachedMetadata.embeddedMetadataReadAt == null;
+  }
+
+  Future<void> _markEmbeddedMetadataAttempted(LibrarySong track) async {
+    final existing =
+        IsarManager.getMetadata(track.id) ??
+        ScrapingMetadata(
+          id: track.id,
+          sourceId: track.sourceId,
+          filePath: track.remotePath,
+          filenameWithoutExt: p.posix.basenameWithoutExtension(track.fileName),
+          originalFileName: track.fileName,
+          originalArtist: track.artistName,
+        );
+    if (existing.embeddedMetadataReadAt != null) {
+      return;
+    }
+    existing.embeddedMetadataReadAt = DateTime.now();
+    existing.updatedAt = DateTime.now();
+    existing.lastAttemptAt = existing.embeddedMetadataReadAt;
+    await IsarManager.saveMetadata(existing);
+  }
+
+  Future<bool> _persistEmbeddedMetadata(
+    LibrarySong track,
+    EmbeddedAudioMetadata metadata,
+  ) async {
+    final existing =
+        IsarManager.getMetadata(track.id) ??
+        ScrapingMetadata(
+          id: track.id,
+          sourceId: track.sourceId,
+          filePath: track.remotePath,
+          filenameWithoutExt: p.posix.basenameWithoutExtension(track.fileName),
+          originalFileName: track.fileName,
+          originalArtist: track.artistName,
+        );
+
+    var changed = false;
+
+    void updateText(
+      String? value,
+      String? current,
+      void Function(String value) assign,
+    ) {
+      final trimmed = value?.trim();
+      if (trimmed?.isNotEmpty != true || current == trimmed) {
+        return;
+      }
+      assign(trimmed!);
+      changed = true;
+    }
+
+    void updateInt(int? value, int? current, void Function(int value) assign) {
+      if (value == null || current == value) {
+        return;
+      }
+      assign(value);
+      changed = true;
+    }
+
+    updateText(
+      metadata.title,
+      existing.autoScrapedTitle,
+      (value) => existing.autoScrapedTitle = value,
+    );
+    updateText(
+      metadata.artist,
+      existing.autoScrapedArtist,
+      (value) => existing.autoScrapedArtist = value,
+    );
+    updateText(
+      metadata.album,
+      existing.autoScrapedAlbum,
+      (value) => existing.autoScrapedAlbum = value,
+    );
+    updateText(
+      metadata.albumArtist,
+      existing.autoScrapedAlbumArtist,
+      (value) => existing.autoScrapedAlbumArtist = value,
+    );
+    updateText(
+      metadata.genre,
+      existing.autoScrapedGenre,
+      (value) => existing.autoScrapedGenre = value,
+    );
+    updateText(
+      metadata.year,
+      existing.autoScrapedYear,
+      (value) => existing.autoScrapedYear = value,
+    );
+    updateText(
+      metadata.composer,
+      existing.autoScrapedComposer,
+      (value) => existing.autoScrapedComposer = value,
+    );
+    updateText(
+      metadata.comment,
+      existing.autoScrapedComment,
+      (value) => existing.autoScrapedComment = value,
+    );
+    updateText(metadata.lyrics, existing.autoScrapedLyrics, (value) {
+      existing.autoScrapedLyrics = value;
+      existing.autoScrapedLyricsSource = 'embedded';
+    });
+    if (metadata.lyrics?.trim().isNotEmpty == true &&
+        existing.autoScrapedLyricsSource != 'embedded') {
+      existing.autoScrapedLyricsSource = 'embedded';
+      changed = true;
+    }
+    updateInt(
+      metadata.trackNumber,
+      existing.autoScrapedTrackNumber,
+      (value) => existing.autoScrapedTrackNumber = value,
+    );
+    updateInt(
+      metadata.trackTotal,
+      existing.autoScrapedTrackTotal,
+      (value) => existing.autoScrapedTrackTotal = value,
+    );
+    updateInt(
+      metadata.discNumber,
+      existing.autoScrapedDiscNumber,
+      (value) => existing.autoScrapedDiscNumber = value,
+    );
+    updateInt(
+      metadata.discTotal,
+      existing.autoScrapedDiscTotal,
+      (value) => existing.autoScrapedDiscTotal = value,
+    );
+
+    if (metadata.hasCover) {
+      final localCoverPath = await CoverArtCacheManager().cacheBytes(
+        'embedded_cover_${track.id}',
+        metadata.coverBytes!,
+        extension: metadata.coverExtension ?? '.jpg',
+      );
+      if (localCoverPath?.trim().isNotEmpty == true &&
+          existing.autoScrapedLocalCoverPath != localCoverPath) {
+        existing.autoScrapedLocalCoverPath = localCoverPath;
+        existing.autoScrapedCoverSource = 'embedded';
+        changed = true;
+      }
+      if (existing.autoScrapedCoverSource != 'embedded') {
+        existing.autoScrapedCoverSource = 'embedded';
+        changed = true;
+      }
+    }
+
+    if (!changed) {
+      return false;
+    }
+
+    existing.autoScrapedAt = DateTime.now();
+    existing.embeddedMetadataReadAt = DateTime.now();
+    existing.updatedAt = DateTime.now();
+    existing.lastAttemptAt = DateTime.now();
+    if (!_needsAdditionalAutoScrape(existing)) {
+      existing.status = ScrapingStatus.completed;
+    }
+    await IsarManager.saveMetadata(existing);
+    return true;
+  }
+
+  LibrarySong _mergeCachedMetadataIntoSong(
+    LibrarySong track,
+    ScrapingMetadata metadata,
+  ) {
+    return LibrarySong(
+      id: track.id,
+      sourceId: track.sourceId,
+      sourceName: track.sourceName,
+      title: track.title,
+      fileName: track.fileName,
+      remotePath: track.remotePath,
+      albumTitle: track.albumTitle,
+      artistName: track.artistName,
+      directoryPath: track.directoryPath,
+      folderAlbumTitle: track.folderAlbumTitle,
+      folderArtistName: track.folderArtistName,
+      scrapedAlbumTitle: track.scrapedAlbumTitle,
+      scrapedArtistName: track.scrapedArtistName,
+      mimeType: track.mimeType,
+      size: track.size,
+      modifiedAt: track.modifiedAt,
+      manuallyScrapedTitle:
+          metadata.manuallyScrapedTitle ?? track.manuallyScrapedTitle,
+      manuallyScrapedArtist:
+          metadata.manuallyScrapedArtist ?? track.manuallyScrapedArtist,
+      manuallyScrapedAlbum:
+          metadata.manuallyScrapedAlbum ?? track.manuallyScrapedAlbum,
+      manuallyScrapedCoverUrl:
+          metadata.manuallyScrapedCoverUrl ?? track.manuallyScrapedCoverUrl,
+      manuallyScrapedLocalCoverPath:
+          metadata.manuallyScrapedLocalCoverPath ??
+          track.manuallyScrapedLocalCoverPath,
+      manuallyScrapedLyrics:
+          metadata.manuallyScrapedLyrics ?? track.manuallyScrapedLyrics,
+      autoScrapedTitle: metadata.autoScrapedTitle ?? track.autoScrapedTitle,
+      autoScrapedArtist: metadata.autoScrapedArtist ?? track.autoScrapedArtist,
+      autoScrapedAlbum: metadata.autoScrapedAlbum ?? track.autoScrapedAlbum,
+      autoScrapedCoverUrl:
+          metadata.autoScrapedCoverUrl ?? track.autoScrapedCoverUrl,
+      autoScrapedLocalCoverPath:
+          metadata.autoScrapedLocalCoverPath ?? track.autoScrapedLocalCoverPath,
+      autoScrapedLyrics: metadata.autoScrapedLyrics ?? track.autoScrapedLyrics,
+    );
+  }
+
+  bool _needsAdditionalAutoScrape(ScrapingMetadata metadata) {
+    final preferences = ref.read(appSettingsControllerProvider).valueOrNull;
+    final needsLyrics = preferences?.enableLyricsScraping ?? false;
+    final hasLyrics =
+        metadata.manuallyScrapedLyrics?.trim().isNotEmpty == true ||
+        metadata.autoScrapedLyrics?.trim().isNotEmpty == true;
+    return needsLyrics && !hasLyrics;
+  }
+
   String _normalizeDirectoryPath(String path) {
     var normalized = path.trim();
     if (normalized.isEmpty) {
@@ -979,9 +1219,18 @@ class LibraryCatalogController extends _$LibraryCatalogController {
         hasText(metadata.autoScrapedTitle) ||
         hasText(metadata.autoScrapedArtist) ||
         hasText(metadata.autoScrapedAlbum) ||
+        hasText(metadata.autoScrapedAlbumArtist) ||
+        hasText(metadata.autoScrapedGenre) ||
+        hasText(metadata.autoScrapedYear) ||
+        hasText(metadata.autoScrapedComposer) ||
+        hasText(metadata.autoScrapedComment) ||
         hasText(metadata.autoScrapedCoverUrl) ||
         hasText(metadata.autoScrapedLocalCoverPath) ||
-        hasText(metadata.autoScrapedLyrics);
+        hasText(metadata.autoScrapedLyrics) ||
+        metadata.autoScrapedTrackNumber != null ||
+        metadata.autoScrapedTrackTotal != null ||
+        metadata.autoScrapedDiscNumber != null ||
+        metadata.autoScrapedDiscTotal != null;
   }
 
   bool _isExcludedPath(String path, List<String> excludedDirectories) {

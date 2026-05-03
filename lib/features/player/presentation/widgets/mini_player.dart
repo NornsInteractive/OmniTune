@@ -5,11 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:music/l10n/app_localizations.dart';
+import 'package:path/path.dart' as p;
 
 import '../../../../core/widgets/studio_chrome.dart';
 import '../../application/player_controller.dart';
-import 'cover_art_image.dart';
 import 'playback_timeline.dart';
+import 'track_cover_thumbnail.dart';
 
 class MiniPlayer extends ConsumerWidget {
   const MiniPlayer({super.key});
@@ -40,6 +41,8 @@ class MiniPlayer extends ConsumerWidget {
         displaySong?.displayLocalCoverPath ?? track.localCoverPath;
     final displayCoverUrl =
         displaySong?.displayCoverUrl ?? track.autoScrapedCoverUrl;
+    final directoryPath =
+        displaySong?.directoryPath ?? _directoryPath(track.remotePath);
 
     final subtitle = [
       displayArtist,
@@ -87,13 +90,16 @@ class MiniPlayer extends ConsumerWidget {
                     children: [
                       Row(
                         children: [
-                          CoverArtImage(
+                          TrackCoverThumbnail(
                             title: displayTitle,
                             subtitle: subtitle,
                             size: coverSize,
                             borderRadius: coverRadius,
                             localCoverPath: displayLocalCoverPath,
                             coverUrl: displayCoverUrl,
+                            trackId: displaySong?.id ?? track.id,
+                            sourceId: displaySong?.sourceId ?? track.sourceId,
+                            directoryPath: directoryPath,
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -183,6 +189,11 @@ class MiniPlayer extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  String _directoryPath(String remotePath) {
+    final resolved = p.posix.dirname(remotePath);
+    return resolved == '.' ? '/' : resolved;
   }
 }
 

@@ -61,6 +61,18 @@ class AppSettingsController extends AsyncNotifier<LibraryPreferences> {
     );
   }
 
+  Future<void> setEnableFolderArtworkForSongs(bool value) async {
+    await _save(
+      (preferences) => preferences.copyWith(enableFolderArtworkForSongs: value),
+    );
+  }
+
+  Future<void> setGroupMetadataAlbumsByArtist(bool value) async {
+    await _save(
+      (preferences) => preferences.copyWith(groupMetadataAlbumsByArtist: value),
+    );
+  }
+
   Future<void> setEnableDeezerCoverScraping(bool value) async {
     await _save(
       (preferences) => preferences.copyWith(enableDeezerCoverScraping: value),

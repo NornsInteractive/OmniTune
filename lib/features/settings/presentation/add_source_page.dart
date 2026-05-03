@@ -1853,9 +1853,13 @@ IconData _protocolIcon(SourceProtocol protocol) {
 }
 
 List<SourceProtocol> _availableSourceProtocols({SourceProtocol? current}) {
+  const hideCloudDrive = bool.fromEnvironment('OMNITUNE_HIDE_CLOUD189');
   final protocols = kIsWeb
       ? <SourceProtocol>[SourceProtocol.webdav, SourceProtocol.cloudDrive]
-      : SourceProtocol.values;
+      : SourceProtocol.values.toList();
+  if (hideCloudDrive) {
+    protocols.remove(SourceProtocol.cloudDrive);
+  }
   if (current == null || protocols.contains(current)) {
     return protocols;
   }

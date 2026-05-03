@@ -6,12 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:music/l10n/app_localizations.dart';
-import 'package:path/path.dart' as p;
 
 import '../../../core/models/library_album.dart';
 import '../../../core/models/library_song.dart';
 import '../../../core/models/source_profile.dart';
-import '../../../core/storage/cover_art_cache_manager.dart';
 import '../../../core/widgets/studio_chrome.dart';
 import '../../../core/widgets/top_snackbar.dart';
 import '../../player/application/player_controller.dart';
@@ -19,10 +17,9 @@ import '../../player/presentation/widgets/generated_cover_art.dart';
 import '../../player/presentation/widgets/track_cover_thumbnail.dart';
 import '../../settings/application/app_settings_controller.dart';
 import '../../settings/presentation/add_source_page.dart';
-import '../../sources/application/source_session_manager.dart';
-import '../../sources/application/sources_controller.dart';
 import '../application/library_catalog_controller.dart';
 import '../application/library_controller.dart';
+import 'folder_artwork_provider.dart';
 
 enum _AlbumViewMode { grid, list }
 
@@ -1293,109 +1290,6 @@ class _AlbumListRow extends StatelessWidget {
   }
 }
 
-class _AlbumFolderArtwork {
-  const _AlbumFolderArtwork({required this.localPath});
-
-  final String localPath;
-}
-
-class _AlbumFolderArtworkRequest {
-  const _AlbumFolderArtworkRequest({
-    required this.sourceId,
-    required this.directoryPath,
-  });
-
-  final String sourceId;
-  final String directoryPath;
-
-  @override
-  bool operator ==(Object other) {
-    return other is _AlbumFolderArtworkRequest &&
-        other.sourceId == sourceId &&
-        other.directoryPath == directoryPath;
-  }
-
-  @override
-  int get hashCode => Object.hash(sourceId, directoryPath);
-}
-
-final _albumFolderArtworkProvider =
-    FutureProvider.family<_AlbumFolderArtwork?, _AlbumFolderArtworkRequest>((
-      ref,
-      request,
-    ) async {
-      final sources = await ref.read(sourcesControllerProvider.future);
-      if (sources.isEmpty) {
-        return null;
-      }
-      final source = sources.firstWhere(
-        (item) => item.id == request.sourceId,
-        orElse: () => sources.first,
-      );
-      if (source.id != request.sourceId) {
-        return null;
-      }
-      final sessionManager = ref.read(musicSourceSessionManagerProvider);
-      final musicSource = await sessionManager.get(source);
-      final listing = await musicSource.listFiles(request.directoryPath);
-      final imageFiles = listing.entries
-          .where((entry) {
-            if (entry.isDirectory) {
-              return false;
-            }
-            final ext = p.extension(entry.name).toLowerCase();
-            return ext == '.jpg' ||
-                ext == '.jpeg' ||
-                ext == '.png' ||
-                ext == '.webp';
-          })
-          .toList(growable: false);
-      if (imageFiles.isEmpty) {
-        return null;
-      }
-
-      const preferredNames = ['cover', 'folder', 'front', 'album', 'artwork'];
-
-      imageFiles.sort((left, right) {
-        final leftName = p.basenameWithoutExtension(left.name).toLowerCase();
-        final rightName = p.basenameWithoutExtension(right.name).toLowerCase();
-        final leftPreferred = preferredNames.indexOf(leftName);
-        final rightPreferred = preferredNames.indexOf(rightName);
-        final leftOrder = leftPreferred == -1 ? 999 : leftPreferred;
-        final rightOrder = rightPreferred == -1 ? 999 : rightPreferred;
-        if (leftOrder != rightOrder) {
-          return leftOrder.compareTo(rightOrder);
-        }
-        return left.name.toLowerCase().compareTo(right.name.toLowerCase());
-      });
-
-      for (final file in imageFiles) {
-        final extension = p.extension(file.name).toLowerCase();
-        final cacheKey = 'album-folder:${request.sourceId}:${file.path}';
-        final cacheManager = CoverArtCacheManager();
-        final cachedPath = await cacheManager.cachedPathForKey(
-          cacheKey,
-          extension: extension,
-        );
-        if (cachedPath?.isNotEmpty == true) {
-          return _AlbumFolderArtwork(localPath: cachedPath!);
-        }
-
-        final bytes = await musicSource.readBinaryFile(file.path);
-        if (bytes != null && bytes.isNotEmpty) {
-          final localPath = await cacheManager.cacheBytes(
-            cacheKey,
-            bytes,
-            extension: extension,
-          );
-          if (localPath?.isNotEmpty == true) {
-            return _AlbumFolderArtwork(localPath: localPath!);
-          }
-        }
-      }
-      return null;
-    });
-
 class _AlbumArtwork extends ConsumerWidget {
   const _AlbumArtwork({
     required this.album,
@@ -1419,8 +1313,8 @@ class _AlbumArtwork extends ConsumerWidget {
     final leadTrack = album.tracks.isEmpty ? null : album.tracks.first;
     if (leadTrack != null) {
       final folderArtwork = ref.watch(
-        _albumFolderArtworkProvider(
-          _AlbumFolderArtworkRequest(
+        folderArtworkProvider(
+          FolderArtworkRequest(
             sourceId: leadTrack.sourceId,
             directoryPath: leadTrack.directoryPath,
           ),
@@ -1607,6 +1501,9 @@ class _AlbumTrackTile extends StatelessWidget {
                     borderRadius: 12,
                     localCoverPath: track.displayLocalCoverPath,
                     coverUrl: track.displayCoverUrl,
+                    trackId: track.id,
+                    sourceId: track.sourceId,
+                    directoryPath: track.directoryPath,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -1731,6 +1628,9 @@ class _TrackActionHeader extends StatelessWidget {
                 borderRadius: 18,
                 localCoverPath: track.displayLocalCoverPath,
                 coverUrl: track.displayCoverUrl,
+                trackId: track.id,
+                sourceId: track.sourceId,
+                directoryPath: track.directoryPath,
               ),
               const SizedBox(width: 12),
               Expanded(

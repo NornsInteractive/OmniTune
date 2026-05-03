@@ -205,6 +205,24 @@ class Cloud189MusicSource implements MusicSource {
     }
   }
 
+  @override
+  Future<Uint8List?> readBinaryFileHead(
+    String path, {
+    int length = 128 * 1024,
+  }) async {
+    try {
+      await connect();
+      final result = await _client.openRead(path, start: 0, end: length);
+      final builder = BytesBuilder(copy: false);
+      await for (final chunk in result.stream) {
+        builder.add(chunk);
+      }
+      return builder.takeBytes();
+    } catch (_) {
+      return null;
+    }
+  }
+
   RemoteEntryKind _resolveFileKind(String fileName, String? mimeType) {
     if ((mimeType ?? '').startsWith('audio/')) {
       return RemoteEntryKind.audio;
