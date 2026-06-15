@@ -1,13 +1,17 @@
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:music/l10n/app_localizations.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../core/config/build_env.dart';
 import '../core/storage/library_preferences_repository.dart';
 import '../core/widgets/studio_chrome.dart';
+import '../core/widgets/top_snackbar.dart';
 import '../features/settings/application/app_settings_controller.dart';
 import '../features/player/presentation/widgets/mini_player.dart';
 
@@ -42,6 +46,7 @@ class MusicAppShell extends ConsumerWidget {
           ),
           Column(
             children: [
+              if (kIsWeb) const _WebApkDownloadBanner(),
               Expanded(child: navigationShell),
               const MiniPlayer(),
               Padding(
@@ -60,6 +65,142 @@ class MusicAppShell extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _WebApkDownloadBanner extends StatelessWidget {
+  const _WebApkDownloadBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
+    final apkUri = _apkUri;
+    final hasApkUrl = apkUri != null;
+
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: colorScheme.secondaryContainer.withValues(alpha: 0.9),
+            borderRadius: BorderRadius.circular(studioRadiusOf(context, 18)),
+            border: Border.all(
+              color: colorScheme.secondary.withValues(alpha: 0.24),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 720;
+                final message = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.webApkBannerTitle,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: colorScheme.onSecondaryContainer,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      hasApkUrl
+                          ? l10n.webApkBannerDescription
+                          : l10n.webApkBannerUnavailableLabel,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSecondaryContainer.withValues(
+                          alpha: 0.86,
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+                final button = FilledButton.tonalIcon(
+                  onPressed: hasApkUrl
+                      ? () => _launchApk(context, apkUri)
+                      : null,
+                  icon: const Icon(Icons.download_rounded),
+                  label: Text(l10n.webApkBannerDownloadAction),
+                );
+
+                final icon = Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: colorScheme.secondary.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(
+                      studioRadiusOf(context, 14),
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.android_rounded,
+                    color: colorScheme.secondary,
+                  ),
+                );
+
+                if (compact) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          icon,
+                          const SizedBox(width: 12),
+                          Expanded(child: message),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      button,
+                    ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    icon,
+                    const SizedBox(width: 12),
+                    Expanded(child: message),
+                    const SizedBox(width: 12),
+                    button,
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Uri? get _apkUri {
+    if (!BuildEnv.hasWebApkUrl) {
+      return null;
+    }
+
+    final uri = Uri.tryParse(BuildEnv.webApkUrl.trim());
+    if (uri == null || !uri.hasScheme) {
+      return null;
+    }
+    return uri;
+  }
+
+  Future<void> _launchApk(BuildContext context, Uri? uri) async {
+    if (uri == null) {
+      return;
+    }
+
+    final launched = await launchUrl(uri, webOnlyWindowName: '_blank');
+    if (!context.mounted || launched) {
+      return;
+    }
+    showTopSnackBar(
+      context,
+      AppLocalizations.of(context)!.webApkBannerLaunchFailedMessage,
     );
   }
 }

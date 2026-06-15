@@ -1,7 +1,7 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'dart:ui';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -223,7 +223,9 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
   @override
   void initState() {
     super.initState();
-    _protocol = widget.initialProtocol;
+    _protocol = SourceProtocolX.sanitizeForCurrentPlatform(
+      widget.initialProtocol,
+    );
   }
 
   @override
@@ -1853,11 +1855,9 @@ IconData _protocolIcon(SourceProtocol protocol) {
 }
 
 List<SourceProtocol> _availableSourceProtocols({SourceProtocol? current}) {
-  final protocols = kIsWeb
-      ? <SourceProtocol>[SourceProtocol.webdav, SourceProtocol.cloudDrive]
-      : SourceProtocol.values;
+  final protocols = SourceProtocolX.supportedOnCurrentPlatform();
   if (current == null || protocols.contains(current)) {
     return protocols;
   }
-  return [current, ...protocols];
+  return protocols;
 }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' show Ref;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -20,6 +21,11 @@ class MusicSourceRegistry {
   final Map<SourceProtocol, MusicSourceFactory> _factories;
 
   MusicSource create(SourceProfile profile) {
+    if (!profile.protocol.isSupportedOnCurrentPlatform) {
+      throw UnsupportedError(
+        'Protocol ${profile.protocol.storageValue} is not supported on this platform.',
+      );
+    }
     final factory = _factories[profile.protocol];
     if (factory == null) {
       throw UnsupportedError(
@@ -36,8 +42,10 @@ MusicSourceRegistry musicSourceRegistry(Ref ref) {
   return MusicSourceRegistry([
     WebDavMusicSourceFactory(playbackCacheFactory: () => playbackCache),
     Cloud189MusicSourceFactory(playbackCacheFactory: () => playbackCache),
-    const SftpMusicSourceFactory(),
-    const FtpMusicSourceFactory(),
-    const SambaMusicSourceFactory(),
+    if (!kIsWeb) ...[
+      const SftpMusicSourceFactory(),
+      const FtpMusicSourceFactory(),
+      const SambaMusicSourceFactory(),
+    ],
   ]);
 }

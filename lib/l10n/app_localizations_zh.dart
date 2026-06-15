@@ -233,6 +233,23 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsDescription => '在这里添加远程音乐源、切换当前音源，并发起新的全库扫描来生成专辑和歌曲视图。';
 
   @override
+  String get webApkBannerTitle => '需要完整功能版？';
+
+  @override
+  String get webApkBannerDescription =>
+      'Android APK 比 Web 版支持更多协议。若你需要 FTP、SFTP、Samba 和更完整的播放体验，请下载 APK。';
+
+  @override
+  String get webApkBannerUnavailableLabel =>
+      '当前 Web 版已经可用，但这次部署还没有配置 APK 下载链接。';
+
+  @override
+  String get webApkBannerDownloadAction => '下载 APK';
+
+  @override
+  String get webApkBannerLaunchFailedMessage => '无法在当前设备打开 APK 下载链接。';
+
+  @override
   String get playbackCacheTitle => '播放缓存';
 
   @override

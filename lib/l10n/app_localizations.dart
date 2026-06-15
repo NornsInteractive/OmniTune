@@ -518,6 +518,36 @@ abstract class AppLocalizations {
   /// **'Add remote music sources, switch the active library, and start a fresh scan for albums and songs.'**
   String get settingsDescription;
 
+  /// No description provided for @webApkBannerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Need the full version?'**
+  String get webApkBannerTitle;
+
+  /// No description provided for @webApkBannerDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'The Android APK includes fuller protocol support than the web build. Download it for FTP, SFTP, Samba, and the best playback experience.'**
+  String get webApkBannerDescription;
+
+  /// No description provided for @webApkBannerUnavailableLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'The web build is ready, but the APK download link has not been configured for this deployment yet.'**
+  String get webApkBannerUnavailableLabel;
+
+  /// No description provided for @webApkBannerDownloadAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Download APK'**
+  String get webApkBannerDownloadAction;
+
+  /// No description provided for @webApkBannerLaunchFailedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to open the APK download link on this device.'**
+  String get webApkBannerLaunchFailedMessage;
+
   /// No description provided for @playbackCacheTitle.
   ///
   /// In en, this message translates to:

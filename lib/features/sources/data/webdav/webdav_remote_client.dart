@@ -1,9 +1,11 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:webdav_client/webdav_client.dart' as webdav;
 import 'package:xml/xml.dart';
 
+import '../../../../core/config/build_env.dart';
 import '../../../../core/models/source_profile.dart';
 
 class WebDavRemoteFile {
@@ -225,10 +227,20 @@ class PackageWebDavRemoteClient implements WebDavRemoteClient {
   WebDavDirectoryDebugInfo? lastDirectoryDebugInfo;
 
   @override
-  Future<void> ping() => _client.ping();
+  Future<void> ping() async {
+    if (_useProxy) {
+      await _pingViaProxy();
+      return;
+    }
+    await _client.ping();
+  }
 
   @override
   Future<List<WebDavRemoteFile>> readDirectory(String path) async {
+    if (_useProxy) {
+      return _readDirectoryViaProxy(path);
+    }
+
     final normalizedPath = _normalizeDirectoryPathValue(path);
     final candidatePaths = _candidateDirectoryPaths(normalizedPath);
     final attempts = <WebDavDirectoryAttempt>[];
@@ -308,6 +320,10 @@ class PackageWebDavRemoteClient implements WebDavRemoteClient {
 
   @override
   Future<WebDavReadResult> openRead(String path, {int? start, int? end}) async {
+    if (_useProxy) {
+      return _openReadViaProxy(path, start: start, end: end);
+    }
+
     final normalizedPath = _normalizeItemPathValue(path);
     final candidatePaths = _candidateItemPaths(normalizedPath);
     Object? lastError;
@@ -329,6 +345,10 @@ class PackageWebDavRemoteClient implements WebDavRemoteClient {
 
   @override
   Future<String?> readText(String path) async {
+    if (_useProxy) {
+      return _readTextViaProxy(path);
+    }
+
     final normalizedPath = _normalizeItemPathValue(path);
     final candidatePaths = _candidateItemPaths(normalizedPath);
     Object? lastError;
@@ -372,6 +392,312 @@ class PackageWebDavRemoteClient implements WebDavRemoteClient {
 
   @override
   Future<void> dispose() async {}
+
+  bool get _useProxy => kIsWeb && BuildEnv.hasWebDavProxyBaseUrl;
+
+  Uri get _proxyBaseUri {
+    final configured = Uri.parse(BuildEnv.webDavProxyBaseUrl);
+    if (configured.hasScheme) {
+      return configured;
+    }
+    return Uri.base.resolveUri(configured);
+  }
+
+  Uri _proxyRequestUriFor(String normalizedPath, {required bool directory}) {
+    final baseUri = _proxyBaseUri;
+    final relativePath = _encodeRelativePath(
+      normalizedPath,
+      directory: directory,
+    );
+    if (relativePath.isEmpty) {
+      return baseUri;
+    }
+    return baseUri.resolve(relativePath);
+  }
+
+  Map<String, String> _proxyHeaders({Uri? targetUri}) {
+    return <String, String>{
+      'x-omnitune-target-base-url': _profile.normalizedBaseUrl,
+      if (targetUri != null) 'x-omnitune-target-url': targetUri.toString(),
+      'x-omnitune-username': _profile.username,
+      'x-omnitune-password': _profile.password,
+      'accept-charset': 'utf-8',
+    };
+  }
+
+  Future<void> _pingViaProxy() async {
+    final response = await _sendProxyRequest<String>(
+      method: 'PROPFIND',
+      requestUri: _proxyRequestUriFor('/', directory: true),
+      responseType: ResponseType.plain,
+      headers: <String, String>{
+        ..._proxyHeaders(targetUri: _baseUri),
+        'content-type': 'application/xml; charset=utf-8',
+        'depth': '0',
+      },
+      body: _propfindBody,
+    );
+
+    final statusCode = response.statusCode ?? 0;
+    if (statusCode != 200 && statusCode != 207) {
+      throw DioException.badResponse(
+        statusCode: statusCode,
+        requestOptions: response.requestOptions,
+        response: response,
+      );
+    }
+  }
+
+  Future<List<WebDavRemoteFile>> _readDirectoryViaProxy(String path) async {
+    final normalizedPath = _normalizeDirectoryPathValue(path);
+    final candidatePaths = _candidateDirectoryPaths(normalizedPath);
+    final attempts = <WebDavDirectoryAttempt>[];
+    Object? lastError;
+
+    for (final candidatePath in candidatePaths) {
+      final targetRequestUri = _requestUriFor(candidatePath);
+      final proxyRequestUri = _proxyRequestUriFor(candidatePath, directory: true);
+
+      try {
+        final response = await _sendProxyRequest<String>(
+          method: 'PROPFIND',
+          requestUri: proxyRequestUri,
+          responseType: ResponseType.plain,
+          headers: <String, String>{
+            ..._proxyHeaders(targetUri: targetRequestUri),
+            'content-type': 'application/xml; charset=utf-8',
+            'depth': '1',
+          },
+          body: _propfindBody,
+        );
+
+        final statusCode = response.statusCode ?? 0;
+        if (statusCode != 200 && statusCode != 207) {
+          throw DioException.badResponse(
+            statusCode: statusCode,
+            requestOptions: response.requestOptions,
+            response: response,
+          );
+        }
+
+        final xmlContent = response.data ?? '';
+        final firstHref = _extractFirstHref(xmlContent);
+        final files = xmlContent.trim().isEmpty
+            ? const <WebDavRemoteFile>[]
+            : parseWebDavDirectoryResponse(
+                xmlContent: xmlContent,
+                requestPath: candidatePath,
+                baseUri: _baseUri,
+                requestUri: targetRequestUri,
+              );
+
+        attempts.add(
+          WebDavDirectoryAttempt(
+            path: candidatePath,
+            requestUri: targetRequestUri,
+            responseLength: utf8.encode(xmlContent).length,
+            hrefCount: _countHrefValues(xmlContent),
+            entryCount: files.length,
+            firstHref: firstHref,
+          ),
+        );
+
+        if (files.isNotEmpty) {
+          lastDirectoryDebugInfo = WebDavDirectoryDebugInfo(
+            requestedPath: normalizedPath,
+            attempts: attempts,
+            entryCount: files.length,
+          );
+          return files;
+        }
+      } catch (error) {
+        lastError = error;
+        attempts.add(
+          WebDavDirectoryAttempt(
+            path: candidatePath,
+            requestUri: targetRequestUri,
+            responseLength: 0,
+            hrefCount: 0,
+            entryCount: 0,
+            errorMessage: error.toString(),
+          ),
+        );
+      }
+    }
+
+    lastDirectoryDebugInfo = WebDavDirectoryDebugInfo(
+      requestedPath: normalizedPath,
+      attempts: attempts,
+      entryCount: 0,
+    );
+
+    if (lastError != null &&
+        attempts.every((attempt) => attempt.errorMessage != null)) {
+      throw lastError;
+    }
+
+    return const [];
+  }
+
+  Future<WebDavReadResult> _openReadViaProxy(
+    String path, {
+    int? start,
+    int? end,
+  }) async {
+    final normalizedPath = _normalizeItemPathValue(path);
+    final candidatePaths = _candidateItemPaths(normalizedPath);
+    Object? lastError;
+
+    for (final candidatePath in candidatePaths) {
+      try {
+        return await _openReadOnceViaProxy(candidatePath, start: start, end: end);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (lastError != null) {
+      throw _mapFileReadError(lastError, normalizedPath, candidatePaths);
+    }
+
+    throw StateError('WebDAV file response was empty for $normalizedPath.');
+  }
+
+  Future<WebDavReadResult> _openReadOnceViaProxy(
+    String candidatePath, {
+    int? start,
+    int? end,
+  }) async {
+    final targetRequestUri = _requestUriForItem(candidatePath);
+    final headers = <String, String>{
+      ..._proxyHeaders(targetUri: targetRequestUri),
+    };
+    if (start != null || end != null) {
+      final rangeStart = start ?? 0;
+      final rangeEnd = end != null ? end - 1 : '';
+      headers['range'] = 'bytes=$rangeStart-$rangeEnd';
+    }
+
+    final response = await _sendProxyRequest<List<int>>(
+      method: 'GET',
+      requestUri: _proxyRequestUriFor(candidatePath, directory: false),
+      responseType: ResponseType.bytes,
+      headers: headers,
+    );
+
+    final statusCode = response.statusCode ?? 0;
+    if (statusCode != 200 && statusCode != 206) {
+      throw DioException.badResponse(
+        statusCode: statusCode,
+        requestOptions: response.requestOptions,
+        response: response,
+      );
+    }
+
+    final bytes = response.data;
+    if (bytes == null) {
+      throw StateError('WebDAV byte response body was empty.');
+    }
+
+    final contentTypeHeader =
+        response.headers.value(Headers.contentTypeHeader) ?? 'audio/mpeg';
+    final contentType = contentTypeHeader.split(';').first;
+    final contentLength =
+        int.tryParse(
+          response.headers.value(Headers.contentLengthHeader) ?? '',
+        ) ??
+        bytes.length;
+    final contentRange = response.headers.value('content-range');
+
+    var resolvedOffset = start ?? 0;
+    int? resolvedSourceLength;
+
+    if (contentRange != null) {
+      final match = RegExp(
+        r'bytes\s+(\d+)-(\d+)/(\d+|\*)',
+      ).firstMatch(contentRange);
+      if (match != null) {
+        resolvedOffset = int.parse(match.group(1)!);
+        final total = match.group(3);
+        if (total != null && total != '*') {
+          resolvedSourceLength = int.parse(total);
+        }
+      }
+    } else if (statusCode == 200 && contentLength > 0) {
+      resolvedSourceLength = contentLength;
+    }
+
+    return WebDavReadResult(
+      stream: Stream<List<int>>.value(bytes),
+      offset: resolvedOffset,
+      contentLength: bytes.length,
+      contentType: contentType,
+      sourceLength: resolvedSourceLength,
+    );
+  }
+
+  Future<String?> _readTextViaProxy(String path) async {
+    final normalizedPath = _normalizeItemPathValue(path);
+    final candidatePaths = _candidateItemPaths(normalizedPath);
+    Object? lastError;
+
+    for (final candidatePath in candidatePaths) {
+      final response = await _sendProxyRequest<List<int>>(
+        method: 'GET',
+        requestUri: _proxyRequestUriFor(candidatePath, directory: false),
+        responseType: ResponseType.bytes,
+        headers: _proxyHeaders(
+          targetUri: _requestUriForItem(candidatePath),
+        ),
+      );
+
+      final statusCode = response.statusCode ?? 0;
+      if (statusCode == 404) {
+        continue;
+      }
+      if (statusCode != 200) {
+        lastError = DioException.badResponse(
+          statusCode: statusCode,
+          requestOptions: response.requestOptions,
+          response: response,
+        );
+        continue;
+      }
+
+      final bytes = response.data;
+      if (bytes == null || bytes.isEmpty) {
+        return null;
+      }
+
+      return utf8.decode(bytes, allowMalformed: true);
+    }
+
+    if (lastError != null) {
+      throw _mapFileReadError(lastError, normalizedPath, candidatePaths);
+    }
+
+    return null;
+  }
+
+  Future<Response<T>> _sendProxyRequest<T>({
+    required String method,
+    required Uri requestUri,
+    required ResponseType responseType,
+    required Map<String, String> headers,
+    Object? body,
+  }) {
+    return _client.c.requestUri<T>(
+      requestUri,
+      data: body,
+      options: Options(
+        method: method,
+        headers: headers,
+        responseType: responseType,
+        followRedirects: true,
+        validateStatus: (status) => true,
+      ),
+    );
+  }
 
   List<String> _candidateDirectoryPaths(String requestedPath) {
     final candidates = <String>[requestedPath];

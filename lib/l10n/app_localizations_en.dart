@@ -241,6 +241,24 @@ class AppLocalizationsEn extends AppLocalizations {
       'Add remote music sources, switch the active library, and start a fresh scan for albums and songs.';
 
   @override
+  String get webApkBannerTitle => 'Need the full version?';
+
+  @override
+  String get webApkBannerDescription =>
+      'The Android APK includes fuller protocol support than the web build. Download it for FTP, SFTP, Samba, and the best playback experience.';
+
+  @override
+  String get webApkBannerUnavailableLabel =>
+      'The web build is ready, but the APK download link has not been configured for this deployment yet.';
+
+  @override
+  String get webApkBannerDownloadAction => 'Download APK';
+
+  @override
+  String get webApkBannerLaunchFailedMessage =>
+      'Unable to open the APK download link on this device.';
+
+  @override
   String get playbackCacheTitle => 'Playback cache';
 
   @override

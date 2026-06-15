@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -12,6 +12,7 @@ import '../../../core/models/library_album.dart';
 import '../../../core/models/library_song.dart';
 import '../../../core/models/source_profile.dart';
 import '../../../core/storage/cover_art_cache_manager.dart';
+import '../../../core/utils/local_file_bytes.dart';
 import '../../../core/widgets/studio_chrome.dart';
 import '../../../core/widgets/top_snackbar.dart';
 import '../../player/application/player_controller.dart';
@@ -1294,9 +1295,9 @@ class _AlbumListRow extends StatelessWidget {
 }
 
 class _AlbumFolderArtwork {
-  const _AlbumFolderArtwork({required this.localPath});
+  const _AlbumFolderArtwork({required this.bytes});
 
-  final String localPath;
+  final Uint8List bytes;
 }
 
 class _AlbumFolderArtworkRequest {
@@ -1378,19 +1379,16 @@ final _albumFolderArtworkProvider =
           extension: extension,
         );
         if (cachedPath?.isNotEmpty == true) {
-          return _AlbumFolderArtwork(localPath: cachedPath!);
+          final cachedBytes = await readLocalFileBytes(cachedPath!);
+          if (cachedBytes != null && cachedBytes.isNotEmpty) {
+            return _AlbumFolderArtwork(bytes: cachedBytes);
+          }
         }
 
         final bytes = await musicSource.readBinaryFile(file.path);
         if (bytes != null && bytes.isNotEmpty) {
-          final localPath = await cacheManager.cacheBytes(
-            cacheKey,
-            bytes,
-            extension: extension,
-          );
-          if (localPath?.isNotEmpty == true) {
-            return _AlbumFolderArtwork(localPath: localPath!);
-          }
+          await cacheManager.cacheBytes(cacheKey, bytes, extension: extension);
+          return _AlbumFolderArtwork(bytes: bytes);
         }
       }
       return null;
@@ -1413,9 +1411,6 @@ class _AlbumArtwork extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final effectiveBorderRadius = clipBorderRadius != null
-        ? studioBorderRadiusOf(context, clipBorderRadius!)
-        : BorderRadius.circular(studioRadiusOf(context, borderRadius));
     final leadTrack = album.tracks.isEmpty ? null : album.tracks.first;
     if (leadTrack != null) {
       final folderArtwork = ref.watch(
@@ -1427,11 +1422,14 @@ class _AlbumArtwork extends ConsumerWidget {
         ),
       );
       final folderData = folderArtwork.valueOrNull;
-      if (folderData != null && folderData.localPath.isNotEmpty) {
+      if (folderData != null && folderData.bytes.isNotEmpty) {
+        final effectiveBorderRadius = clipBorderRadius != null
+            ? studioBorderRadiusOf(context, clipBorderRadius!)
+            : BorderRadius.circular(studioRadiusOf(context, borderRadius));
         return ClipRRect(
           borderRadius: effectiveBorderRadius,
-          child: Image.file(
-            File(folderData.localPath),
+          child: Image.memory(
+            folderData.bytes,
             width: size,
             height: size,
             fit: BoxFit.cover,

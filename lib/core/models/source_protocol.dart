@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 enum SourceProtocol { webdav, sftp, ftp, samba, cloudDrive }
 
 extension SourceProtocolX on SourceProtocol {
@@ -10,6 +12,11 @@ extension SourceProtocolX on SourceProtocol {
   };
 
   bool get isImplemented => true;
+
+  bool get isSupportedOnCurrentPlatform => switch (this) {
+    SourceProtocol.sftp || SourceProtocol.ftp || SourceProtocol.samba => !kIsWeb,
+    SourceProtocol.webdav || SourceProtocol.cloudDrive => true,
+  };
 
   String get label => switch (this) {
     SourceProtocol.webdav => 'WebDAV',
@@ -24,5 +31,23 @@ extension SourceProtocolX on SourceProtocol {
       (protocol) => protocol.storageValue == value,
       orElse: () => SourceProtocol.webdav,
     );
+  }
+
+  static List<SourceProtocol> supportedOnCurrentPlatform() {
+    return SourceProtocol.values
+        .where((protocol) => protocol.isSupportedOnCurrentPlatform)
+        .toList(growable: false);
+  }
+
+  static SourceProtocol sanitizeForCurrentPlatform(SourceProtocol protocol) {
+    if (protocol.isSupportedOnCurrentPlatform) {
+      return protocol;
+    }
+
+    final supportedProtocols = supportedOnCurrentPlatform();
+    if (supportedProtocols.isEmpty) {
+      return SourceProtocol.webdav;
+    }
+    return supportedProtocols.first;
   }
 }

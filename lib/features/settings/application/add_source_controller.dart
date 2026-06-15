@@ -257,6 +257,12 @@ class AddSourceController extends _$AddSourceController {
     Cloud189QRCodeResolver? qrCodeResolver,
     Cloud189SMSVerificationResolver? smsVerificationResolver,
   }) async {
+    if (!initialProfile.protocol.isSupportedOnCurrentPlatform) {
+      throw UnsupportedError(
+        'Protocol ${initialProfile.protocol.storageValue} is not supported on this platform.',
+      );
+    }
+
     state = const AsyncLoading();
 
     MusicSource? source;
