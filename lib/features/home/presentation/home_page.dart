@@ -219,8 +219,6 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Future<void> _showAlbumSheet(LibraryAlbum album) {
-    final playerState = ref.read(playerControllerProvider);
-
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -349,85 +347,101 @@ class _HomePageState extends ConsumerState<HomePage> {
                               const SizedBox(height: 10),
                           itemBuilder: (context, index) {
                             final track = album.tracks[index];
-                            final isCurrentTrack =
-                                playerState.currentTrack?.id == track.id;
-
-                            return Material(
-                              color: isCurrentTrack
-                                  ? _HomePalette.primary.withValues(alpha: 0.12)
-                                  : _HomePalette.surfaceContainerLow.withValues(
-                                      alpha: 0.92,
-                                    ),
-                              borderRadius: BorderRadius.circular(18),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(18),
-                                onTap: () async {
-                                  await ref
-                                      .read(playerControllerProvider.notifier)
-                                      .playLibrarySong(
-                                        track,
-                                        playlist: album.tracks,
-                                      );
-                                  if (!sheetContext.mounted) {
-                                    return;
-                                  }
-                                  Navigator.of(sheetContext).pop();
-                                },
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12),
-                                  child: Row(
-                                    children: [
-                                      SizedBox(
-                                        width: 52,
-                                        height: 52,
-                                        child: _AlbumArtwork(
-                                          title: track.displayTitle,
-                                          artist: track.displayArtist,
-                                          localCoverPath:
-                                              track.displayLocalCoverPath,
-                                          coverUrl: track.displayCoverUrl,
-                                          borderRadius: 14,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              track.displayTitle,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: _textStyle(
-                                                color: _HomePalette.onSurface,
-                                                size: 15,
-                                                weight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              track.displayArtist,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: _textStyle(
-                                                color: _HomePalette
-                                                    .onSurfaceVariant,
-                                                size: 13,
-                                                weight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Icon(
-                                        Icons.play_arrow_rounded,
-                                        color: _HomePalette.onSurfaceVariant,
-                                      ),
-                                    ],
+                            return Consumer(
+                              key: ValueKey('home-album-track:${track.id}'),
+                              builder: (context, rowRef, _) {
+                                final isCurrentTrack = rowRef.watch(
+                                  playerControllerProvider.select(
+                                    (state) =>
+                                        state.currentTrack?.id == track.id,
                                   ),
-                                ),
-                              ),
+                                );
+
+                                return Material(
+                                  color: isCurrentTrack
+                                      ? _HomePalette.primary.withValues(
+                                          alpha: 0.12,
+                                        )
+                                      : _HomePalette.surfaceContainerLow
+                                            .withValues(alpha: 0.92),
+                                  borderRadius: BorderRadius.circular(18),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(18),
+                                    onTap: () async {
+                                      await ref
+                                          .read(
+                                            playerControllerProvider.notifier,
+                                          )
+                                          .playLibrarySong(
+                                            track,
+                                            playlist: album.tracks,
+                                          );
+                                      if (!sheetContext.mounted) {
+                                        return;
+                                      }
+                                      Navigator.of(sheetContext).pop();
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(12),
+                                      child: Row(
+                                        children: [
+                                          SizedBox(
+                                            width: 52,
+                                            height: 52,
+                                            child: _AlbumArtwork(
+                                              title: track.displayTitle,
+                                              artist: track.displayArtist,
+                                              localCoverPath:
+                                                  track.displayLocalCoverPath,
+                                              coverUrl: track.displayCoverUrl,
+                                              borderRadius: 14,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  track.displayTitle,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: _textStyle(
+                                                    color:
+                                                        _HomePalette.onSurface,
+                                                    size: 15,
+                                                    weight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  track.displayArtist,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: _textStyle(
+                                                    color: _HomePalette
+                                                        .onSurfaceVariant,
+                                                    size: 13,
+                                                    weight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          Icon(
+                                            Icons.play_arrow_rounded,
+                                            color:
+                                                _HomePalette.onSurfaceVariant,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
                             );
                           },
                         ),
@@ -1382,6 +1396,8 @@ class _AlbumArtwork extends StatelessWidget {
         child: Image.network(
           fallbackImageUrl!,
           fit: BoxFit.cover,
+          cacheWidth: 400,
+          cacheHeight: 400,
           errorBuilder: (context, error, stackTrace) {
             return _generatedArtwork(context, 200);
           },

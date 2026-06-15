@@ -99,21 +99,7 @@ fi
 
 export GRADLE_OPTS="${GRADLE_OPTS:-} -Dorg.gradle.daemon=false -Dorg.gradle.workers.max=1"
 
-<<<<<<< HEAD
 ensure_upload_keystore
-=======
-gradle_dart_defines=()
-for arg in "$@"; do
-  case "$arg" in
-    --dart-define=*)
-      define_value="${arg#--dart-define=}"
-      gradle_dart_defines+=(
-        "$(printf '%s' "$define_value" | base64 | tr -d '\n')"
-      )
-      ;;
-  esac
-done
->>>>>>> 535417cc8bd2eab1d7346f8ffdbb1479e4686bac
 
 current_version="$(grep '^version:' "$PUBSPEC_PATH" | awk '{print $2}')"
 version_name="${current_version%%+*}"
@@ -135,14 +121,5 @@ rm -rf "$ROOT_DIR/.dart_tool/flutter_build"
 flutter --no-version-check build appbundle --release --no-pub "$@"
 flutter --no-version-check build apk --release --no-pub "$@"
 
-<<<<<<< HEAD
 echo "Generated Play bundle: $AAB_OUTPUT"
 echo "Generated signed APK: $APK_OUTPUT"
-=======
-cd "$ROOT_DIR/android"
-gradle_args=(assembleRelease --no-daemon -Dorg.gradle.workers.max=1)
-if [[ ${#gradle_dart_defines[@]} -gt 0 ]]; then
-  gradle_args+=("-Pdart-defines=$(IFS=,; echo "${gradle_dart_defines[*]}")")
-fi
-./gradlew "${gradle_args[@]}"
->>>>>>> 535417cc8bd2eab1d7346f8ffdbb1479e4686bac

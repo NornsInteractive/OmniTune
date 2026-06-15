@@ -55,7 +55,13 @@ class _MobileLayout extends ConsumerStatefulWidget {
 class _MobileLayoutState extends ConsumerState<_MobileLayout> {
   int _selectedIndex = 0;
 
-  static const List<String> _routeNames = ['home', 'search', 'library', 'player', 'settings'];
+  static const List<String> _routeNames = [
+    'home',
+    'search',
+    'library',
+    'player',
+    'settings',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -74,27 +80,27 @@ class _MobileLayoutState extends ConsumerState<_MobileLayout> {
           BottomNavigationBarItem(
             icon: const Icon(Icons.home_outlined),
             activeIcon: const Icon(Icons.home),
-            label: l10n.navigationHome,
+            label: l10n.homeTabLabel,
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.search_outlined),
             activeIcon: const Icon(Icons.search),
-            label: l10n.navigationSearch,
+            label: l10n.scrapingSearchButton,
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.library_music_outlined),
             activeIcon: const Icon(Icons.library_music),
-            label: l10n.navigationLibrary,
+            label: l10n.libraryTitle,
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.play_circle_outline),
             activeIcon: const Icon(Icons.play_circle),
-            label: l10n.navigationPlayer,
+            label: l10n.playerTitle,
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.settings_outlined),
             activeIcon: const Icon(Icons.settings),
-            label: l10n.navigationSettings,
+            label: l10n.settingsTabLabel,
           ),
         ],
       ),
@@ -145,7 +151,13 @@ class _TabletLayout extends ConsumerStatefulWidget {
 class _TabletLayoutState extends ConsumerState<_TabletLayout> {
   int _selectedIndex = 0;
 
-  static const List<String> _routeNames = ['home', 'search', 'library', 'player', 'settings'];
+  static const List<String> _routeNames = [
+    'home',
+    'search',
+    'library',
+    'player',
+    'settings',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -249,7 +261,13 @@ class _DesktopLayout extends ConsumerStatefulWidget {
 class _DesktopLayoutState extends ConsumerState<_DesktopLayout> {
   int _selectedIndex = 0;
 
-  static const List<String> _routeNames = ['home', 'search', 'library', 'player', 'settings'];
+  static const List<String> _routeNames = [
+    'home',
+    'search',
+    'library',
+    'player',
+    'settings',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -273,54 +291,63 @@ class _DesktopLayoutState extends ConsumerState<_DesktopLayout> {
                   padding: const EdgeInsets.all(16.0),
                   child: Text(
                     'Wavely',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, color: colorScheme.onSurface),
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface,
+                    ),
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 8.0,
+                  ),
                   child: Text(
-                    l10n.navigationLibrary.toUpperCase(),
-                    style: Theme.of(
-                      context,
-                    ).textTheme.labelSmall?.copyWith(color: colorScheme.outline, letterSpacing: 0.05),
+                    l10n.libraryTitle.toUpperCase(),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: colorScheme.outline,
+                      letterSpacing: 0.05,
+                    ),
                   ),
                 ),
                 NavigationDrawerDestination(
                   icon: const Icon(Icons.home_outlined),
                   selectedIcon: const Icon(Icons.home),
-                  label: Text(l10n.navigationHome),
+                  label: Text(l10n.homeTabLabel),
                 ),
                 NavigationDrawerDestination(
                   icon: const Icon(Icons.search_outlined),
                   selectedIcon: const Icon(Icons.search),
-                  label: Text(l10n.navigationSearch),
+                  label: Text(l10n.scrapingSearchButton),
                 ),
                 NavigationDrawerDestination(
                   icon: const Icon(Icons.library_music_outlined),
                   selectedIcon: const Icon(Icons.library_music),
-                  label: Text(l10n.navigationLibrary),
+                  label: Text(l10n.libraryTitle),
                 ),
                 NavigationDrawerDestination(
                   icon: const Icon(Icons.play_circle_outline),
                   selectedIcon: const Icon(Icons.play_circle),
-                  label: Text(l10n.navigationPlayer),
+                  label: Text(l10n.playerTitle),
                 ),
                 const Spacer(),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 8.0,
+                  ),
                   child: Text(
-                    l10n.navigationSettings.toUpperCase(),
-                    style: Theme.of(
-                      context,
-                    ).textTheme.labelSmall?.copyWith(color: colorScheme.outline, letterSpacing: 0.05),
+                    l10n.settingsTabLabel.toUpperCase(),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: colorScheme.outline,
+                      letterSpacing: 0.05,
+                    ),
                   ),
                 ),
                 NavigationDrawerDestination(
                   icon: const Icon(Icons.settings_outlined),
                   selectedIcon: const Icon(Icons.settings),
-                  label: Text(l10n.navigationSettings),
+                  label: Text(l10n.settingsTabLabel),
                 ),
               ],
             ),
@@ -414,15 +441,18 @@ class _MiniPlayerContent extends StatelessWidget {
               children: [
                 Text(
                   'Midnight Drive',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500, color: colorScheme.onSurface),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: colorScheme.onSurface,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   'Neon Echoes',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -434,17 +464,32 @@ class _MiniPlayerContent extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              IconButton(icon: const Icon(Icons.skip_previous), iconSize: 20, onPressed: () {}),
+              IconButton(
+                icon: const Icon(Icons.skip_previous),
+                iconSize: 20,
+                onPressed: () {},
+              ),
               Container(
                 width: 40,
                 height: 40,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: colorScheme.primary),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: colorScheme.primary,
+                ),
                 child: IconButton(
-                  icon: Icon(Icons.pause, color: colorScheme.onPrimary, size: 20),
+                  icon: Icon(
+                    Icons.pause,
+                    color: colorScheme.onPrimary,
+                    size: 20,
+                  ),
                   onPressed: () {},
                 ),
               ),
-              IconButton(icon: const Icon(Icons.skip_next), iconSize: 20, onPressed: () {}),
+              IconButton(
+                icon: const Icon(Icons.skip_next),
+                iconSize: 20,
+                onPressed: () {},
+              ),
             ],
           ),
         ],
@@ -474,12 +519,16 @@ class _HomeScreen extends StatelessWidget {
               children: [
                 Text(
                   'Good morning',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'What do you want to listen to?',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 // 快速访问卡片网格 (2 列)
@@ -533,7 +582,10 @@ class _QuickAccessCard extends StatelessWidget {
                   height: 36,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: colorScheme.outlineVariant, width: 0.5),
+                    border: Border.all(
+                      color: colorScheme.outlineVariant,
+                      width: 0.5,
+                    ),
                     color: colorScheme.surfaceContainerHighest,
                   ),
                 ),
@@ -541,7 +593,9 @@ class _QuickAccessCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -560,7 +614,12 @@ class _SearchScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(child: Text('Search Screen', style: Theme.of(context).textTheme.headlineSmall));
+    return Center(
+      child: Text(
+        'Search Screen',
+        style: Theme.of(context).textTheme.headlineSmall,
+      ),
+    );
   }
 }
 
@@ -569,7 +628,12 @@ class _LibraryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(child: Text('Library Screen', style: Theme.of(context).textTheme.headlineSmall));
+    return Center(
+      child: Text(
+        'Library Screen',
+        style: Theme.of(context).textTheme.headlineSmall,
+      ),
+    );
   }
 }
 
@@ -578,7 +642,12 @@ class _PlayerScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(child: Text('Player Screen', style: Theme.of(context).textTheme.headlineSmall));
+    return Center(
+      child: Text(
+        'Player Screen',
+        style: Theme.of(context).textTheme.headlineSmall,
+      ),
+    );
   }
 }
 
@@ -587,6 +656,11 @@ class _SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(child: Text('Settings Screen', style: Theme.of(context).textTheme.headlineSmall));
+    return Center(
+      child: Text(
+        'Settings Screen',
+        style: Theme.of(context).textTheme.headlineSmall,
+      ),
+    );
   }
 }

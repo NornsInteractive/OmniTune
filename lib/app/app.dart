@@ -18,7 +18,7 @@ class MusicApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
-    ref.watch(playerControllerProvider);
+    ref.listen<PlayerViewState>(playerControllerProvider, (_, _) {});
     final preferences =
         ref.watch(appSettingsControllerProvider).valueOrNull ??
         const LibraryPreferences();

@@ -28,6 +28,19 @@ class SharedPreferencesScanCacheRepository
   }
 
   @override
+  Future<void> saveAllResults(Map<String, List<LibrarySong>> results) async {
+    final allData = <String, dynamic>{
+      for (final entry in results.entries)
+        entry.key: entry.value.map((song) => song.toJson()).toList(),
+    };
+    if (allData.isEmpty) {
+      await _prefs.remove(_cacheKey);
+      return;
+    }
+    await _prefs.setString(_cacheKey, jsonEncode(allData));
+  }
+
+  @override
   Future<void> deleteScanResults(String sourceId) async {
     final allData = await _loadRawData();
     allData.remove(sourceId);

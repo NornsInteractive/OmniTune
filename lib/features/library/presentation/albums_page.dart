@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -10,11 +9,6 @@ import 'package:music/l10n/app_localizations.dart';
 import '../../../core/models/library_album.dart';
 import '../../../core/models/library_song.dart';
 import '../../../core/models/source_profile.dart';
-<<<<<<< HEAD
-import '../../../core/storage/cover_art_cache_manager.dart';
-import '../../../core/utils/local_file_bytes.dart';
-=======
->>>>>>> 535417cc8bd2eab1d7346f8ffdbb1479e4686bac
 import '../../../core/widgets/studio_chrome.dart';
 import '../../../core/widgets/top_snackbar.dart';
 import '../../player/application/player_controller.dart';
@@ -518,6 +512,7 @@ class _AlbumsContent extends ConsumerWidget {
                                     false;
 
                                 return _AlbumTrackTile(
+                                  key: ValueKey('album-track:${track.id}'),
                                   track: track,
                                   isFavorite: isFavorite,
                                   isLiked: isLiked,
@@ -926,6 +921,7 @@ class _AlbumList extends StatelessWidget {
       children: [
         for (var index = 0; index < albums.length; index++) ...[
           _AlbumListRow(
+            key: ValueKey('album-row:${albums[index].id}'),
             album: albums[index],
             onTap: () => onOpenAlbum(albums[index]),
             onPlay: () => onPlayAlbum(albums[index]),
@@ -970,6 +966,7 @@ class _AlbumGrid extends StatelessWidget {
       ),
       itemBuilder: (context, index) {
         return _AlbumGridCard(
+          key: ValueKey('album-grid:${albums[index].id}'),
           album: albums[index],
           onOpenAlbum: () => onOpenAlbum(albums[index]),
           onPlayAlbum: () => onPlayAlbum(albums[index]),
@@ -981,6 +978,7 @@ class _AlbumGrid extends StatelessWidget {
 
 class _AlbumGridCard extends StatelessWidget {
   const _AlbumGridCard({
+    super.key,
     required this.album,
     required this.onOpenAlbum,
     required this.onPlayAlbum,
@@ -1203,6 +1201,7 @@ class _PageArrowButton extends StatelessWidget {
 
 class _AlbumListRow extends StatelessWidget {
   const _AlbumListRow({
+    super.key,
     required this.album,
     required this.onTap,
     required this.onPlay,
@@ -1295,122 +1294,17 @@ class _AlbumListRow extends StatelessWidget {
   }
 }
 
-<<<<<<< HEAD
-class _AlbumFolderArtwork {
-  const _AlbumFolderArtwork({required this.bytes});
-
-  final Uint8List bytes;
-}
-
-class _AlbumFolderArtworkRequest {
-  const _AlbumFolderArtworkRequest({
-    required this.sourceId,
-    required this.directoryPath,
-  });
-
-  final String sourceId;
-  final String directoryPath;
-
-  @override
-  bool operator ==(Object other) {
-    return other is _AlbumFolderArtworkRequest &&
-        other.sourceId == sourceId &&
-        other.directoryPath == directoryPath;
-  }
-
-  @override
-  int get hashCode => Object.hash(sourceId, directoryPath);
-}
-
-final _albumFolderArtworkProvider =
-    FutureProvider.family<_AlbumFolderArtwork?, _AlbumFolderArtworkRequest>((
-      ref,
-      request,
-    ) async {
-      final sources = await ref.read(sourcesControllerProvider.future);
-      if (sources.isEmpty) {
-        return null;
-      }
-      final source = sources.firstWhere(
-        (item) => item.id == request.sourceId,
-        orElse: () => sources.first,
-      );
-      if (source.id != request.sourceId) {
-        return null;
-      }
-      final sessionManager = ref.read(musicSourceSessionManagerProvider);
-      final musicSource = await sessionManager.get(source);
-      final listing = await musicSource.listFiles(request.directoryPath);
-      final imageFiles = listing.entries
-          .where((entry) {
-            if (entry.isDirectory) {
-              return false;
-            }
-            final ext = p.extension(entry.name).toLowerCase();
-            return ext == '.jpg' ||
-                ext == '.jpeg' ||
-                ext == '.png' ||
-                ext == '.webp';
-          })
-          .toList(growable: false);
-      if (imageFiles.isEmpty) {
-        return null;
-      }
-
-      const preferredNames = ['cover', 'folder', 'front', 'album', 'artwork'];
-
-      imageFiles.sort((left, right) {
-        final leftName = p.basenameWithoutExtension(left.name).toLowerCase();
-        final rightName = p.basenameWithoutExtension(right.name).toLowerCase();
-        final leftPreferred = preferredNames.indexOf(leftName);
-        final rightPreferred = preferredNames.indexOf(rightName);
-        final leftOrder = leftPreferred == -1 ? 999 : leftPreferred;
-        final rightOrder = rightPreferred == -1 ? 999 : rightPreferred;
-        if (leftOrder != rightOrder) {
-          return leftOrder.compareTo(rightOrder);
-        }
-        return left.name.toLowerCase().compareTo(right.name.toLowerCase());
-      });
-
-      for (final file in imageFiles) {
-        final extension = p.extension(file.name).toLowerCase();
-        final cacheKey = 'album-folder:${request.sourceId}:${file.path}';
-        final cacheManager = CoverArtCacheManager();
-        final cachedPath = await cacheManager.cachedPathForKey(
-          cacheKey,
-          extension: extension,
-        );
-        if (cachedPath?.isNotEmpty == true) {
-          final cachedBytes = await readLocalFileBytes(cachedPath!);
-          if (cachedBytes != null && cachedBytes.isNotEmpty) {
-            return _AlbumFolderArtwork(bytes: cachedBytes);
-          }
-        }
-
-        final bytes = await musicSource.readBinaryFile(file.path);
-        if (bytes != null && bytes.isNotEmpty) {
-          await cacheManager.cacheBytes(cacheKey, bytes, extension: extension);
-          return _AlbumFolderArtwork(bytes: bytes);
-        }
-      }
-      return null;
-    });
-
-=======
->>>>>>> 535417cc8bd2eab1d7346f8ffdbb1479e4686bac
 class _AlbumArtwork extends ConsumerWidget {
   const _AlbumArtwork({
     required this.album,
     required this.size,
     this.borderRadius = 18,
-    this.clipBorderRadius,
     this.showFrame = true,
   });
 
   final LibraryAlbum album;
   final double size;
   final double borderRadius;
-  final BorderRadiusGeometry? clipBorderRadius;
   final bool showFrame;
 
   @override
@@ -1426,27 +1320,14 @@ class _AlbumArtwork extends ConsumerWidget {
         ),
       );
       final folderData = folderArtwork.valueOrNull;
-      if (folderData != null && folderData.bytes.isNotEmpty) {
-        final effectiveBorderRadius = clipBorderRadius != null
-            ? studioBorderRadiusOf(context, clipBorderRadius!)
-            : BorderRadius.circular(studioRadiusOf(context, borderRadius));
-        return ClipRRect(
-          borderRadius: effectiveBorderRadius,
-          child: Image.memory(
-            folderData.bytes,
-            width: size,
-            height: size,
-            fit: BoxFit.cover,
-            gaplessPlayback: true,
-            errorBuilder: (_, _, _) => GeneratedCoverArt(
-              title: album.title,
-              subtitle: album.artistName,
-              size: size,
-              borderRadius: borderRadius,
-              clipBorderRadius: clipBorderRadius,
-              showFrame: showFrame,
-            ),
-          ),
+      if (folderData != null && folderData.localPath.isNotEmpty) {
+        return TrackCoverThumbnail(
+          title: album.title,
+          subtitle: album.artistName,
+          size: size,
+          borderRadius: borderRadius,
+          showFrame: showFrame,
+          localCoverPath: folderData.localPath,
         );
       }
     }
@@ -1459,7 +1340,6 @@ class _AlbumArtwork extends ConsumerWidget {
         subtitle: leadTrack.displayArtist,
         size: size,
         borderRadius: borderRadius,
-        clipBorderRadius: clipBorderRadius,
         showFrame: showFrame,
         localCoverPath: leadTrack.displayLocalCoverPath,
         coverUrl: leadTrack.displayCoverUrl,
@@ -1471,7 +1351,6 @@ class _AlbumArtwork extends ConsumerWidget {
       subtitle: album.artistName,
       size: size,
       borderRadius: borderRadius,
-      clipBorderRadius: clipBorderRadius,
       showFrame: showFrame,
     );
   }
@@ -1563,8 +1442,9 @@ class _AlbumSheetHeader extends StatelessWidget {
   }
 }
 
-class _AlbumTrackTile extends StatelessWidget {
+class _AlbumTrackTile extends ConsumerWidget {
   const _AlbumTrackTile({
+    super.key,
     required this.track,
     required this.isFavorite,
     required this.isLiked,
@@ -1583,9 +1463,14 @@ class _AlbumTrackTile extends StatelessWidget {
   final VoidCallback onMoreOptions;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cardRadius = studioRadiusOf(context, 22);
     final coverSize = studioListIconBoxSizeOf(context).clamp(36.0, 46.0);
+    final isCurrentTrack = ref.watch(
+      playerControllerProvider.select(
+        (state) => state.currentTrack?.id == track.id,
+      ),
+    );
     return ClipRRect(
       borderRadius: BorderRadius.circular(cardRadius),
       child: BackdropFilter(
@@ -1609,6 +1494,7 @@ class _AlbumTrackTile extends StatelessWidget {
                     borderRadius: 12,
                     localCoverPath: track.displayLocalCoverPath,
                     coverUrl: track.displayCoverUrl,
+                    isCurrentTrack: isCurrentTrack,
                     trackId: track.id,
                     sourceId: track.sourceId,
                     directoryPath: track.directoryPath,

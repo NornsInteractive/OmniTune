@@ -11,6 +11,7 @@ import '../../../core/models/library_album.dart';
 import '../../../core/models/library_song.dart';
 import '../../../core/models/remote_entry.dart';
 import '../../../core/models/source_profile.dart';
+import '../../../core/models/source_protocol.dart';
 import '../../../core/storage/cover_art_cache_manager.dart';
 import '../../../core/storage/library_preferences_repository.dart';
 import '../../../core/utils/audio_embedded_metadata_reader.dart';
@@ -134,11 +135,64 @@ class _SourceScanResult {
   final int scannedDirectoryCount;
 }
 
+class _IncrementalTrackPublisher {
+  _IncrementalTrackPublisher({
+    required List<LibrarySong> initialTracks,
+    required int batchSize,
+    required Duration interval,
+    required void Function(List<LibrarySong> tracks) onPublish,
+  }) : _publishedTracks = List<LibrarySong>.of(initialTracks),
+       _batchSize = batchSize,
+       _interval = interval,
+       _onPublish = onPublish;
+
+  final List<LibrarySong> _publishedTracks;
+  final List<LibrarySong> _pendingTracks = [];
+  final int _batchSize;
+  final Duration _interval;
+  final void Function(List<LibrarySong> tracks) _onPublish;
+  Timer? _timer;
+  DateTime _lastPublishedAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  void add(LibrarySong track) {
+    _pendingTracks.add(track);
+    final now = DateTime.now();
+    if (_pendingTracks.length >= _batchSize ||
+        now.difference(_lastPublishedAt) >= _interval) {
+      flush();
+      return;
+    }
+    _timer ??= Timer(_interval, flush);
+  }
+
+  void flush() {
+    if (_pendingTracks.isEmpty) {
+      _timer?.cancel();
+      _timer = null;
+      return;
+    }
+
+    _timer?.cancel();
+    _timer = null;
+    _publishedTracks.addAll(_pendingTracks);
+    _pendingTracks.clear();
+    _lastPublishedAt = DateTime.now();
+    _onPublish(List<LibrarySong>.of(_publishedTracks, growable: false));
+  }
+
+  void dispose() {
+    _timer?.cancel();
+    _timer = null;
+  }
+}
+
 @Riverpod(keepAlive: true)
 class LibraryCatalogController extends _$LibraryCatalogController {
   static const int _embeddedMetadataReadLength = 128 * 1024;
   static const int _embeddedMetadataHydrationConcurrency = 3;
   static const int _embeddedMetadataRefreshBatchSize = 8;
+  static const int _scanTrackPublishBatchSize = 12;
+  static const Duration _scanTrackPublishInterval = Duration(milliseconds: 250);
 
   int _metadataHydrationGeneration = 0;
 
@@ -268,19 +322,57 @@ class LibraryCatalogController extends _$LibraryCatalogController {
       ),
     );
 
-    try {
-      final discovered = <LibrarySong>[];
-      final scanErrors = <String>[];
-      var scannedDirectoryCount = 0;
+    final discovered = <LibrarySong>[];
+    final scanErrors = <String>[];
+    var scannedDirectoryCount = 0;
+    var publishedDirectoryCount = 0;
+    var publishedPath = sources.first.effectiveScanDirectories.first;
+    var publishedSource = sources.first;
+    final trackPublisher = _IncrementalTrackPublisher(
+      initialTracks: const [],
+      batchSize: _scanTrackPublishBatchSize,
+      interval: _scanTrackPublishInterval,
+      onPublish: (tracks) {
+        state = AsyncData(
+          (state.valueOrNull ?? current).copyWith(
+            scannedSources: sources,
+            currentSource: publishedSource,
+            tracks: tracks,
+            folderAlbums: _buildFolderAlbums(tracks),
+            metadataAlbums: _buildMetadataAlbums(tracks),
+            isScanning: true,
+            scannedDirectoryCount: publishedDirectoryCount,
+            discoveredTrackCount: discovered.length,
+            lastScanPath: publishedPath,
+            lastScanSourceName: publishedSource.name,
+            clearLastScanError: scanErrors.isEmpty,
+            lastScanError: scanErrors.isEmpty ? null : scanErrors.join('\n'),
+          ),
+        );
+      },
+    );
 
+    try {
       for (final source in sources) {
         try {
           DebugLogger.info('LibraryCatalogController', '开始扫描源: ${source.name}');
+          publishedSource = source;
+          publishedPath = source.effectiveScanDirectories.first;
           final result = await _scanSourceTracks(
             source,
             progressOffsetDirectories: scannedDirectoryCount,
             progressOffsetTracks: discovered.length,
+            onSongDiscovered: (song, directories, path) {
+              discovered.add(song);
+              publishedDirectoryCount = scannedDirectoryCount + directories;
+              publishedPath = path;
+              publishedSource = source;
+              trackPublisher.add(song);
+            },
             onProgress: (directories, tracks, path) {
+              publishedDirectoryCount = directories;
+              publishedPath = path;
+              publishedSource = source;
               DebugLogger.info(
                 'LibraryCatalogController',
                 '扫描进度 [${source.name}]: $directories 目录, $tracks 歌曲 - $path',
@@ -302,7 +394,6 @@ class LibraryCatalogController extends _$LibraryCatalogController {
             },
           );
 
-          discovered.addAll(result.tracks);
           scannedDirectoryCount += result.scannedDirectoryCount;
           DebugLogger.success(
             'LibraryCatalogController',
@@ -328,6 +419,7 @@ class LibraryCatalogController extends _$LibraryCatalogController {
         'LibraryCatalogController',
         '所有源扫描完成，总共 ${discovered.length} 首歌曲',
       );
+      trackPublisher.flush();
 
       // 保存扫描结果到缓存
       try {
@@ -337,22 +429,13 @@ class LibraryCatalogController extends _$LibraryCatalogController {
         );
         final cacheRepo = await createScanCacheRepository();
         DebugLogger.info('LibraryCatalogController.scanAllSources', '缓存仓库创建成功');
-        for (final source in sources) {
-          final sourceSongs = discovered
-              .where((song) => song.sourceId == source.id)
-              .toList();
-          if (sourceSongs.isNotEmpty) {
-            DebugLogger.info(
-              'LibraryCatalogController.scanAllSources',
-              '保存源 ${source.name}: ${sourceSongs.length} 首歌曲',
-            );
-            await cacheRepo.saveScanResults(source.id, sourceSongs);
-            DebugLogger.success(
-              'LibraryCatalogController.scanAllSources',
-              '源 ${source.name}: ${sourceSongs.length} 首歌曲已保存到缓存',
-            );
-          }
+        final resultsBySource = <String, List<LibrarySong>>{
+          for (final source in sources) source.id: <LibrarySong>[],
+        };
+        for (final song in discovered) {
+          resultsBySource.putIfAbsent(song.sourceId, () => []).add(song);
         }
+        await cacheRepo.saveAllResults(resultsBySource);
         DebugLogger.success(
           'LibraryCatalogController.scanAllSources',
           '所有扫描结果已保存到缓存',
@@ -396,6 +479,8 @@ class LibraryCatalogController extends _$LibraryCatalogController {
           lastScanError: error.toString(),
         ),
       );
+    } finally {
+      trackPublisher.dispose();
     }
   }
 
@@ -411,6 +496,9 @@ class LibraryCatalogController extends _$LibraryCatalogController {
       current.copyWith(
         scannedSources: allSources,
         currentSource: source,
+        tracks: retained,
+        folderAlbums: _buildFolderAlbums(retained),
+        metadataAlbums: _buildMetadataAlbums(retained),
         isScanning: true,
         scannedDirectoryCount: 0,
         discoveredTrackCount: retained.length,
@@ -420,12 +508,45 @@ class LibraryCatalogController extends _$LibraryCatalogController {
       ),
     );
 
+    final sourceDiscovered = <LibrarySong>[];
+    var publishedDirectoryCount = 0;
+    var publishedPath = source.effectiveScanDirectories.first;
+    final trackPublisher = _IncrementalTrackPublisher(
+      initialTracks: retained,
+      batchSize: _scanTrackPublishBatchSize,
+      interval: _scanTrackPublishInterval,
+      onPublish: (tracks) {
+        state = AsyncData(
+          (state.valueOrNull ?? current).copyWith(
+            scannedSources: allSources,
+            currentSource: source,
+            tracks: tracks,
+            folderAlbums: _buildFolderAlbums(tracks),
+            metadataAlbums: _buildMetadataAlbums(tracks),
+            isScanning: true,
+            scannedDirectoryCount: publishedDirectoryCount,
+            discoveredTrackCount: retained.length + sourceDiscovered.length,
+            lastScanPath: publishedPath,
+            lastScanSourceName: source.name,
+          ),
+        );
+      },
+    );
+
     try {
       final result = await _scanSourceTracks(
         source,
         progressOffsetDirectories: 0,
         progressOffsetTracks: retained.length,
+        onSongDiscovered: (song, directories, path) {
+          sourceDiscovered.add(song);
+          publishedDirectoryCount = directories;
+          publishedPath = path;
+          trackPublisher.add(song);
+        },
         onProgress: (directories, tracks, path) {
+          publishedDirectoryCount = directories;
+          publishedPath = path;
           state = AsyncData(
             (state.valueOrNull ?? current).copyWith(
               scannedSources: allSources,
@@ -440,8 +561,9 @@ class LibraryCatalogController extends _$LibraryCatalogController {
         },
       );
 
-      retained.addAll(result.tracks);
-      retained.sort(
+      trackPublisher.flush();
+      final allTracks = [...retained, ...result.tracks];
+      allTracks.sort(
         (left, right) =>
             left.title.toLowerCase().compareTo(right.title.toLowerCase()),
       );
@@ -449,13 +571,13 @@ class LibraryCatalogController extends _$LibraryCatalogController {
       // 保存扫描结果到缓存
       try {
         final cacheRepo = await createScanCacheRepository();
-        await cacheRepo.saveScanResults(source.id, retained);
+        await cacheRepo.saveScanResults(source.id, result.tracks);
       } catch (e) {
         // 忽略保存失败
       }
 
       // 应用已缓存的刮削数据
-      final displayTracks = _applyCachedScrapingMetadata(retained);
+      final displayTracks = _applyCachedScrapingMetadata(allTracks);
 
       state = AsyncData(
         (state.valueOrNull ?? current).copyWith(
@@ -492,6 +614,8 @@ class LibraryCatalogController extends _$LibraryCatalogController {
           lastScanError: error.toString(),
         ),
       );
+    } finally {
+      trackPublisher.dispose();
     }
   }
 
@@ -534,6 +658,8 @@ class LibraryCatalogController extends _$LibraryCatalogController {
     required int progressOffsetDirectories,
     required int progressOffsetTracks,
     required void Function(int directories, int tracks, String path) onProgress,
+    void Function(LibrarySong song, int directories, String path)?
+    onSongDiscovered,
   }) async {
     final session = await ref
         .read(musicSourceSessionManagerProvider)
@@ -568,7 +694,9 @@ class LibraryCatalogController extends _$LibraryCatalogController {
           continue;
         }
 
-        discovered.add(await _mapSong(source, entry, session: session));
+        final song = await _mapSong(source, entry, session: session);
+        discovered.add(song);
+        onSongDiscovered?.call(song, scannedDirectoryCount, path);
       }
 
       if (scannedDirectoryCount % 4 == 0) {
@@ -900,7 +1028,13 @@ class LibraryCatalogController extends _$LibraryCatalogController {
     final generation = ++_metadataHydrationGeneration;
     final sourceById = {for (final source in sources) source.id: source};
     final queue = Queue<LibrarySong>()
-      ..addAll(tracks.where(_shouldHydrateEmbeddedMetadata));
+      ..addAll(
+        tracks.where(
+          (track) =>
+              _supportsEmbeddedMetadataHydration(sourceById[track.sourceId]) &&
+              _shouldHydrateEmbeddedMetadata(track),
+        ),
+      );
     if (queue.isEmpty) {
       return;
     }
@@ -977,6 +1111,15 @@ class LibraryCatalogController extends _$LibraryCatalogController {
       return true;
     }
     return cachedMetadata.embeddedMetadataReadAt == null;
+  }
+
+  bool _supportsEmbeddedMetadataHydration(SourceProfile? source) {
+    if (source == null) {
+      return false;
+    }
+    // ftpconnect does not expose range/head reads, and the FTP source must not
+    // download whole audio files just to hydrate embedded tags during scans.
+    return source.protocol != SourceProtocol.ftp;
   }
 
   Future<void> _markEmbeddedMetadataAttempted(LibrarySong track) async {

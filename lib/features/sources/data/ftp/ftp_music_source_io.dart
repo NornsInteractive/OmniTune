@@ -131,11 +131,9 @@ class FtpMusicSource implements MusicSource {
     String path, {
     int length = 128 * 1024,
   }) async {
-    final bytes = await readBinaryFile(path);
-    if (bytes == null || bytes.isEmpty || bytes.length <= length) {
-      return bytes;
-    }
-    return Uint8List.sublistView(bytes, 0, length);
+    // ftpconnect only exposes whole-file downloads here. Returning null keeps
+    // scan-time metadata hydration from downloading full audio files for tags.
+    return null;
   }
 
   int get _port => _uri.hasPort ? _uri.port : _defaultPort;

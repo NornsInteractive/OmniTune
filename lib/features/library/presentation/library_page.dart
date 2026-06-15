@@ -184,7 +184,6 @@ class LibrarySongsPage extends ConsumerWidget {
     _GlacierPalette.sync(context);
     final l10n = AppLocalizations.of(context)!;
     final catalogAsync = ref.watch(libraryCatalogControllerProvider);
-    final playerState = ref.watch(playerControllerProvider);
 
     return _GlacierScreen(
       child: catalogAsync.when(
@@ -271,10 +270,8 @@ class LibrarySongsPage extends ConsumerWidget {
                       }
                       final trackIndex = index ~/ 2;
                       return _SongCard(
+                        key: ValueKey('song:${tracks[trackIndex].id}'),
                         song: tracks[trackIndex],
-                        isCurrentTrack:
-                            playerState.currentTrack?.id ==
-                            tracks[trackIndex].id,
                         isFavorite: catalog.favoriteTrackIds.contains(
                           tracks[trackIndex].id,
                         ),
@@ -328,7 +325,6 @@ class LibraryBrowserPage extends ConsumerWidget {
     _GlacierPalette.sync(context);
     final browserAsync = ref.watch(libraryControllerProvider);
     final catalog = ref.watch(libraryCatalogControllerProvider).valueOrNull;
-    final playerState = ref.watch(playerControllerProvider);
     final l10n = AppLocalizations.of(context)!;
 
     return _GlacierScreen(
@@ -348,140 +344,155 @@ class LibraryBrowserPage extends ConsumerWidget {
             color: _GlacierPalette.primary,
             backgroundColor: _GlacierPalette.surface,
             onRefresh: controller.refresh,
-            child: ListView(
+            child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: studioListPaddingOf(
-                context,
-                const EdgeInsets.fromLTRB(28, 12, 28, 144),
-              ),
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        l10n.browserTitle,
-                        style: _glacierTextStyle(
-                          color: _GlacierPalette.onSurface,
-                          size: 32,
-                          weight: FontWeight.w700,
-                          height: 1.05,
-                        ),
-                      ),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: studioListPaddingOf(
+                      context,
+                      const EdgeInsets.fromLTRB(28, 12, 28, 0),
                     ),
-                    const SizedBox(width: 8),
-                    _TopIconButton(
-                      icon: Icons.radar_rounded,
-                      onTap: () {
-                        ref
-                            .read(libraryCatalogControllerProvider.notifier)
-                            .scanAllSources();
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    _TopIconButton(
-                      icon: Icons.add_link_rounded,
-                      onTap: () => showSourceTypePicker(context),
-                    ),
-                    const SizedBox(width: 8),
-                    _TopIconButton(
-                      icon: Icons.settings_rounded,
-                      onTap: () => context.push('/settings'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  browser.selectedSource?.name ?? _noActiveSourceLabel(context),
-                  style: _glacierTextStyle(
-                    color: _GlacierPalette.onSurfaceVariant,
-                    size: 15,
-                    weight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                if (!browser.hasSources)
-                  _EmptyGlassCard(
-                    title: l10n.sourceManagementEmptyTitle,
-                    description: l10n.sourceManagementEmptySummary,
-                  )
-                else ...[
-                  SizedBox(
-                    height: 44,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: browser.sources.length,
-                      separatorBuilder: (context, _) =>
-                          const SizedBox(width: 10),
-                      itemBuilder: (context, index) {
-                        final source = browser.sources[index];
-                        final selected =
-                            source.id == browser.selectedSource?.id;
-                        return _SourceChip(
-                          label: source.name,
-                          selected: selected,
-                          onTap: () => controller.selectSource(source.id),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _PathToolbar(
-                    path: browser.displayPath,
-                    canGoUp: browser.canGoUp,
-                    onUp: browser.canGoUp ? controller.goUp : null,
-                    onRefresh: controller.refresh,
-                  ),
-                  const SizedBox(height: 20),
-                  if (browser.hasError)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: _EmptyGlassCard(
-                        title: l10n.loadFailedMessage,
-                        description: browser.errorMessage ?? '',
-                        compact: true,
-                      ),
-                    ),
-                  if (browser.entries.isEmpty)
-                    _EmptyGlassCard(
-                      title: l10n.noFilesTitle,
-                      description: l10n.noFilesDescription,
-                    )
-                  else
-                    Column(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        for (
-                          var index = 0;
-                          index < browser.entries.length;
-                          index++
-                        ) ...[
-                          _BrowserEntryCard(
-                            entry: browser.entries[index],
-                            track:
-                                tracksByKey['${browser.entries[index].sourceId}::${browser.entries[index].path}'],
-                            isCurrentTrack:
-                                playerState.currentTrack?.remotePath ==
-                                    browser.entries[index].path &&
-                                playerState.currentTrack?.sourceId ==
-                                    browser.selectedSource?.id,
-                            onTap: () async {
-                              try {
-                                await controller.openEntry(
-                                  browser.entries[index],
-                                );
-                              } catch (error) {
-                                if (!context.mounted) {
-                                  return;
-                                }
-                                showTopSnackBar(context, error.toString());
-                              }
-                            },
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                l10n.browserTitle,
+                                style: _glacierTextStyle(
+                                  color: _GlacierPalette.onSurface,
+                                  size: 32,
+                                  weight: FontWeight.w700,
+                                  height: 1.05,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            _TopIconButton(
+                              icon: Icons.radar_rounded,
+                              onTap: () {
+                                ref
+                                    .read(
+                                      libraryCatalogControllerProvider.notifier,
+                                    )
+                                    .scanAllSources();
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            _TopIconButton(
+                              icon: Icons.add_link_rounded,
+                              onTap: () => showSourceTypePicker(context),
+                            ),
+                            const SizedBox(width: 8),
+                            _TopIconButton(
+                              icon: Icons.settings_rounded,
+                              onTap: () => context.push('/settings'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          browser.selectedSource?.name ??
+                              _noActiveSourceLabel(context),
+                          style: _glacierTextStyle(
+                            color: _GlacierPalette.onSurfaceVariant,
+                            size: 15,
+                            weight: FontWeight.w500,
                           ),
-                          if (index != browser.entries.length - 1)
-                            const SizedBox(height: 12),
+                        ),
+                        const SizedBox(height: 20),
+                        if (!browser.hasSources)
+                          _EmptyGlassCard(
+                            title: l10n.sourceManagementEmptyTitle,
+                            description: l10n.sourceManagementEmptySummary,
+                          )
+                        else ...[
+                          SizedBox(
+                            height: 44,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: browser.sources.length,
+                              separatorBuilder: (context, _) =>
+                                  const SizedBox(width: 10),
+                              itemBuilder: (context, index) {
+                                final source = browser.sources[index];
+                                final selected =
+                                    source.id == browser.selectedSource?.id;
+                                return _SourceChip(
+                                  key: ValueKey('browser-source:${source.id}'),
+                                  label: source.name,
+                                  selected: selected,
+                                  onTap: () =>
+                                      controller.selectSource(source.id),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          _PathToolbar(
+                            path: browser.displayPath,
+                            canGoUp: browser.canGoUp,
+                            onUp: browser.canGoUp ? controller.goUp : null,
+                            onRefresh: controller.refresh,
+                          ),
+                          const SizedBox(height: 20),
+                          if (browser.hasError)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: _EmptyGlassCard(
+                                title: l10n.loadFailedMessage,
+                                description: browser.errorMessage ?? '',
+                                compact: true,
+                              ),
+                            ),
+                          if (browser.entries.isEmpty)
+                            _EmptyGlassCard(
+                              title: l10n.noFilesTitle,
+                              description: l10n.noFilesDescription,
+                            ),
                         ],
                       ],
                     ),
-                ],
+                  ),
+                ),
+                if (browser.hasSources && browser.entries.isNotEmpty)
+                  SliverPadding(
+                    padding: studioListPaddingOf(
+                      context,
+                      const EdgeInsets.fromLTRB(28, 0, 28, 144),
+                    ),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        if (index.isOdd) {
+                          return const SizedBox(height: 12);
+                        }
+                        final entryIndex = index ~/ 2;
+                        final entry = browser.entries[entryIndex];
+                        return _BrowserEntryCard(
+                          key: ValueKey(
+                            'browser-entry:${entry.sourceId}:${entry.path}',
+                          ),
+                          entry: entry,
+                          track:
+                              tracksByKey['${entry.sourceId}::${entry.path}'],
+                          onTap: () async {
+                            try {
+                              await controller.openEntry(entry);
+                            } catch (error) {
+                              if (!context.mounted) {
+                                return;
+                              }
+                              showTopSnackBar(context, error.toString());
+                            }
+                          },
+                        );
+                      }, childCount: browser.entries.length * 2 - 1),
+                    ),
+                  ),
+                if (!browser.hasSources || browser.entries.isEmpty)
+                  SliverToBoxAdapter(child: const SizedBox(height: 144)),
               ],
             ),
           );
@@ -960,10 +971,10 @@ class _SongsPinnedHeaderDelegate extends SliverPersistentHeaderDelegate {
   }
 }
 
-class _SongCard extends StatelessWidget {
+class _SongCard extends ConsumerWidget {
   const _SongCard({
+    super.key,
     required this.song,
-    required this.isCurrentTrack,
     required this.isFavorite,
     required this.isLiked,
     required this.onTap,
@@ -973,7 +984,6 @@ class _SongCard extends StatelessWidget {
   });
 
   final LibrarySong song;
-  final bool isCurrentTrack;
   final bool isFavorite;
   final bool isLiked;
   final VoidCallback onTap;
@@ -982,9 +992,14 @@ class _SongCard extends StatelessWidget {
   final VoidCallback onMore;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cardRadius = studioRadiusOf(context, 22);
     final coverSize = studioListIconBoxSizeOf(context).clamp(36.0, 46.0);
+    final isCurrentTrack = ref.watch(
+      playerControllerProvider.select(
+        (state) => state.currentTrack?.id == song.id,
+      ),
+    );
     return ClipRRect(
       borderRadius: BorderRadius.circular(cardRadius),
       child: BackdropFilter(
@@ -1006,6 +1021,7 @@ class _SongCard extends StatelessWidget {
                     subtitle: '${song.displayArtist} · ${song.displayAlbum}',
                     size: coverSize,
                     borderRadius: 12,
+                    isCurrentTrack: isCurrentTrack,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -1167,6 +1183,7 @@ class _CompactIconButton extends StatelessWidget {
 
 class _SourceChip extends StatelessWidget {
   const _SourceChip({
+    super.key,
     required this.label,
     required this.selected,
     required this.onTap,
@@ -1280,23 +1297,31 @@ class _PathToolbar extends StatelessWidget {
   }
 }
 
-class _BrowserEntryCard extends StatelessWidget {
+class _BrowserEntryCard extends ConsumerWidget {
   const _BrowserEntryCard({
+    super.key,
     required this.entry,
-    required this.isCurrentTrack,
     required this.onTap,
     this.track,
   });
 
   final RemoteEntry entry;
   final LibrarySong? track;
-  final bool isCurrentTrack;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cardRadius = studioRadiusOf(context, 22);
     final isAudio = entry.kind == RemoteEntryKind.audio;
+    final isCurrentTrack =
+        isAudio &&
+        ref.watch(
+          playerControllerProvider.select((state) {
+            final currentTrack = state.currentTrack;
+            return currentTrack?.remotePath == entry.path &&
+                currentTrack?.sourceId == entry.sourceId;
+          }),
+        );
     final title = track?.displayTitle ?? entry.title;
     final subtitle = isAudio
         ? [track?.displayArtist, track?.displayAlbum]

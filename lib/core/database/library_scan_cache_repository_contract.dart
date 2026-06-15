@@ -8,6 +8,9 @@ abstract class LibraryScanCacheRepository {
   /// 保存扫描结果
   Future<void> saveScanResults(String sourceId, List<LibrarySong> songs);
 
+  /// 批量保存所有源的扫描结果
+  Future<void> saveAllResults(Map<String, List<LibrarySong>> results);
+
   /// 删除扫描结果
   Future<void> deleteScanResults(String sourceId);
 

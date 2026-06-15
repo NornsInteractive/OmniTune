@@ -106,6 +106,32 @@ class JsonFileScanCacheRepository implements LibraryScanCacheRepository {
   }
 
   @override
+  Future<void> saveAllResults(Map<String, List<LibrarySong>> results) async {
+    DebugLogger.info(
+      'JsonFileScanCacheRepository.saveAllResults',
+      '开始批量保存扫描结果: 源数=${results.length}',
+    );
+    try {
+      final serialized = <String, dynamic>{
+        for (final entry in results.entries)
+          entry.key: entry.value.map((song) => song.toJson()).toList(),
+      };
+      await _cacheFile.writeAsString(jsonEncode(serialized), flush: true);
+      DebugLogger.success(
+        'JsonFileScanCacheRepository.saveAllResults',
+        '✅ 批量保存成功: 源数=${results.length}',
+      );
+    } catch (e, stack) {
+      DebugLogger.error(
+        'JsonFileScanCacheRepository.saveAllResults',
+        '批量保存失败: $e',
+        stack.toString(),
+      );
+      rethrow;
+    }
+  }
+
+  @override
   Future<void> deleteScanResults(String sourceId) async {
     try {
       final file = _cacheFile;
@@ -162,10 +188,7 @@ class JsonFileScanCacheRepository implements LibraryScanCacheRepository {
         return {};
       }
 
-      DebugLogger.info(
-        'JsonFileScanCacheRepository.loadAllResults',
-        '读取文件内容',
-      );
+      DebugLogger.info('JsonFileScanCacheRepository.loadAllResults', '读取文件内容');
       String content;
       try {
         content = await file.readAsString();

@@ -91,6 +91,7 @@ class _CoverArtImageState extends State<CoverArtImage> {
     final effectiveBorderRadius = widget.clipBorderRadius != null
         ? studioBorderRadiusOf(context, widget.clipBorderRadius!)
         : BorderRadius.circular(studioRadiusOf(context, widget.borderRadius));
+    final cacheExtent = _cacheExtentFor(context);
     final localPath = _resolvedLocalPath;
     if (localPath != null && localPath.isNotEmpty) {
       return ClipRRect(
@@ -100,6 +101,8 @@ class _CoverArtImageState extends State<CoverArtImage> {
           fit: BoxFit.cover,
           width: widget.size,
           height: widget.size,
+          cacheWidth: cacheExtent,
+          cacheHeight: cacheExtent,
           errorBuilder: (context, error, stackTrace) => _remoteOrGenerated(),
         ),
       );
@@ -121,6 +124,8 @@ class _CoverArtImageState extends State<CoverArtImage> {
           fit: BoxFit.cover,
           width: widget.size,
           height: widget.size,
+          cacheWidth: _cacheExtentFor(context),
+          cacheHeight: _cacheExtentFor(context),
           errorBuilder: (context, error, stackTrace) => _generated(),
         ),
       );
@@ -137,5 +142,14 @@ class _CoverArtImageState extends State<CoverArtImage> {
       clipBorderRadius: widget.clipBorderRadius,
       showFrame: widget.showFrame,
     );
+  }
+
+  int _cacheExtentFor(BuildContext context) {
+    final logicalSize = widget.size.isFinite && widget.size > 0
+        ? widget.size
+        : 120.0;
+    final physicalSize = (logicalSize * MediaQuery.devicePixelRatioOf(context))
+        .ceil();
+    return physicalSize.clamp(1, 1024).toInt();
   }
 }
