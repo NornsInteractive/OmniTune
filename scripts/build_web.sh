@@ -5,6 +5,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 if [[ -x "/workspace/env/flutter/bin/flutter" ]]; then
   export PATH="/workspace/env/flutter/bin:$PATH"
+elif [[ -x "/opt/flutter/bin/flutter" ]]; then
+  export PATH="/opt/flutter/bin:$PATH"
 elif [[ -x "/opt/flutter/flutter/bin/flutter" ]]; then
   export PATH="/opt/flutter/flutter/bin:$PATH"
 fi

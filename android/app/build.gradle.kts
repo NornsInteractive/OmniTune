@@ -18,7 +18,7 @@ val hasReleaseSigning =
         }
 
 android {
-    namespace = "com.github.naruto9kurama.omnitune"
+    namespace = "com.norns.omnitune"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -43,7 +43,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.github.naruto9kurama.omnitune"
+        applicationId = "com.norns.omnitune"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

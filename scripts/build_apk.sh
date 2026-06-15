@@ -9,6 +9,9 @@ KEY_PROPERTIES_PATH="$ANDROID_DIR/key.properties"
 KEY_ALIAS="omnituneUpload"
 AAB_OUTPUT="$ROOT_DIR/build/app/outputs/bundle/release/app-release.aab"
 APK_OUTPUT="$ROOT_DIR/build/app/outputs/flutter-apk/app-release.apk"
+TMP_ROOT="${TMPDIR:-${CODEX_TMP_ROOT:-/opt/tmp}}"
+GRADLE_HOME="${GRADLE_USER_HOME:-${CODEX_GRADLE_HOME:-/opt/gradle-home}}"
+PUB_CACHE_ROOT="${PUB_CACHE:-${CODEX_PUB_CACHE:-/opt/pub-cache}}"
 
 ensure_flutter_on_path() {
   if command -v flutter >/dev/null 2>&1; then
@@ -18,6 +21,7 @@ ensure_flutter_on_path() {
   local candidate
   for candidate in \
     "/workspace/env/flutter/bin" \
+    "/opt/flutter/bin" \
     "/opt/flutter/flutter/bin" \
     "/usr/local/flutter/bin" \
     "/workspace/flutter/bin"
@@ -30,6 +34,14 @@ ensure_flutter_on_path() {
 }
 
 ensure_flutter_on_path
+
+mkdir -p "$TMP_ROOT"
+mkdir -p "$GRADLE_HOME"
+mkdir -p "$PUB_CACHE_ROOT"
+export TMPDIR="$TMP_ROOT"
+export GRADLE_USER_HOME="$GRADLE_HOME"
+export PUB_CACHE="$PUB_CACHE_ROOT"
+export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Djava.io.tmpdir=$TMPDIR"
 
 random_secret() {
   LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32
@@ -47,16 +59,13 @@ ensure_upload_keystore() {
   fi
 
   local store_password
-  local key_password
-
   store_password="$(random_secret)"
-  key_password="$(random_secret)"
 
   keytool -genkeypair \
     -keystore "$KEYSTORE_PATH" \
     -storetype PKCS12 \
     -storepass "$store_password" \
-    -keypass "$key_password" \
+    -keypass "$store_password" \
     -alias "$KEY_ALIAS" \
     -keyalg RSA \
     -keysize 4096 \
@@ -67,7 +76,7 @@ ensure_upload_keystore() {
 storeFile=$(basename "$KEYSTORE_PATH")
 storePassword=$store_password
 keyAlias=$KEY_ALIAS
-keyPassword=$key_password
+keyPassword=$store_password
 EOF
 
   chmod 600 "$KEYSTORE_PATH" "$KEY_PROPERTIES_PATH"
@@ -107,10 +116,10 @@ perl -0pi -e "s/^version: .*/version: $next_version/m" "$PUBSPEC_PATH"
 echo "Updated version: $current_version -> $next_version"
 
 cd "$ROOT_DIR"
-flutter pub get
+flutter --no-version-check pub get
 rm -rf "$ROOT_DIR/.dart_tool/flutter_build"
-flutter build appbundle --release --no-pub "$@"
-flutter build apk --release --no-pub "$@"
+flutter --no-version-check build appbundle --release --no-pub "$@"
+flutter --no-version-check build apk --release --no-pub "$@"
 
 echo "Generated Play bundle: $AAB_OUTPUT"
 echo "Generated signed APK: $APK_OUTPUT"

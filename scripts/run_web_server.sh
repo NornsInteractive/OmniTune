@@ -10,6 +10,7 @@ ensure_flutter_on_path() {
 
   local candidate
   for candidate in \
+    "/opt/flutter/bin" \
     "/workspace/env/flutter/bin" \
     "/opt/flutter/flutter/bin" \
     "/usr/local/flutter/bin" \
