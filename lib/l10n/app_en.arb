@@ -1,6 +1,6 @@
 {
   "@@locale": "en",
-  "appTitle": "Flux Music",
+  "appTitle": "OmniTune",
   "homeTabLabel": "Home",
   "albumsTabLabel": "Albums",
   "collectionTabLabel": "Collection",
@@ -77,6 +77,10 @@
     }
   },
   "sourceManagementSettingTitle": "Music sources",
+  "songFolderArtworkSettingTitle": "Use folder image for song covers",
+  "songFolderArtworkSettingDescription": "When a song has no embedded artwork, use cover or folder images from the same directory.",
+  "groupAlbumsByArtistSettingTitle": "Group album-tag view by artist",
+  "groupAlbumsByArtistSettingDescription": "When enabled, album-tag mode groups by album name and artist. When disabled, it groups only by album name.",
   "sourceManagementDialogDescription": "Choose the source used by remote browsing, keep adding more sources, and scan every saved source into one shared library.",
   "sourceManagementEmptyTitle": "No music sources yet",
   "sourceManagementEmptySummary": "Add a music source to start browsing and scanning your library.",
@@ -367,6 +371,9 @@
   "lyricsEmptyLabel": "No synced lyrics were found for this track yet.",
   "showLyricsAction": "Show lyrics",
   "hideLyricsAction": "Hide lyrics",
+  "lyricsSourceSidecarLabel": "Local LRC",
+  "lyricsSourceEmbeddedLabel": "Embedded lyrics",
+  "lyricsSourceScrapedLabel": "Scraped lyrics",
   "playAction": "Play",
   "pauseAction": "Pause",
   "stopAction": "Stop",

@@ -7,13 +7,13 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:music/l10n/app_localizations.dart';
+import 'package:path/path.dart' as p;
 
 import '../../../../core/models/library_song.dart';
 import '../../../../core/widgets/studio_chrome.dart';
 import '../../../library/application/library_catalog_controller.dart';
 import '../../../scraper/presentation/lyrics_scraping_sheet.dart';
 import '../../application/player_controller.dart';
-import 'cover_art_image.dart';
 import 'generated_cover_art.dart';
 import 'playback_timeline.dart';
 import 'track_cover_thumbnail.dart';
@@ -44,6 +44,15 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
       PlayerPlaybackMode.list => l10n.playbackModeList,
       PlayerPlaybackMode.shuffle => l10n.playbackModeShuffle,
       PlayerPlaybackMode.repeatOne => l10n.playbackModeRepeatOne,
+    };
+  }
+
+  String? _lyricsSourceLabel(AppLocalizations l10n, PlayerLyricsSource source) {
+    return switch (source) {
+      PlayerLyricsSource.none => null,
+      PlayerLyricsSource.sidecarFile => l10n.lyricsSourceSidecarLabel,
+      PlayerLyricsSource.embeddedTag => l10n.lyricsSourceEmbeddedLabel,
+      PlayerLyricsSource.scraped => l10n.lyricsSourceScrapedLabel,
     };
   }
 
@@ -79,6 +88,8 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
         currentSong?.displayLocalCoverPath ?? track.localCoverPath;
     final displayCoverUrl =
         currentSong?.displayCoverUrl ?? track.autoScrapedCoverUrl;
+    final directoryPath =
+        currentSong?.directoryPath ?? _directoryPath(track.remotePath);
 
     final isFavorite =
         currentSong != null &&
@@ -96,6 +107,10 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
         );
     final remaining = (duration ?? Duration.zero) - playerState.position;
     final isSeekEnabled = duration != null && duration > Duration.zero;
+    final lyricsSourceLabel = _lyricsSourceLabel(
+      l10n,
+      playerState.lyricsSource,
+    );
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -179,6 +194,9 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
                           subtitle: displayArtist,
                           localCoverPath: displayLocalCoverPath,
                           coverUrl: displayCoverUrl,
+                          trackId: currentSong?.id ?? track.id,
+                          sourceId: currentSong?.sourceId ?? track.sourceId,
+                          directoryPath: directoryPath,
                           lyrics: playerState.lyrics,
                           activeIndex: playerState.activeLyricIndex,
                           lyricsEmptyLabel: l10n.lyricsEmptyLabel,
@@ -220,6 +238,13 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
                                       weight: FontWeight.w500,
                                     ),
                                   ),
+                                  if (lyricsSourceLabel != null) ...[
+                                    const SizedBox(height: 10),
+                                    _NowPlayingMetaChip(
+                                      icon: Icons.lyrics_rounded,
+                                      label: lyricsSourceLabel,
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -367,6 +392,11 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
       },
     );
   }
+
+  String _directoryPath(String remotePath) {
+    final resolved = p.posix.dirname(remotePath);
+    return resolved == '.' ? '/' : resolved;
+  }
 }
 
 class _PlayerHeader extends StatelessWidget {
@@ -446,6 +476,42 @@ class _PlayerHeader extends StatelessWidget {
   }
 }
 
+class _NowPlayingMetaChip extends StatelessWidget {
+  const _NowPlayingMetaChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: _GlacierPalette.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: _GlacierPalette.primary.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: _GlacierPalette.primary),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: _glacierTextStyle(
+              color: _GlacierPalette.onSurface,
+              size: 12,
+              weight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ArtworkStage extends StatelessWidget {
   const _ArtworkStage({
     required this.showLyrics,
@@ -454,6 +520,9 @@ class _ArtworkStage extends StatelessWidget {
     required this.subtitle,
     required this.localCoverPath,
     required this.coverUrl,
+    required this.trackId,
+    required this.sourceId,
+    required this.directoryPath,
     required this.lyrics,
     required this.activeIndex,
     required this.lyricsEmptyLabel,
@@ -468,6 +537,9 @@ class _ArtworkStage extends StatelessWidget {
   final String subtitle;
   final String? localCoverPath;
   final String? coverUrl;
+  final String trackId;
+  final String sourceId;
+  final String directoryPath;
   final List<LyricLine> lyrics;
   final int activeIndex;
   final String lyricsEmptyLabel;
@@ -517,13 +589,16 @@ class _ArtworkStage extends StatelessWidget {
                         key: const ValueKey('cover'),
                         fit: StackFit.expand,
                         children: [
-                          CoverArtImage(
+                          TrackCoverThumbnail(
                             title: title,
                             subtitle: subtitle,
                             size: size,
                             borderRadius: 26,
                             localCoverPath: localCoverPath,
                             coverUrl: coverUrl,
+                            trackId: trackId,
+                            sourceId: sourceId,
+                            directoryPath: directoryPath,
                           ),
                           DecoratedBox(
                             decoration: BoxDecoration(
@@ -964,6 +1039,9 @@ class _PlaylistRow extends StatelessWidget {
                 localCoverPath: song.displayLocalCoverPath,
                 coverUrl: song.displayCoverUrl,
                 isCurrentTrack: isCurrent,
+                trackId: song.id,
+                sourceId: song.sourceId,
+                directoryPath: song.directoryPath,
               ),
               const SizedBox(width: 8),
               Expanded(

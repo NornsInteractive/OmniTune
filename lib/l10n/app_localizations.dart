@@ -101,7 +101,7 @@ abstract class AppLocalizations {
   /// No description provided for @appTitle.
   ///
   /// In en, this message translates to:
-  /// **'Flux Music'**
+  /// **'OmniTune'**
   String get appTitle;
 
   /// No description provided for @homeTabLabel.
@@ -373,6 +373,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Music sources'**
   String get sourceManagementSettingTitle;
+
+  /// No description provided for @songFolderArtworkSettingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use folder image for song covers'**
+  String get songFolderArtworkSettingTitle;
+
+  /// No description provided for @songFolderArtworkSettingDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'When a song has no embedded artwork, use cover or folder images from the same directory.'**
+  String get songFolderArtworkSettingDescription;
+
+  /// No description provided for @groupAlbumsByArtistSettingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Group album-tag view by artist'**
+  String get groupAlbumsByArtistSettingTitle;
+
+  /// No description provided for @groupAlbumsByArtistSettingDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'When enabled, album-tag mode groups by album name and artist. When disabled, it groups only by album name.'**
+  String get groupAlbumsByArtistSettingDescription;
 
   /// No description provided for @sourceManagementDialogDescription.
   ///
@@ -1528,6 +1552,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Hide lyrics'**
   String get hideLyricsAction;
+
+  /// No description provided for @lyricsSourceSidecarLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Local LRC'**
+  String get lyricsSourceSidecarLabel;
+
+  /// No description provided for @lyricsSourceEmbeddedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Embedded lyrics'**
+  String get lyricsSourceEmbeddedLabel;
+
+  /// No description provided for @lyricsSourceScrapedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Scraped lyrics'**
+  String get lyricsSourceScrapedLabel;
 
   /// No description provided for @playAction.
   ///

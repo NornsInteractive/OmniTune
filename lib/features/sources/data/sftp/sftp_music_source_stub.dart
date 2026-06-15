@@ -36,6 +36,12 @@ class SftpMusicSource implements MusicSource {
 
   @override
   Future<Uint8List?> readBinaryFile(String path) async => null;
+
+  @override
+  Future<Uint8List?> readBinaryFileHead(
+    String path, {
+    int length = 128 * 1024,
+  }) async => null;
 }
 
 class SftpMusicSourceFactory implements MusicSourceFactory {

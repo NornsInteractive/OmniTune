@@ -1855,7 +1855,9 @@ IconData _protocolIcon(SourceProtocol protocol) {
 }
 
 List<SourceProtocol> _availableSourceProtocols({SourceProtocol? current}) {
-  final protocols = SourceProtocolX.supportedOnCurrentPlatform();
+  final protocols = kIsWeb
+      ? <SourceProtocol>[SourceProtocol.webdav, SourceProtocol.cloudDrive]
+      : SourceProtocol.values;
   if (current == null || protocols.contains(current)) {
     return protocols;
   }

@@ -1,6 +1,6 @@
 {
   "@@locale": "zh",
-  "appTitle": "Flux Music",
+  "appTitle": "OmniTune",
   "homeTabLabel": "首页",
   "albumsTabLabel": "专辑",
   "collectionTabLabel": "音乐库",
@@ -77,6 +77,10 @@
     }
   },
   "sourceManagementSettingTitle": "音乐音源",
+  "songFolderArtworkSettingTitle": "歌曲缺少内嵌封面时使用目录图片",
+  "songFolderArtworkSettingDescription": "当歌曲没有内嵌封面时，使用同目录下的 cover、folder 等图片作为封面。",
+  "groupAlbumsByArtistSettingTitle": "按专辑字段分组时同时区分歌手",
+  "groupAlbumsByArtistSettingDescription": "开启后，按专辑字段模式会按专辑名加歌手分组；关闭后只按专辑名分组。",
   "sourceManagementDialogDescription": "这里选择用于远程浏览的音源，同时可以继续添加多个音源，并把所有已保存音源一起扫描进同一个音乐库。",
   "sourceManagementEmptyTitle": "还没有音乐音源",
   "sourceManagementEmptySummary": "先添加一个音乐音源，才能开始浏览和扫描音乐库。",
@@ -379,6 +383,9 @@
   "lyricsEmptyLabel": "当前还没有找到这首歌对应的同步歌词。",
   "showLyricsAction": "显示歌词",
   "hideLyricsAction": "收起歌词",
+  "lyricsSourceSidecarLabel": "本地 LRC",
+  "lyricsSourceEmbeddedLabel": "内嵌歌词",
+  "lyricsSourceScrapedLabel": "刮削歌词",
   "playAction": "播放",
   "pauseAction": "暂停",
   "stopAction": "停止",

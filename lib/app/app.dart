@@ -9,6 +9,7 @@ import '../core/router/app_router.dart';
 import '../core/storage/library_preferences_repository.dart';
 import '../core/widgets/exception_handler_widget.dart';
 import '../core/widgets/studio_chrome.dart';
+import '../features/player/application/player_controller.dart';
 import '../features/settings/application/app_settings_controller.dart';
 
 class MusicApp extends ConsumerWidget {
@@ -17,6 +18,7 @@ class MusicApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
+    ref.watch(playerControllerProvider);
     final preferences =
         ref.watch(appSettingsControllerProvider).valueOrNull ??
         const LibraryPreferences();

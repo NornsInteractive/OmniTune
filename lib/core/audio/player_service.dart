@@ -9,8 +9,7 @@ import '../models/playable_track.dart';
 part 'player_service.g.dart';
 
 class PlayerService {
-  PlayerService()
-    : _player = AudioPlayer(userAgent: 'flutter_music_player/1.0');
+  PlayerService() : _player = AudioPlayer(userAgent: 'OmniTune/1.0');
 
   final AudioPlayer _player;
   PlayableTrack? _currentTrack;
@@ -81,11 +80,15 @@ class PlayerService {
 
   Future<void> togglePlayPause() async {
     if (_player.playing) {
-      await _player.pause();
+      await pause();
       return;
     }
-    await _player.play();
+    await play();
   }
+
+  Future<void> play() => _player.play();
+
+  Future<void> pause() => _player.pause();
 
   Future<void> seek(Duration position) => _player.seek(position);
 
