@@ -297,6 +297,56 @@ void main() {
     expect(source, isA<UriAudioSource>());
   });
 
+  test(
+    'prefetches an entire track while persistent cache is disabled',
+    () async {
+      cache = createWebDavPlaybackCache(
+        initialSettings: const PlaybackCacheSettings(
+          enablePersistentCache: false,
+          memoryCacheTrackLimit: 1,
+        ),
+      );
+      const entry = RemoteEntry(
+        sourceId: 'source-1',
+        name: 'song.flac',
+        path: '/Music/song.flac',
+        kind: RemoteEntryKind.audio,
+        mimeType: 'audio/flac',
+        size: 8,
+      );
+      final client = _StreamWebDavRemoteClient(
+        Uint8List.fromList(const [102, 76, 97, 67, 49, 50, 51, 52]),
+      );
+
+      await cache.prefetchEntry(entry: entry, client: client);
+      await _waitFor(() async {
+        final range = await cache.readCachedRange(
+          entry: entry,
+          start: 0,
+          end: 8,
+        );
+        return range?.bytes.length == 8;
+      });
+
+      final cachedTracks = await cache.listCachedTracks();
+      final cachedTrack = cachedTracks.singleWhere(
+        (item) => item.trackId == entry.uniqueId,
+      );
+      expect(cachedTrack.hasPersistentCopy, isFalse);
+      expect(cachedTrack.hasMemoryData, isTrue);
+      expect(cachedTrack.cachedBytes, 8);
+      expect(await cache.persistentFilePathForEntry(entry), isNull);
+      expect(client.openReadCount, 1);
+
+      final source = await cache.createCachedAudioSource(
+        entry: entry,
+        client: client,
+      );
+      expect(source, isA<UriAudioSource>());
+      expect(source, isNot(isA<StreamAudioSource>()));
+    },
+  );
+
   test('deduplicates overlapping prefetches for the same track', () async {
     cache = createWebDavPlaybackCache(
       initialSettings: const PlaybackCacheSettings(

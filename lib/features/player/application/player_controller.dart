@@ -22,7 +22,6 @@ import '../../../core/storage/player_session_repository.dart';
 import '../../../core/utils/audio_embedded_metadata_reader.dart';
 import '../../../core/utils/chinese_text_localizer.dart';
 import '../../../core/utils/debug_logger.dart';
-import '../../../core/utils/local_file_bytes.dart';
 import '../../settings/application/app_settings_controller.dart';
 import '../../scraper/application/scraping_provider.dart' as scraping;
 import '../../scraper/domain/metadata_scraper.dart';
@@ -2139,22 +2138,6 @@ class PlayerController extends _$PlayerController {
   Future<EmbeddedAudioMetadata?> _readEmbeddedMetadata(
     RemoteEntry entry,
   ) async {
-    final persistedPath = await _playbackCache.persistentFilePathForEntry(
-      entry,
-    );
-    if (persistedPath?.trim().isNotEmpty == true) {
-      final bytes = await readLocalFileBytes(persistedPath!);
-      if (bytes != null && bytes.isNotEmpty) {
-        final parsed = AudioEmbeddedMetadataReader.parse(
-          bytes,
-          fileName: entry.name,
-        );
-        if (parsed != null) {
-          return parsed;
-        }
-      }
-    }
-
     for (var attempt = 0; attempt < 8; attempt++) {
       final range = await _playbackCache.readCachedRange(
         entry: entry,

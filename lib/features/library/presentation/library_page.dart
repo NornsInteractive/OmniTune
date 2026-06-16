@@ -1020,79 +1020,72 @@ class _SongCard extends ConsumerWidget {
     final cardRadius = studioRadiusOf(context, 22);
     final coverSize = studioListIconBoxSizeOf(context).clamp(36.0, 46.0);
     final isCurrentTrack = ref.watch(isCurrentTrackIdProvider(song.id));
-    return ClipRRect(
+    return Material(
+      color: _GlacierPalette.surface.withValues(alpha: 0.7),
       borderRadius: BorderRadius.circular(cardRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Material(
-          color: _GlacierPalette.surface.withValues(alpha: 0.58),
-          child: InkWell(
-            onTap: onTap,
-            onLongPress: onMore,
-            child: Container(
-              padding: studioListPaddingOf(context, const EdgeInsets.all(8)),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(cardRadius),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        onLongPress: onMore,
+        child: Container(
+          padding: studioListPaddingOf(context, const EdgeInsets.all(8)),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(cardRadius),
+          ),
+          child: Row(
+            children: [
+              _LibraryTrackThumbnail(
+                song: song,
+                subtitle: '${song.displayArtist} · ${song.displayAlbum}',
+                size: coverSize,
+                borderRadius: 12,
+                isCurrentTrack: isCurrentTrack,
               ),
-              child: Row(
-                children: [
-                  _LibraryTrackThumbnail(
-                    song: song,
-                    subtitle: '${song.displayArtist} · ${song.displayAlbum}',
-                    size: coverSize,
-                    borderRadius: 12,
-                    isCurrentTrack: isCurrentTrack,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          song.displayTitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: _glacierTextStyle(
-                            color: _GlacierPalette.onSurface,
-                            size: 14,
-                            weight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          song.displayArtist,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: _glacierTextStyle(
-                            color: _GlacierPalette.onSurfaceVariant,
-                            size: 11,
-                            weight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      song.displayTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _glacierTextStyle(
+                        color: _GlacierPalette.onSurface,
+                        size: 14,
+                        weight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  _CompactIconButton(
-                    icon: isFavorite
-                        ? Icons.bookmark_rounded
-                        : Icons.bookmark_border_rounded,
-                    onTap: onFavorite,
-                    active: isFavorite,
-                  ),
-                  _CompactIconButton(
-                    icon: isLiked
-                        ? Icons.favorite_rounded
-                        : Icons.favorite_border_rounded,
-                    onTap: onLiked,
-                    active: isLiked,
-                  ),
-                  _CompactIconButton(
-                    icon: Icons.more_horiz_rounded,
-                    onTap: onMore,
-                  ),
-                ],
+                    const SizedBox(height: 4),
+                    Text(
+                      song.displayArtist,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _glacierTextStyle(
+                        color: _GlacierPalette.onSurfaceVariant,
+                        size: 11,
+                        weight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+              _CompactIconButton(
+                icon: isFavorite
+                    ? Icons.bookmark_rounded
+                    : Icons.bookmark_border_rounded,
+                onTap: onFavorite,
+                active: isFavorite,
+              ),
+              _CompactIconButton(
+                icon: isLiked
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
+                onTap: onLiked,
+                active: isLiked,
+              ),
+              _CompactIconButton(icon: Icons.more_horiz_rounded, onTap: onMore),
+            ],
           ),
         ),
       ),
@@ -1318,68 +1311,64 @@ class _BrowserEntryCard extends ConsumerWidget {
               .join(' · ')
         : entry.path;
 
-    return ClipRRect(
+    return Material(
+      color: isCurrentTrack
+          ? _GlacierPalette.primary.withValues(alpha: 0.14)
+          : _GlacierPalette.surface.withValues(alpha: 0.7),
       borderRadius: BorderRadius.circular(cardRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Material(
-          color: isCurrentTrack
-              ? _GlacierPalette.primary.withValues(alpha: 0.1)
-              : _GlacierPalette.surface.withValues(alpha: 0.58),
-          child: InkWell(
-            onTap: onTap,
-            child: Container(
-              padding: studioListPaddingOf(context, const EdgeInsets.all(14)),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(cardRadius),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: studioListPaddingOf(context, const EdgeInsets.all(14)),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(cardRadius),
+          ),
+          child: Row(
+            children: [
+              _EntryLeading(
+                entry: entry,
+                track: track,
+                isCurrentTrack: isCurrentTrack,
               ),
-              child: Row(
-                children: [
-                  _EntryLeading(
-                    entry: entry,
-                    track: track,
-                    isCurrentTrack: isCurrentTrack,
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: _glacierTextStyle(
-                            color: _GlacierPalette.onSurface,
-                            size: 15,
-                            weight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          subtitle.isEmpty
-                              ? _folderOrFileLabel(context, entry.isDirectory)
-                              : subtitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: _glacierTextStyle(
-                            color: _GlacierPalette.onSurfaceVariant,
-                            size: 13,
-                            weight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _glacierTextStyle(
+                        color: _GlacierPalette.onSurface,
+                        size: 15,
+                        weight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  Icon(
-                    entry.isDirectory
-                        ? Icons.chevron_right_rounded
-                        : Icons.play_arrow_rounded,
-                    color: _GlacierPalette.onSurfaceVariant,
-                  ),
-                ],
+                    const SizedBox(height: 6),
+                    Text(
+                      subtitle.isEmpty
+                          ? _folderOrFileLabel(context, entry.isDirectory)
+                          : subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _glacierTextStyle(
+                        color: _GlacierPalette.onSurfaceVariant,
+                        size: 13,
+                        weight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+              Icon(
+                entry.isDirectory
+                    ? Icons.chevron_right_rounded
+                    : Icons.play_arrow_rounded,
+                color: _GlacierPalette.onSurfaceVariant,
+              ),
+            ],
           ),
         ),
       ),

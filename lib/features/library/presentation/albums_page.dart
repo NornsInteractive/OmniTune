@@ -1465,84 +1465,80 @@ class _AlbumTrackTile extends ConsumerWidget {
     final cardRadius = studioRadiusOf(context, 22);
     final coverSize = studioListIconBoxSizeOf(context).clamp(36.0, 46.0);
     final isCurrentTrack = ref.watch(isCurrentTrackIdProvider(track.id));
-    return ClipRRect(
+    return Material(
+      color: _GlacierPalette.surface.withValues(alpha: 0.7),
       borderRadius: BorderRadius.circular(cardRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Material(
-          color: _GlacierPalette.surface.withValues(alpha: 0.58),
-          child: InkWell(
-            onTap: onTap,
-            onLongPress: onMoreOptions,
-            child: Container(
-              padding: studioListPaddingOf(context, const EdgeInsets.all(8)),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(cardRadius),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        onLongPress: onMoreOptions,
+        child: Container(
+          padding: studioListPaddingOf(context, const EdgeInsets.all(8)),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(cardRadius),
+          ),
+          child: Row(
+            children: [
+              TrackCoverThumbnail(
+                title: track.displayTitle,
+                subtitle: track.displayArtist,
+                size: coverSize,
+                borderRadius: 12,
+                localCoverPath: track.displayLocalCoverPath,
+                coverUrl: track.displayCoverUrl,
+                isCurrentTrack: isCurrentTrack,
+                trackId: track.id,
+                sourceId: track.sourceId,
+                directoryPath: track.directoryPath,
               ),
-              child: Row(
-                children: [
-                  TrackCoverThumbnail(
-                    title: track.displayTitle,
-                    subtitle: track.displayArtist,
-                    size: coverSize,
-                    borderRadius: 12,
-                    localCoverPath: track.displayLocalCoverPath,
-                    coverUrl: track.displayCoverUrl,
-                    isCurrentTrack: isCurrentTrack,
-                    trackId: track.id,
-                    sourceId: track.sourceId,
-                    directoryPath: track.directoryPath,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          track.displayTitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: _glacierTextStyle(
-                            color: _GlacierPalette.onSurface,
-                            size: 14,
-                            weight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          track.displayArtist,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: _glacierTextStyle(
-                            color: _GlacierPalette.onSurfaceVariant,
-                            size: 11,
-                            weight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      track.displayTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _glacierTextStyle(
+                        color: _GlacierPalette.onSurface,
+                        size: 14,
+                        weight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  _CompactIconButton(
-                    icon: isFavorite
-                        ? Icons.bookmark_rounded
-                        : Icons.bookmark_border_rounded,
-                    onTap: onFavorite,
-                    active: isFavorite,
-                  ),
-                  _CompactIconButton(
-                    icon: isLiked
-                        ? Icons.favorite_rounded
-                        : Icons.favorite_border_rounded,
-                    onTap: onLiked,
-                    active: isLiked,
-                  ),
-                  _CompactIconButton(
-                    icon: Icons.more_horiz_rounded,
-                    onTap: onMoreOptions,
-                  ),
-                ],
+                    const SizedBox(height: 4),
+                    Text(
+                      track.displayArtist,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _glacierTextStyle(
+                        color: _GlacierPalette.onSurfaceVariant,
+                        size: 11,
+                        weight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+              _CompactIconButton(
+                icon: isFavorite
+                    ? Icons.bookmark_rounded
+                    : Icons.bookmark_border_rounded,
+                onTap: onFavorite,
+                active: isFavorite,
+              ),
+              _CompactIconButton(
+                icon: isLiked
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
+                onTap: onLiked,
+                active: isLiked,
+              ),
+              _CompactIconButton(
+                icon: Icons.more_horiz_rounded,
+                onTap: onMoreOptions,
+              ),
+            ],
           ),
         ),
       ),
