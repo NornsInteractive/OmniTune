@@ -154,6 +154,7 @@ class Cloud189MusicSource implements MusicSource {
     if (!_connected) {
       unawaited(connect());
     }
+    unawaited(_playbackCache.prefetchEntry(entry: entry, client: cacheClient));
     return PlayableTrack(
       id: entry.uniqueId,
       sourceId: profile.id,
@@ -231,25 +232,6 @@ class Cloud189MusicSource implements MusicSource {
     final normalized = fileName.toLowerCase();
     final isAudio = _audioExtensions.any(normalized.endsWith);
     return isAudio ? RemoteEntryKind.audio : RemoteEntryKind.file;
-  }
-}
-
-class _Cloud189StreamAudioSource extends StreamAudioSource {
-  _Cloud189StreamAudioSource({required this.client, required this.entry});
-
-  final Cloud189RemoteClient client;
-  final RemoteEntry entry;
-
-  @override
-  Future<StreamAudioResponse> request([int? start, int? end]) async {
-    final result = await client.openRead(entry.path, start: start, end: end);
-    return StreamAudioResponse(
-      sourceLength: result.sourceLength ?? entry.size,
-      contentLength: result.contentLength,
-      offset: result.offset,
-      stream: result.stream,
-      contentType: result.contentType,
-    );
   }
 }
 

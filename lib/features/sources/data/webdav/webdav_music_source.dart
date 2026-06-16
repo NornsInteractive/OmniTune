@@ -142,6 +142,7 @@ class WebDavMusicSource implements MusicSource {
     if (!_connected) {
       unawaited(connect());
     }
+    unawaited(_playbackCache.prefetchEntry(entry: entry, client: _client));
 
     return PlayableTrack(
       id: entry.uniqueId,

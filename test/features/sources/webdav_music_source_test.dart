@@ -42,6 +42,12 @@ class _FakePlaybackCache implements WebDavPlaybackCache {
   }
 
   @override
+  Future<void> prefetchEntry({
+    required RemoteEntry entry,
+    required WebDavRemoteClient client,
+  }) async {}
+
+  @override
   Future<WebDavCachedRange?> readCachedRange({
     required RemoteEntry entry,
     required int start,
@@ -49,6 +55,9 @@ class _FakePlaybackCache implements WebDavPlaybackCache {
   }) async {
     return null;
   }
+
+  @override
+  Future<String?> persistentFilePathForEntry(RemoteEntry entry) async => null;
 
   @override
   Stream<List<int>> wrapPlaybackStream({
@@ -63,6 +72,9 @@ class _FakePlaybackCache implements WebDavPlaybackCache {
 
   @override
   Future<void> clearAllCachedData() async {}
+
+  @override
+  Future<void> clearMemoryCachedData() async {}
 
   @override
   Future<void> removeCachedTracks(Set<String> trackIds) async {}

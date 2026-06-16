@@ -117,4 +117,9 @@ class _BlockingMusicSource implements MusicSource {
   Future<Uint8List?> readBinaryFile(String path) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<Uint8List?> readBinaryFileHead(String path, {int length = 65536}) {
+    throw UnimplementedError();
+  }
 }

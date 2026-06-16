@@ -32,6 +32,9 @@ class LibraryCatalogState {
     this.tracks = const [],
     this.folderAlbums = const [],
     this.metadataAlbums = const [],
+    this.folderAlbumsBySource = const {},
+    this.metadataAlbumsBySource = const {},
+    this.trackCountBySource = const {},
     this.favoriteTrackIds = const <String>{},
     this.likedTrackIds = const <String>{},
     this.isScanning = false,
@@ -48,6 +51,9 @@ class LibraryCatalogState {
   final List<LibrarySong> tracks;
   final List<LibraryAlbum> folderAlbums;
   final List<LibraryAlbum> metadataAlbums;
+  final Map<String, List<LibraryAlbum>> folderAlbumsBySource;
+  final Map<String, List<LibraryAlbum>> metadataAlbumsBySource;
+  final Map<String, int> trackCountBySource;
   final Set<String> favoriteTrackIds;
   final Set<String> likedTrackIds;
   final bool isScanning;
@@ -76,6 +82,13 @@ class LibraryCatalogState {
       LibraryAlbumGroupingMode.folder => folderAlbums,
       LibraryAlbumGroupingMode.metadata => metadataAlbums,
     };
+    final indexedAlbums = switch (mode) {
+      LibraryAlbumGroupingMode.folder => folderAlbumsBySource[sourceId],
+      LibraryAlbumGroupingMode.metadata => metadataAlbumsBySource[sourceId],
+    };
+    if (indexedAlbums != null) {
+      return indexedAlbums;
+    }
 
     return sourceAlbums
         .where((album) => album.sourceId == sourceId)
@@ -83,7 +96,16 @@ class LibraryCatalogState {
   }
 
   int albumCountForSource(String sourceId, LibraryAlbumGroupingMode mode) {
-    return albumsForSource(sourceId, mode).length;
+    final indexedAlbums = switch (mode) {
+      LibraryAlbumGroupingMode.folder => folderAlbumsBySource[sourceId],
+      LibraryAlbumGroupingMode.metadata => metadataAlbumsBySource[sourceId],
+    };
+    return indexedAlbums?.length ?? albumsForSource(sourceId, mode).length;
+  }
+
+  int trackCountForSource(String sourceId) {
+    return trackCountBySource[sourceId] ??
+        tracks.where((track) => track.sourceId == sourceId).length;
   }
 
   LibraryCatalogState copyWith({
@@ -92,6 +114,9 @@ class LibraryCatalogState {
     List<LibrarySong>? tracks,
     List<LibraryAlbum>? folderAlbums,
     List<LibraryAlbum>? metadataAlbums,
+    Map<String, List<LibraryAlbum>>? folderAlbumsBySource,
+    Map<String, List<LibraryAlbum>>? metadataAlbumsBySource,
+    Map<String, int>? trackCountBySource,
     Set<String>? favoriteTrackIds,
     Set<String>? likedTrackIds,
     bool? isScanning,
@@ -103,12 +128,30 @@ class LibraryCatalogState {
     DateTime? lastScannedAt,
     bool clearLastScanError = false,
   }) {
+    final nextTracks = tracks ?? this.tracks;
+    final nextFolderAlbums = folderAlbums ?? this.folderAlbums;
+    final nextMetadataAlbums = metadataAlbums ?? this.metadataAlbums;
     return LibraryCatalogState(
       currentSource: currentSource ?? this.currentSource,
       scannedSources: scannedSources ?? this.scannedSources,
-      tracks: tracks ?? this.tracks,
-      folderAlbums: folderAlbums ?? this.folderAlbums,
-      metadataAlbums: metadataAlbums ?? this.metadataAlbums,
+      tracks: nextTracks,
+      folderAlbums: nextFolderAlbums,
+      metadataAlbums: nextMetadataAlbums,
+      folderAlbumsBySource:
+          folderAlbumsBySource ??
+          (folderAlbums == null
+              ? this.folderAlbumsBySource
+              : _albumsBySource(nextFolderAlbums)),
+      metadataAlbumsBySource:
+          metadataAlbumsBySource ??
+          (metadataAlbums == null
+              ? this.metadataAlbumsBySource
+              : _albumsBySource(nextMetadataAlbums)),
+      trackCountBySource:
+          trackCountBySource ??
+          (tracks == null
+              ? this.trackCountBySource
+              : _trackCountBySource(nextTracks)),
       favoriteTrackIds: favoriteTrackIds ?? this.favoriteTrackIds,
       likedTrackIds: likedTrackIds ?? this.likedTrackIds,
       isScanning: isScanning ?? this.isScanning,
@@ -122,6 +165,27 @@ class LibraryCatalogState {
           : lastScanError ?? this.lastScanError,
       lastScannedAt: lastScannedAt ?? this.lastScannedAt,
     );
+  }
+
+  static Map<String, List<LibraryAlbum>> _albumsBySource(
+    List<LibraryAlbum> albums,
+  ) {
+    final grouped = <String, List<LibraryAlbum>>{};
+    for (final album in albums) {
+      grouped.putIfAbsent(album.sourceId, () => <LibraryAlbum>[]).add(album);
+    }
+    return Map.unmodifiable({
+      for (final entry in grouped.entries)
+        entry.key: List<LibraryAlbum>.unmodifiable(entry.value),
+    });
+  }
+
+  static Map<String, int> _trackCountBySource(List<LibrarySong> tracks) {
+    final counts = <String, int>{};
+    for (final track in tracks) {
+      counts.update(track.sourceId, (value) => value + 1, ifAbsent: () => 1);
+    }
+    return Map.unmodifiable(counts);
   }
 }
 
@@ -264,10 +328,22 @@ class LibraryCatalogController extends _$LibraryCatalogController {
           '库加载完成：${allTracks.length} 首歌曲',
         );
 
+        final folderAlbums = _buildFolderAlbums(allTracks);
+        final metadataAlbums = _buildMetadataAlbums(allTracks);
+
         cachedState = LibraryCatalogState(
           tracks: allTracks,
-          folderAlbums: _buildFolderAlbums(allTracks),
-          metadataAlbums: _buildMetadataAlbums(allTracks),
+          folderAlbums: folderAlbums,
+          metadataAlbums: metadataAlbums,
+          folderAlbumsBySource: LibraryCatalogState._albumsBySource(
+            folderAlbums,
+          ),
+          metadataAlbumsBySource: LibraryCatalogState._albumsBySource(
+            metadataAlbums,
+          ),
+          trackCountBySource: LibraryCatalogState._trackCountBySource(
+            allTracks,
+          ),
           favoriteTrackIds: preferences.favoriteTrackIds,
           likedTrackIds: preferences.likedTrackIds,
           lastScannedAt: DateTime.now(),
@@ -338,8 +414,6 @@ class LibraryCatalogController extends _$LibraryCatalogController {
             scannedSources: sources,
             currentSource: publishedSource,
             tracks: tracks,
-            folderAlbums: _buildFolderAlbums(tracks),
-            metadataAlbums: _buildMetadataAlbums(tracks),
             isScanning: true,
             scannedDirectoryCount: publishedDirectoryCount,
             discoveredTrackCount: discovered.length,
@@ -521,8 +595,6 @@ class LibraryCatalogController extends _$LibraryCatalogController {
             scannedSources: allSources,
             currentSource: source,
             tracks: tracks,
-            folderAlbums: _buildFolderAlbums(tracks),
-            metadataAlbums: _buildMetadataAlbums(tracks),
             isScanning: true,
             scannedDirectoryCount: publishedDirectoryCount,
             discoveredTrackCount: retained.length + sourceDiscovered.length,
@@ -981,15 +1053,18 @@ class LibraryCatalogController extends _$LibraryCatalogController {
     }
   }
 
-  void refreshSongsMetadata(Iterable<String> songIds) {
+  bool refreshSongsMetadata(
+    Iterable<String> songIds, {
+    bool rebuildAlbums = true,
+  }) {
     final targetIds = songIds.toSet();
     if (targetIds.isEmpty) {
-      return;
+      return false;
     }
 
     final currentState = state.valueOrNull;
     if (currentState == null) {
-      return;
+      return false;
     }
 
     var changed = false;
@@ -1009,14 +1084,30 @@ class LibraryCatalogController extends _$LibraryCatalogController {
         .toList(growable: false);
 
     if (!changed) {
-      return;
+      return false;
     }
 
     state = AsyncData(
       currentState.copyWith(
         tracks: updatedTracks,
-        folderAlbums: _buildFolderAlbums(updatedTracks),
-        metadataAlbums: _buildMetadataAlbums(updatedTracks),
+        folderAlbums: rebuildAlbums ? _buildFolderAlbums(updatedTracks) : null,
+        metadataAlbums: rebuildAlbums
+            ? _buildMetadataAlbums(updatedTracks)
+            : null,
+      ),
+    );
+    return true;
+  }
+
+  void _refreshAlbumIndexesFromCurrentTracks() {
+    final currentState = state.valueOrNull;
+    if (currentState == null) {
+      return;
+    }
+    state = AsyncData(
+      currentState.copyWith(
+        folderAlbums: _buildFolderAlbums(currentState.tracks),
+        metadataAlbums: _buildMetadataAlbums(currentState.tracks),
       ),
     );
   }
@@ -1041,16 +1132,23 @@ class LibraryCatalogController extends _$LibraryCatalogController {
 
     final sessions = <String, MusicSource>{};
     final updatedSongIds = <String>{};
+    var needsAlbumRefresh = false;
     final workerCount = queue.length < _embeddedMetadataHydrationConcurrency
         ? queue.length
         : _embeddedMetadataHydrationConcurrency;
 
-    Future<void> flushUpdates() async {
+    Future<void> flushUpdates({required bool rebuildAlbums}) async {
       if (updatedSongIds.isEmpty ||
           generation != _metadataHydrationGeneration) {
         return;
       }
-      refreshSongsMetadata(updatedSongIds.toList(growable: false));
+      final changed = refreshSongsMetadata(
+        updatedSongIds.toList(growable: false),
+        rebuildAlbums: rebuildAlbums,
+      );
+      if (changed && !rebuildAlbums) {
+        needsAlbumRefresh = true;
+      }
       updatedSongIds.clear();
     }
 
@@ -1088,7 +1186,7 @@ class LibraryCatalogController extends _$LibraryCatalogController {
 
           updatedSongIds.add(track.id);
           if (updatedSongIds.length >= _embeddedMetadataRefreshBatchSize) {
-            await flushUpdates();
+            await flushUpdates(rebuildAlbums: false);
           }
         } catch (e, stack) {
           DebugLogger.error(
@@ -1102,7 +1200,10 @@ class LibraryCatalogController extends _$LibraryCatalogController {
     }
 
     await Future.wait(List.generate(workerCount, (_) => worker()));
-    await flushUpdates();
+    await flushUpdates(rebuildAlbums: false);
+    if (needsAlbumRefresh && generation == _metadataHydrationGeneration) {
+      _refreshAlbumIndexesFromCurrentTracks();
+    }
   }
 
   bool _shouldHydrateEmbeddedMetadata(LibrarySong track) {

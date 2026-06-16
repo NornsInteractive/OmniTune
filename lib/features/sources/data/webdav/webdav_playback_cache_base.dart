@@ -82,6 +82,11 @@ abstract class WebDavPlaybackCache {
     required WebDavRemoteClient client,
   });
 
+  Future<void> prefetchEntry({
+    required RemoteEntry entry,
+    required WebDavRemoteClient client,
+  });
+
   Future<WebDavCachedRange?> readCachedRange({
     required RemoteEntry entry,
     required int start,

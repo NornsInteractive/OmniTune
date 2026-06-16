@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/database/isar_manager.dart';
 import '../../../library/presentation/folder_artwork_provider.dart';
 import '../../../settings/application/app_settings_controller.dart';
 
@@ -41,22 +40,13 @@ class TrackCoverThumbnail extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final preferences = ref.watch(appSettingsControllerProvider).valueOrNull;
-    final metadata = _normalized(trackId) == null
-        ? null
-        : IsarManager.getMetadata(_normalized(trackId)!);
     final hasResolvedSongCover =
         _normalized(localCoverPath) != null || _normalized(coverUrl) != null;
-    final hasManualCover =
-        _normalized(metadata?.manuallyScrapedLocalCoverPath) != null ||
-        _normalized(metadata?.manuallyScrapedCoverUrl) != null;
-    final hasEmbeddedCover = metadata?.autoScrapedCoverSource == 'embedded';
     final canUseFolderArtwork =
-        (preferences?.enableFolderArtworkForSongs ?? true) &&
+        preferences?.enableFolderArtworkForSongs == true &&
         _normalized(sourceId) != null &&
         _normalized(directoryPath) != null &&
-        !hasManualCover &&
-        !hasEmbeddedCover &&
-        !(metadata == null && hasResolvedSongCover);
+        !hasResolvedSongCover;
     final folderArtwork = canUseFolderArtwork
         ? ref.watch(
             folderArtworkProvider(

@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:collection';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
@@ -31,12 +34,46 @@ class FolderArtworkRequest {
   int get hashCode => Object.hash(sourceId, directoryPath);
 }
 
-final folderArtworkProvider =
-    FutureProvider.family<FolderArtworkData?, FolderArtworkRequest>(
+final folderArtworkProvider = FutureProvider.autoDispose
+    .family<FolderArtworkData?, FolderArtworkRequest>(
       (ref, request) async => resolveFolderArtwork(ref, request),
     );
 
+const _folderArtworkNegativeCacheDuration = Duration(minutes: 10);
+
+final _folderArtworkQueue = _FolderArtworkQueue(maxConcurrent: 2);
+final _folderArtworkCache = <FolderArtworkRequest, _FolderArtworkCacheEntry>{};
+final _folderArtworkInFlight =
+    <FolderArtworkRequest, Future<FolderArtworkData?>>{};
+
 Future<FolderArtworkData?> resolveFolderArtwork(
+  Ref ref,
+  FolderArtworkRequest request,
+) async {
+  final cached = _folderArtworkCache[request];
+  if (cached != null && !cached.isExpired) {
+    return cached.data;
+  }
+
+  final inFlight = _folderArtworkInFlight[request];
+  if (inFlight != null) {
+    return inFlight;
+  }
+
+  final future = _folderArtworkQueue.run(
+    () => _resolveFolderArtworkUncached(ref, request),
+  );
+  _folderArtworkInFlight[request] = future;
+  try {
+    final data = await future;
+    _folderArtworkCache[request] = _FolderArtworkCacheEntry(data);
+    return data;
+  } finally {
+    _folderArtworkInFlight.remove(request);
+  }
+}
+
+Future<FolderArtworkData?> _resolveFolderArtworkUncached(
   Ref ref,
   FolderArtworkRequest request,
 ) async {
@@ -87,10 +124,10 @@ Future<FolderArtworkData?> resolveFolderArtwork(
     return left.name.toLowerCase().compareTo(right.name.toLowerCase());
   });
 
+  final cacheManager = CoverArtCacheManager();
   for (final file in imageFiles) {
     final extension = p.extension(file.name).toLowerCase();
     final cacheKey = 'folder-artwork:${request.sourceId}:${file.path}';
-    final cacheManager = CoverArtCacheManager();
     final cachedPath = await cacheManager.cachedPathForKey(
       cacheKey,
       extension: extension,
@@ -113,4 +150,47 @@ Future<FolderArtworkData?> resolveFolderArtwork(
   }
 
   return null;
+}
+
+class _FolderArtworkCacheEntry {
+  _FolderArtworkCacheEntry(this.data) : cachedAt = DateTime.now();
+
+  final FolderArtworkData? data;
+  final DateTime cachedAt;
+
+  bool get isExpired =>
+      data == null &&
+      DateTime.now().difference(cachedAt) > _folderArtworkNegativeCacheDuration;
+}
+
+class _FolderArtworkQueue {
+  _FolderArtworkQueue({required this.maxConcurrent});
+
+  final int maxConcurrent;
+  int _running = 0;
+  final Queue<void Function()> _pending = Queue<void Function()>();
+
+  Future<T> run<T>(Future<T> Function() task) {
+    final completer = Completer<T>();
+
+    void start() {
+      _running += 1;
+      Future<T>(task)
+          .then(completer.complete, onError: completer.completeError)
+          .whenComplete(() {
+            _running -= 1;
+            if (_pending.isNotEmpty) {
+              scheduleMicrotask(_pending.removeFirst());
+            }
+          });
+    }
+
+    if (_running < maxConcurrent) {
+      start();
+    } else {
+      _pending.addLast(start);
+    }
+
+    return completer.future;
+  }
 }

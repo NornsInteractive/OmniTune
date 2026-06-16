@@ -18,10 +18,14 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
     : _settings = initialSettings.normalized;
 
   static const _cacheDirectoryName = 'flux_music_player/webdav_cache';
+  static const _maxConcurrentPrefetches = 1;
 
   final LinkedHashMap<String, _TrackCacheState> _trackCache =
       LinkedHashMap<String, _TrackCacheState>();
   final Map<String, int> _activeCaptureCounts = <String, int>{};
+  final Queue<_PrefetchRequest> _prefetchQueue = Queue<_PrefetchRequest>();
+  final Set<String> _queuedPrefetchTrackIds = <String>{};
+  final Set<String> _activePrefetchTrackIds = <String>{};
   final StreamController<PlaybackCacheSnapshot> _snapshotController =
       StreamController<PlaybackCacheSnapshot>.broadcast();
   final StreamController<List<PlaybackCacheInventoryItem>>
@@ -33,11 +37,17 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
   bool _persistedTrackCacheLoaded = false;
   Directory? _resolvedCacheDirectory;
   bool _legacyCacheMigrated = false;
+  bool _disposed = false;
+  int _cacheMutationVersion = 0;
 
   @override
   void applySettings(PlaybackCacheSettings settings) {
     final previousSettings = _settings;
     _settings = settings.normalized;
+    if (previousSettings.enablePersistentCache &&
+        !_settings.enablePersistentCache) {
+      _cancelPrefetches();
+    }
     if (!previousSettings.enablePersistentCache &&
         _settings.enablePersistentCache) {
       unawaited(_persistCompletedTracksToDisk());
@@ -116,7 +126,8 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
       return null;
     }
 
-    if (_settings.enablePersistentCache) {
+    if (_settings.enablePersistentCache &&
+        !_activePrefetchTrackIds.contains(entry.uniqueId)) {
       try {
         final persistedFile = await _persistCompleteBytesToDisk(
           entry: entry,
@@ -139,26 +150,64 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
   }
 
   @override
+  Future<void> prefetchEntry({
+    required RemoteEntry entry,
+    required WebDavRemoteClient client,
+  }) async {
+    if (_disposed || !_settings.enablePersistentCache) {
+      return;
+    }
+
+    try {
+      await _ensurePersistedTrackCacheLoaded();
+      if (_disposed || !_settings.enablePersistentCache) {
+        return;
+      }
+
+      final trackId = entry.uniqueId;
+      if (_persistedTrackCache.containsKey(trackId) ||
+          _queuedPrefetchTrackIds.contains(trackId) ||
+          _activePrefetchTrackIds.contains(trackId)) {
+        return;
+      }
+
+      final targetFile = await _targetFileFor(entry);
+      if (await _isCompletePersistentFile(targetFile, entry)) {
+        await _markPersistentFileReady(
+          entry: entry,
+          file: targetFile,
+          updatedAt: DateTime.now(),
+        );
+        return;
+      }
+
+      _queuedPrefetchTrackIds.add(trackId);
+      _prefetchQueue.add(_PrefetchRequest(entry: entry, client: client));
+      _drainPrefetchQueue();
+    } catch (_) {
+      // Prefetch is best-effort; playback must never fail because caching did.
+    }
+  }
+
+  @override
   Future<WebDavCachedRange?> readCachedRange({
     required RemoteEntry entry,
     required int start,
     int? end,
   }) async {
     final state = _touchTrackState(entry.uniqueId);
-    if (state == null) {
-      return null;
+    if (state != null) {
+      final bytes = state.readContiguousBytes(start, end: end);
+      if (bytes != null && bytes.isNotEmpty) {
+        return WebDavCachedRange(
+          start: start,
+          endExclusive: start + bytes.length,
+          bytes: bytes,
+        );
+      }
     }
 
-    final bytes = state.readContiguousBytes(start, end: end);
-    if (bytes == null || bytes.isEmpty) {
-      return null;
-    }
-
-    return WebDavCachedRange(
-      start: start,
-      endExclusive: start + bytes.length,
-      bytes: bytes,
-    );
+    return _readPersistedRange(entry: entry, start: start, end: end);
   }
 
   @override
@@ -214,6 +263,9 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
 
   @override
   Future<void> clearAllCachedData() async {
+    _cacheMutationVersion++;
+    _prefetchQueue.clear();
+    _queuedPrefetchTrackIds.clear();
     final trackIds = _trackCache.keys.toList(growable: false);
     _trackCache.clear();
     _activeCaptureCounts.clear();
@@ -285,6 +337,15 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
       return;
     }
 
+    _cacheMutationVersion++;
+    _prefetchQueue.removeWhere((request) {
+      final shouldRemove = trackIds.contains(request.trackId);
+      if (shouldRemove) {
+        _queuedPrefetchTrackIds.remove(request.trackId);
+      }
+      return shouldRemove;
+    });
+
     await _ensurePersistedTrackCacheLoaded();
     final directory = await _cacheDirectory();
 
@@ -309,11 +370,243 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
 
   @override
   Future<void> dispose() async {
+    _disposed = true;
+    _cacheMutationVersion++;
+    _prefetchQueue.clear();
+    _queuedPrefetchTrackIds.clear();
+    _activePrefetchTrackIds.clear();
     _trackCache.clear();
     _activeCaptureCounts.clear();
     _persistedTrackCache.clear();
     await _snapshotController.close();
     await _inventoryController.close();
+  }
+
+  void _drainPrefetchQueue() {
+    if (_disposed || !_settings.enablePersistentCache) {
+      return;
+    }
+
+    while (_activePrefetchTrackIds.length < _maxConcurrentPrefetches &&
+        _prefetchQueue.isNotEmpty) {
+      final request = _prefetchQueue.removeFirst();
+      _queuedPrefetchTrackIds.remove(request.trackId);
+      if (_activePrefetchTrackIds.contains(request.trackId)) {
+        continue;
+      }
+
+      _activePrefetchTrackIds.add(request.trackId);
+      unawaited(
+        _runPrefetch(
+          request,
+          mutationVersion: _cacheMutationVersion,
+        ).catchError((_) {}).whenComplete(() {
+          _activePrefetchTrackIds.remove(request.trackId);
+          _drainPrefetchQueue();
+        }),
+      );
+    }
+  }
+
+  void _cancelPrefetches() {
+    _cacheMutationVersion++;
+    _prefetchQueue.clear();
+    _queuedPrefetchTrackIds.clear();
+  }
+
+  Future<void> _runPrefetch(
+    _PrefetchRequest request, {
+    required int mutationVersion,
+  }) async {
+    if (_disposed || !_settings.enablePersistentCache) {
+      return;
+    }
+
+    final entry = request.entry;
+    await _ensurePersistedTrackCacheLoaded();
+    if (_disposed ||
+        !_settings.enablePersistentCache ||
+        mutationVersion != _cacheMutationVersion) {
+      return;
+    }
+
+    final targetFile = await _targetFileFor(entry);
+    if (await _isCompletePersistentFile(targetFile, entry)) {
+      await _markPersistentFileReady(
+        entry: entry,
+        file: targetFile,
+        updatedAt: DateTime.now(),
+      );
+      return;
+    }
+
+    if (await targetFile.exists()) {
+      await targetFile.delete();
+    }
+
+    final tempFile = File('${targetFile.path}.part');
+    var offset = 0;
+    if (await tempFile.exists()) {
+      offset = await tempFile.length();
+      final expectedLength = entry.size;
+      if (expectedLength != null && offset > expectedLength) {
+        await tempFile.delete();
+        offset = 0;
+      } else if (expectedLength != null && offset == expectedLength) {
+        await _finalizePrefetchedFile(
+          entry: entry,
+          tempFile: tempFile,
+          targetFile: targetFile,
+          mutationVersion: mutationVersion,
+        );
+        return;
+      }
+    }
+
+    final result = await request.client.openRead(entry.path, start: offset);
+    final totalLength =
+        result.sourceLength ??
+        entry.size ??
+        (result.contentLength > 0
+            ? result.offset + result.contentLength
+            : null);
+    final writeMode = offset > 0 ? FileMode.append : FileMode.write;
+    final sink = tempFile.openWrite(mode: writeMode);
+    var writtenBytes = offset;
+
+    try {
+      final state = _touchOrCreateTrackState(entry.uniqueId);
+      state.totalLength = totalLength ?? state.totalLength ?? entry.size;
+      state.updatedAt = DateTime.now();
+      _emitSnapshot(entry.uniqueId);
+      _emitInventory();
+
+      await for (final chunk in result.stream) {
+        if (_disposed ||
+            !_settings.enablePersistentCache ||
+            mutationVersion != _cacheMutationVersion) {
+          return;
+        }
+        if (chunk.isEmpty) {
+          continue;
+        }
+        sink.add(chunk);
+        writtenBytes += chunk.length;
+      }
+
+      await sink.flush();
+    } finally {
+      await sink.close();
+    }
+
+    if (_disposed ||
+        !_settings.enablePersistentCache ||
+        mutationVersion != _cacheMutationVersion) {
+      return;
+    }
+
+    final resolvedTotalLength = totalLength ?? writtenBytes;
+    if (writtenBytes < resolvedTotalLength) {
+      return;
+    }
+
+    await _finalizePrefetchedFile(
+      entry: entry,
+      tempFile: tempFile,
+      targetFile: targetFile,
+      mutationVersion: mutationVersion,
+    );
+  }
+
+  Future<void> _finalizePrefetchedFile({
+    required RemoteEntry entry,
+    required File tempFile,
+    required File targetFile,
+    required int mutationVersion,
+  }) async {
+    if (_disposed ||
+        !_settings.enablePersistentCache ||
+        mutationVersion != _cacheMutationVersion ||
+        !await tempFile.exists()) {
+      return;
+    }
+
+    await _validateFile(tempFile, extension: _normalizedExtension(entry.name));
+    if (await targetFile.exists()) {
+      await targetFile.delete();
+    }
+    final persistedFile = await tempFile.rename(targetFile.path);
+    await _markPersistentFileReady(
+      entry: entry,
+      file: persistedFile,
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  Future<bool> _isCompletePersistentFile(File file, RemoteEntry entry) async {
+    if (!await file.exists()) {
+      return false;
+    }
+
+    final length = await file.length();
+    return entry.size == null || length == entry.size;
+  }
+
+  Future<void> _markPersistentFileReady({
+    required RemoteEntry entry,
+    required File file,
+    required DateTime updatedAt,
+  }) async {
+    final length = await file.length();
+    final state = _touchOrCreateTrackState(entry.uniqueId);
+    state.hasPersistedCopy = true;
+    state.totalLength = entry.size ?? length;
+    state.updatedAt = updatedAt;
+    _persistedTrackCache[entry.uniqueId] = _PersistedTrackCacheState(
+      bytes: length,
+      updatedAt: updatedAt,
+    );
+    _emitSnapshot(entry.uniqueId);
+    _emitInventory();
+  }
+
+  Future<WebDavCachedRange?> _readPersistedRange({
+    required RemoteEntry entry,
+    required int start,
+    required int? end,
+  }) async {
+    if (!_settings.enablePersistentCache || (end != null && end <= start)) {
+      return null;
+    }
+
+    await _ensurePersistedTrackCacheLoaded();
+    final targetFile = await _targetFileFor(entry);
+    if (!await _isCompletePersistentFile(targetFile, entry)) {
+      return null;
+    }
+
+    final fileLength = await targetFile.length();
+    if (start >= fileLength) {
+      return null;
+    }
+
+    final normalizedEnd = end == null || end > fileLength ? fileLength : end;
+    final bytes = await targetFile
+        .openRead(start, normalizedEnd)
+        .fold<BytesBuilder>(
+          BytesBuilder(copy: false),
+          (builder, chunk) => builder..add(chunk),
+        );
+    final data = bytes.takeBytes();
+    if (data.isEmpty) {
+      return null;
+    }
+
+    return WebDavCachedRange(
+      start: start,
+      endExclusive: start + data.length,
+      bytes: data,
+    );
   }
 
   void _storeChunk({
@@ -333,6 +626,9 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
 
   Future<void> _persistIfComplete(RemoteEntry entry) async {
     if (!_settings.enablePersistentCache) {
+      return;
+    }
+    if (_activePrefetchTrackIds.contains(entry.uniqueId)) {
       return;
     }
 
@@ -924,6 +1220,15 @@ class _TrackIdentity {
 
   final String sourceId;
   final String remotePath;
+}
+
+class _PrefetchRequest {
+  const _PrefetchRequest({required this.entry, required this.client});
+
+  final RemoteEntry entry;
+  final WebDavRemoteClient client;
+
+  String get trackId => entry.uniqueId;
 }
 
 class _ByteSegment {

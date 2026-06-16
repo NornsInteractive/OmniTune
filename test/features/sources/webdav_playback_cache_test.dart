@@ -1,5 +1,8 @@
+import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/services.dart' show MethodChannel;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -10,11 +13,39 @@ import 'package:music/features/sources/data/webdav/webdav_playback_cache_base.da
 import 'package:music/features/sources/data/webdav/webdav_remote_client.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  final supportDirectory = Directory.systemTemp.createTempSync(
+    'omnitune_webdav_cache_test_',
+  );
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/path_provider'),
+        (call) async {
+          return switch (call.method) {
+            'getApplicationSupportDirectory' => supportDirectory.path,
+            'getTemporaryDirectory' => supportDirectory.path,
+            _ => null,
+          };
+        },
+      );
+
   late WebDavPlaybackCache cache;
 
   tearDown(() async {
     await cache.clearAllCachedData();
     await cache.dispose();
+  });
+
+  tearDownAll(() async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          null,
+        );
+    if (await supportDirectory.exists()) {
+      await supportDirectory.delete(recursive: true);
+    }
   });
 
   test('stores a fully streamed track in memory for later playback', () async {
@@ -227,6 +258,125 @@ void main() {
       expect(source, isA<UriAudioSource>());
     },
   );
+
+  test('prefetches an entire track into the persistent cache', () async {
+    cache = createWebDavPlaybackCache(
+      initialSettings: const PlaybackCacheSettings(
+        enablePersistentCache: true,
+        memoryCacheTrackLimit: 1,
+      ),
+    );
+    const entry = RemoteEntry(
+      sourceId: 'source-1',
+      name: 'song.flac',
+      path: '/Music/song.flac',
+      kind: RemoteEntryKind.audio,
+      mimeType: 'audio/flac',
+      size: 8,
+    );
+    final client = _StreamWebDavRemoteClient(
+      Uint8List.fromList(const [102, 76, 97, 67, 49, 50, 51, 52]),
+    );
+
+    await cache.prefetchEntry(entry: entry, client: client);
+    await _waitFor(() async {
+      final cachedTracks = await cache.listCachedTracks();
+      return cachedTracks.any(
+        (item) =>
+            item.trackId == entry.uniqueId &&
+            item.hasPersistentCopy &&
+            item.cachedBytes == 8,
+      );
+    });
+
+    expect(client.openReadCount, 1);
+    final source = await cache.createCachedAudioSource(
+      entry: entry,
+      client: client,
+    );
+    expect(source, isA<UriAudioSource>());
+  });
+
+  test('deduplicates overlapping prefetches for the same track', () async {
+    cache = createWebDavPlaybackCache(
+      initialSettings: const PlaybackCacheSettings(
+        enablePersistentCache: true,
+        memoryCacheTrackLimit: 1,
+      ),
+    );
+    const entry = RemoteEntry(
+      sourceId: 'source-1',
+      name: 'song.flac',
+      path: '/Music/song.flac',
+      kind: RemoteEntryKind.audio,
+      mimeType: 'audio/flac',
+      size: 8,
+    );
+    final client = _BlockingWebDavRemoteClient(
+      Uint8List.fromList(const [102, 76, 97, 67, 49, 50, 51, 52]),
+    );
+
+    await cache.prefetchEntry(entry: entry, client: client);
+    await cache.prefetchEntry(entry: entry, client: client);
+    await _waitFor(() async => client.openReadCount == 1);
+
+    client.release();
+    await _waitFor(() async {
+      final cachedTracks = await cache.listCachedTracks();
+      return cachedTracks.any(
+        (item) =>
+            item.trackId == entry.uniqueId &&
+            item.hasPersistentCopy &&
+            item.cachedBytes == 8,
+      );
+    });
+
+    expect(client.openReadCount, 1);
+  });
+
+  test('limits full-track prefetches to one active download', () async {
+    cache = createWebDavPlaybackCache(
+      initialSettings: const PlaybackCacheSettings(
+        enablePersistentCache: true,
+        memoryCacheTrackLimit: 1,
+      ),
+    );
+    const first = RemoteEntry(
+      sourceId: 'source-1',
+      name: 'first.flac',
+      path: '/Music/first.flac',
+      kind: RemoteEntryKind.audio,
+      mimeType: 'audio/flac',
+      size: 8,
+    );
+    const second = RemoteEntry(
+      sourceId: 'source-1',
+      name: 'second.flac',
+      path: '/Music/second.flac',
+      kind: RemoteEntryKind.audio,
+      mimeType: 'audio/flac',
+      size: 8,
+    );
+    final client = _BlockingWebDavRemoteClient(
+      Uint8List.fromList(const [102, 76, 97, 67, 49, 50, 51, 52]),
+    );
+
+    await cache.prefetchEntry(entry: first, client: client);
+    await cache.prefetchEntry(entry: second, client: client);
+    await _waitFor(() async => client.openReadCount == 1);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+
+    expect(client.openReadCount, 1);
+
+    client.release();
+    await _waitFor(() async {
+      final cachedTracks = await cache.listCachedTracks();
+      return cachedTracks.any((item) => item.trackId == first.uniqueId) &&
+          cachedTracks.any((item) => item.trackId == second.uniqueId);
+    });
+
+    expect(client.openReadCount, 2);
+  });
 }
 
 Future<List<int>> _flatten(Stream<List<int>> stream) async {
@@ -235,6 +385,17 @@ Future<List<int>> _flatten(Stream<List<int>> stream) async {
     bytes.addAll(chunk);
   }
   return bytes;
+}
+
+Future<void> _waitFor(Future<bool> Function() predicate) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 2));
+  while (DateTime.now().isBefore(deadline)) {
+    if (await predicate()) {
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 25));
+  }
+  fail('Timed out waiting for playback cache prefetch.');
 }
 
 class _NoopWebDavRemoteClient implements WebDavRemoteClient {
@@ -249,6 +410,104 @@ class _NoopWebDavRemoteClient implements WebDavRemoteClient {
   @override
   Future<WebDavReadResult> openRead(String path, {int? start, int? end}) {
     throw UnimplementedError();
+  }
+
+  @override
+  Future<void> ping() async {}
+
+  @override
+  Future<List<WebDavRemoteFile>> readDirectory(String path) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<String?> readText(String path) {
+    throw UnimplementedError();
+  }
+}
+
+class _StreamWebDavRemoteClient implements WebDavRemoteClient {
+  _StreamWebDavRemoteClient(this.bytes);
+
+  final Uint8List bytes;
+  int openReadCount = 0;
+
+  @override
+  WebDavDirectoryDebugInfo? get lastDirectoryDebugInfo => null;
+
+  @override
+  Future<void> dispose() async {}
+
+  @override
+  Future<WebDavReadResult> openRead(String path, {int? start, int? end}) async {
+    openReadCount++;
+    final normalizedStart = start ?? 0;
+    final normalizedEnd = end == null || end > bytes.length
+        ? bytes.length
+        : end;
+    final slice = bytes.sublist(normalizedStart, normalizedEnd);
+    return WebDavReadResult(
+      stream: Stream<List<int>>.value(slice),
+      offset: normalizedStart,
+      contentLength: slice.length,
+      contentType: 'audio/flac',
+      sourceLength: bytes.length,
+    );
+  }
+
+  @override
+  Future<void> ping() async {}
+
+  @override
+  Future<List<WebDavRemoteFile>> readDirectory(String path) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<String?> readText(String path) {
+    throw UnimplementedError();
+  }
+}
+
+class _BlockingWebDavRemoteClient implements WebDavRemoteClient {
+  _BlockingWebDavRemoteClient(this.bytes);
+
+  final Uint8List bytes;
+  final Completer<void> _releaseCompleter = Completer<void>();
+  int openReadCount = 0;
+
+  void release() {
+    if (!_releaseCompleter.isCompleted) {
+      _releaseCompleter.complete();
+    }
+  }
+
+  @override
+  WebDavDirectoryDebugInfo? get lastDirectoryDebugInfo => null;
+
+  @override
+  Future<void> dispose() async {}
+
+  @override
+  Future<WebDavReadResult> openRead(String path, {int? start, int? end}) async {
+    openReadCount++;
+    final normalizedStart = start ?? 0;
+    final normalizedEnd = end == null || end > bytes.length
+        ? bytes.length
+        : end;
+    final slice = bytes.sublist(normalizedStart, normalizedEnd);
+    return WebDavReadResult(
+      stream: _delayedSingleChunk(slice),
+      offset: normalizedStart,
+      contentLength: slice.length,
+      contentType: 'audio/flac',
+      sourceLength: bytes.length,
+    );
+  }
+
+  Stream<List<int>> _delayedSingleChunk(Uint8List slice) async* {
+    await _releaseCompleter.future;
+    yield slice;
   }
 
   @override

@@ -1,11 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_audio/just_audio.dart';
 
+import 'package:music/core/models/playback_cache_settings.dart';
 import 'package:music/core/models/remote_entry.dart';
 import 'package:music/core/models/source_profile.dart';
 import 'package:music/core/models/source_protocol.dart';
 import 'package:music/features/sources/data/cloud189/cloud189_api_client.dart';
 import 'package:music/features/sources/data/cloud189/cloud189_music_source.dart';
+import 'package:music/features/sources/data/webdav/webdav_playback_cache_base.dart';
+import 'package:music/features/sources/data/webdav/webdav_remote_client.dart';
 
 class _FakeCloud189RemoteClient implements Cloud189RemoteClient {
   static const _nextRefreshToken = 'rotated-refresh-token';
@@ -80,6 +83,71 @@ class _FakeCloud189RemoteClient implements Cloud189RemoteClient {
   }
 }
 
+class _FakePlaybackCache implements WebDavPlaybackCache {
+  @override
+  void applySettings(PlaybackCacheSettings settings) {}
+
+  @override
+  Stream<PlaybackCacheSnapshot> get snapshotStream =>
+      const Stream<PlaybackCacheSnapshot>.empty();
+
+  @override
+  PlaybackCacheSnapshot? snapshotForTrack(String trackId) => null;
+
+  @override
+  Stream<List<PlaybackCacheInventoryItem>> watchCachedTracks() =>
+      const Stream<List<PlaybackCacheInventoryItem>>.empty();
+
+  @override
+  Future<List<PlaybackCacheInventoryItem>> listCachedTracks() async =>
+      const <PlaybackCacheInventoryItem>[];
+
+  @override
+  Future<AudioSource?> createCachedAudioSource({
+    required RemoteEntry entry,
+    required WebDavRemoteClient client,
+  }) async => null;
+
+  @override
+  Future<void> prefetchEntry({
+    required RemoteEntry entry,
+    required WebDavRemoteClient client,
+  }) async {}
+
+  @override
+  Future<WebDavCachedRange?> readCachedRange({
+    required RemoteEntry entry,
+    required int start,
+    int? end,
+  }) async => null;
+
+  @override
+  Future<String?> persistentFilePathForEntry(RemoteEntry entry) async => null;
+
+  @override
+  Stream<List<int>> wrapPlaybackStream({
+    required RemoteEntry entry,
+    required Stream<List<int>> stream,
+    required int offset,
+    required int? requestedEnd,
+    required int? expectedLength,
+  }) {
+    return stream;
+  }
+
+  @override
+  Future<void> clearAllCachedData() async {}
+
+  @override
+  Future<void> clearMemoryCachedData() async {}
+
+  @override
+  Future<void> removeCachedTracks(Set<String> trackIds) async {}
+
+  @override
+  Future<void> dispose() async {}
+}
+
 void main() {
   late SourceProfile profile;
   late _FakeCloud189RemoteClient client;
@@ -98,7 +166,11 @@ void main() {
   });
 
   test('sorts Tianyi folders before playable audio and other files', () async {
-    final source = Cloud189MusicSource(profile, clientFactory: (_) => client);
+    final source = Cloud189MusicSource(
+      profile,
+      clientFactory: (_) => client,
+      playbackCacheFactory: () => _FakePlaybackCache(),
+    );
 
     final listing = await source.listFiles('/Music/');
     final entries = listing.entries;
@@ -114,7 +186,11 @@ void main() {
   });
 
   test('builds playable track backed by the Tianyi stream source', () async {
-    final source = Cloud189MusicSource(profile, clientFactory: (_) => client);
+    final source = Cloud189MusicSource(
+      profile,
+      clientFactory: (_) => client,
+      playbackCacheFactory: () => _FakePlaybackCache(),
+    );
 
     final track = await source.buildPlayableTrack(
       const RemoteEntry(
@@ -145,7 +221,11 @@ void main() {
   });
 
   test('caches lyric reads within the same Tianyi source session', () async {
-    final source = Cloud189MusicSource(profile, clientFactory: (_) => client);
+    final source = Cloud189MusicSource(
+      profile,
+      clientFactory: (_) => client,
+      playbackCacheFactory: () => _FakePlaybackCache(),
+    );
 
     final first = await source.readTextFile('/Music/song.lrc');
     final second = await source.readTextFile('/Music/song.lrc');

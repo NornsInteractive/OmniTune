@@ -7,7 +7,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:music/l10n/app_localizations.dart';
 
 import '../../../core/models/library_album.dart';
-import '../../../core/models/library_song.dart';
 import '../../../core/models/source_profile.dart';
 import '../../../core/models/source_protocol.dart';
 import '../../../core/widgets/studio_chrome.dart';
@@ -351,10 +350,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                               key: ValueKey('home-album-track:${track.id}'),
                               builder: (context, rowRef, _) {
                                 final isCurrentTrack = rowRef.watch(
-                                  playerControllerProvider.select(
-                                    (state) =>
-                                        state.currentTrack?.id == track.id,
-                                  ),
+                                  isCurrentTrackIdProvider(track.id),
                                 );
 
                                 return Material(
@@ -630,22 +626,19 @@ class _HomeContent extends ConsumerWidget {
     }
 
     final selectedSourceId = browser?.selectedSource?.id;
-    final trackCountBySource = <String, int>{};
-    final albumCountBySource = <String, int>{};
-    for (final track in catalog?.tracks ?? const <LibrarySong>[]) {
-      trackCountBySource.update(
-        track.sourceId,
-        (value) => value + 1,
-        ifAbsent: () => 1,
-      );
-    }
-    for (final album in catalog?.albums ?? const <LibraryAlbum>[]) {
-      albumCountBySource.update(
-        album.sourceId,
-        (value) => value + 1,
-        ifAbsent: () => 1,
-      );
-    }
+    final trackCountBySource = {
+      for (final source in sources)
+        source.id: catalog?.trackCountForSource(source.id) ?? 0,
+    };
+    final albumCountBySource = {
+      for (final source in sources)
+        source.id:
+            catalog?.albumCountForSource(
+              source.id,
+              LibraryAlbumGroupingMode.metadata,
+            ) ??
+            0,
+    };
 
     final totalTracks = trackCountBySource.values.fold<int>(
       0,

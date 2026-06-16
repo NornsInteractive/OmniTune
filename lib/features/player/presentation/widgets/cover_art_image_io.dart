@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:collection';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -5,6 +7,15 @@ import 'package:flutter/material.dart';
 import '../../../../core/storage/cover_art_cache_manager.dart';
 import '../../../../core/widgets/studio_chrome.dart';
 import 'generated_cover_art.dart';
+
+const _remoteCoverMaxConcurrent = 2;
+const _remoteCoverFailureCooldown = Duration(minutes: 10);
+
+final _remoteCoverDownloadQueue = _RemoteCoverDownloadQueue(
+  maxConcurrent: _remoteCoverMaxConcurrent,
+);
+final _remoteCoverDownloads = <String, Future<String?>>{};
+final _remoteCoverFailures = <String, DateTime>{};
 
 class CoverArtImage extends StatefulWidget {
   const CoverArtImage({
@@ -72,8 +83,11 @@ class _CoverArtImageState extends State<CoverArtImage> {
       return;
     }
 
-    final downloadedPath = await cacheManager.downloadAndCache(remoteUrl);
-    if (!mounted) {
+    final downloadedPath = await _downloadAndCacheRemoteCover(
+      cacheManager,
+      remoteUrl,
+    );
+    if (!mounted || remoteUrl != _normalize(widget.coverUrl)) {
       return;
     }
     if (downloadedPath?.isNotEmpty == true) {
@@ -151,5 +165,70 @@ class _CoverArtImageState extends State<CoverArtImage> {
     final physicalSize = (logicalSize * MediaQuery.devicePixelRatioOf(context))
         .ceil();
     return physicalSize.clamp(1, 1024).toInt();
+  }
+}
+
+Future<String?> _downloadAndCacheRemoteCover(
+  CoverArtCacheManager cacheManager,
+  String remoteUrl,
+) {
+  final failedAt = _remoteCoverFailures[remoteUrl];
+  if (failedAt != null &&
+      DateTime.now().difference(failedAt) < _remoteCoverFailureCooldown) {
+    return Future<String?>.value(null);
+  }
+
+  final inFlight = _remoteCoverDownloads[remoteUrl];
+  if (inFlight != null) {
+    return inFlight;
+  }
+
+  final future = _remoteCoverDownloadQueue.run(
+    () => cacheManager.downloadAndCache(remoteUrl),
+  );
+  _remoteCoverDownloads[remoteUrl] = future;
+  future
+      .then((path) {
+        if (path == null || path.isEmpty) {
+          _remoteCoverFailures[remoteUrl] = DateTime.now();
+        } else {
+          _remoteCoverFailures.remove(remoteUrl);
+        }
+      })
+      .whenComplete(() {
+        _remoteCoverDownloads.remove(remoteUrl);
+      });
+  return future;
+}
+
+class _RemoteCoverDownloadQueue {
+  _RemoteCoverDownloadQueue({required this.maxConcurrent});
+
+  final int maxConcurrent;
+  final Queue<void Function()> _pending = Queue<void Function()>();
+  int _running = 0;
+
+  Future<T> run<T>(Future<T> Function() task) {
+    final completer = Completer<T>();
+
+    void start() {
+      _running += 1;
+      Future<T>(task)
+          .then(completer.complete, onError: completer.completeError)
+          .whenComplete(() {
+            _running -= 1;
+            if (_pending.isNotEmpty) {
+              scheduleMicrotask(_pending.removeFirst());
+            }
+          });
+    }
+
+    if (_running < maxConcurrent) {
+      start();
+    } else {
+      _pending.add(start);
+    }
+
+    return completer.future;
   }
 }

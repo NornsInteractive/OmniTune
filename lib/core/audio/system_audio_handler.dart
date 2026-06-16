@@ -6,6 +6,8 @@ class OmniSystemAudioHandler extends BaseAudioHandler {
   Future<void> Function()? _onStop;
   Future<void> Function()? _onSkipToNext;
   Future<void> Function()? _onSkipToPrevious;
+  Future<void> Function(Duration position)? _onSeek;
+  Future<void> Function(int index)? _onSkipToQueueItem;
 
   void bindCallbacks({
     Future<void> Function()? onPlay,
@@ -13,12 +15,16 @@ class OmniSystemAudioHandler extends BaseAudioHandler {
     Future<void> Function()? onStop,
     Future<void> Function()? onSkipToNext,
     Future<void> Function()? onSkipToPrevious,
+    Future<void> Function(Duration position)? onSeek,
+    Future<void> Function(int index)? onSkipToQueueItem,
   }) {
     _onPlay = onPlay;
     _onPause = onPause;
     _onStop = onStop;
     _onSkipToNext = onSkipToNext;
     _onSkipToPrevious = onSkipToPrevious;
+    _onSeek = onSeek;
+    _onSkipToQueueItem = onSkipToQueueItem;
   }
 
   void updateState({
@@ -30,11 +36,14 @@ class OmniSystemAudioHandler extends BaseAudioHandler {
     required int? queueIndex,
     required bool canSkipToPrevious,
     required bool canSkipToNext,
+    required bool canSeek,
+    required bool hasQueue,
   }) {
     final controls = <MediaControl>[
       if (canSkipToPrevious) MediaControl.skipToPrevious,
       if (playing) MediaControl.pause else MediaControl.play,
       if (canSkipToNext) MediaControl.skipToNext,
+      MediaControl.stop,
     ];
 
     playbackState.add(
@@ -44,6 +53,9 @@ class OmniSystemAudioHandler extends BaseAudioHandler {
           MediaAction.play,
           MediaAction.pause,
           MediaAction.stop,
+          MediaAction.playPause,
+          if (canSeek) MediaAction.seek,
+          if (hasQueue) MediaAction.skipToQueueItem,
           if (canSkipToPrevious) MediaAction.skipToPrevious,
           if (canSkipToNext) MediaAction.skipToNext,
         },
@@ -84,6 +96,13 @@ class OmniSystemAudioHandler extends BaseAudioHandler {
 
   @override
   Future<void> skipToPrevious() async => _onSkipToPrevious?.call();
+
+  @override
+  Future<void> seek(Duration position) async => _onSeek?.call(position);
+
+  @override
+  Future<void> skipToQueueItem(int index) async =>
+      _onSkipToQueueItem?.call(index);
 }
 
 late final OmniSystemAudioHandler _systemAudioHandler;
@@ -100,7 +119,7 @@ Future<void> initializeSystemAudioHandler() async {
       return _systemAudioHandler;
     },
     config: const AudioServiceConfig(
-      androidNotificationChannelId: 'com.example.music.channel.playback',
+      androidNotificationChannelId: 'com.norns.omnitune.channel.playback',
       androidNotificationChannelName: 'OmniTune Playback',
       androidStopForegroundOnPause: false,
     ),
@@ -114,6 +133,8 @@ Future<void> initializeSystemAudioHandler() async {
     queueIndex: null,
     canSkipToPrevious: false,
     canSkipToNext: false,
+    canSeek: false,
+    hasQueue: false,
   );
 }
 

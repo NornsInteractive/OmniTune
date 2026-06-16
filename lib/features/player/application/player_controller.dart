@@ -56,6 +56,56 @@ enum PlayerPlaybackMode { list, repeatOne, shuffle }
 
 enum PlayerLyricsSource { none, sidecarFile, embeddedTag, scraped }
 
+class CurrentRemoteTrackKey {
+  const CurrentRemoteTrackKey({
+    required this.sourceId,
+    required this.remotePath,
+  });
+
+  final String sourceId;
+  final String remotePath;
+
+  @override
+  bool operator ==(Object other) {
+    return other is CurrentRemoteTrackKey &&
+        other.sourceId == sourceId &&
+        other.remotePath == remotePath;
+  }
+
+  @override
+  int get hashCode => Object.hash(sourceId, remotePath);
+}
+
+final currentTrackIdProvider = Provider<String?>((ref) {
+  return ref.watch(
+    playerControllerProvider.select((state) => state.currentTrack?.id),
+  );
+});
+
+final currentRemoteTrackKeyProvider = Provider<CurrentRemoteTrackKey?>((ref) {
+  return ref.watch(
+    playerControllerProvider.select((state) {
+      final track = state.currentTrack;
+      if (track == null) {
+        return null;
+      }
+      return CurrentRemoteTrackKey(
+        sourceId: track.sourceId,
+        remotePath: track.remotePath,
+      );
+    }),
+  );
+});
+
+final isCurrentTrackIdProvider = Provider.family<bool, String>((ref, trackId) {
+  return ref.watch(currentTrackIdProvider) == trackId;
+});
+
+final isCurrentRemoteTrackProvider =
+    Provider.family<bool, CurrentRemoteTrackKey>((ref, trackKey) {
+      return ref.watch(currentRemoteTrackKeyProvider) == trackKey;
+    });
+
 class PlayerViewState {
   const PlayerViewState({
     required this.currentTrack,
@@ -155,7 +205,7 @@ class PlayerViewState {
       position: service.player.position,
       bufferedPosition: service.player.bufferedPosition,
       duration: service.player.duration,
-      playlist: List.unmodifiable(playlist),
+      playlist: playlist,
       currentIndex: currentIndex,
       playbackMode: playbackMode,
       lyrics: lyrics,
@@ -204,9 +254,11 @@ class PlayerController extends _$PlayerController {
   bool _handlingCompletion = false;
   bool _restoreStarted = false;
   DateTime _lastPositionPersistedAt = DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime _lastProgressStateSyncedAt = DateTime.fromMillisecondsSinceEpoch(0);
+  Timer? _progressSyncTimer;
   int _playRequestSerial = 0;
   int _playlistRevision = 0;
-  int _lastSystemQueueRevision = -1;
+  String? _lastSystemQueueKey;
   String? _lastSystemCurrentItemKey = '__uninitialized__';
   final Set<String> _inFlightAutoScrapeSongIds = <String>{};
 
@@ -229,6 +281,8 @@ class PlayerController extends _$PlayerController {
         onStop: stop,
         onSkipToNext: playNext,
         onSkipToPrevious: playPrevious,
+        onSeek: seek,
+        onSkipToQueueItem: playPlaylistIndex,
       );
     }
     _bindStreams();
@@ -464,13 +518,13 @@ class PlayerController extends _$PlayerController {
       _syncState();
     });
     _positionSubscription ??= _service.positionStream.listen((_) {
-      _syncState();
+      _syncProgressStateThrottled();
       _persistPositionThrottled();
     });
     _bufferedPositionSubscription ??= _service.bufferedPositionStream.listen((
       _,
     ) {
-      _syncState();
+      _syncProgressStateThrottled();
     });
     _durationSubscription ??= _service.durationStream.listen((_) {
       _syncState();
@@ -487,6 +541,9 @@ class PlayerController extends _$PlayerController {
   }
 
   void _syncState({String? errorMessage}) {
+    _progressSyncTimer?.cancel();
+    _progressSyncTimer = null;
+    _lastProgressStateSyncedAt = DateTime.now();
     final nextState = PlayerViewState.fromService(
       _service,
       lyrics: _lyrics,
@@ -499,6 +556,21 @@ class PlayerController extends _$PlayerController {
     );
     state = nextState;
     _syncSystemAudioState(nextState);
+  }
+
+  void _syncProgressStateThrottled() {
+    const minProgressSyncInterval = Duration(milliseconds: 250);
+    final now = DateTime.now();
+    final elapsed = now.difference(_lastProgressStateSyncedAt);
+    if (elapsed >= minProgressSyncInterval) {
+      _syncState();
+      return;
+    }
+
+    _progressSyncTimer ??= Timer(minProgressSyncInterval - elapsed, () {
+      _progressSyncTimer = null;
+      _syncState();
+    });
   }
 
   void _disposeSubscriptions() {
@@ -516,6 +588,8 @@ class PlayerController extends _$PlayerController {
     _durationSubscription = null;
     _errorSubscription = null;
     _cacheSubscription = null;
+    _progressSyncTimer?.cancel();
+    _progressSyncTimer = null;
 
     if (playerStateSubscription != null) {
       unawaited(playerStateSubscription.cancel());
@@ -827,13 +901,16 @@ class PlayerController extends _$PlayerController {
     LibrarySong song,
     List<LibrarySong>? playlist,
   ) {
-    final nextPlaylist = List<LibrarySong>.of(
-      playlist == null || playlist.isEmpty ? [song] : playlist,
-    );
-    final songIndex = nextPlaylist.indexWhere((item) => item.id == song.id);
-    if (songIndex == -1) {
-      nextPlaylist.insert(0, song);
+    if (playlist == null || playlist.isEmpty) {
+      return [song];
     }
+    final songIndex = playlist.indexWhere((item) => item.id == song.id);
+    if (songIndex != -1) {
+      return playlist;
+    }
+
+    final nextPlaylist = List<LibrarySong>.of(playlist);
+    nextPlaylist.insert(0, song);
     return nextPlaylist;
   }
 
@@ -861,16 +938,33 @@ class PlayerController extends _$PlayerController {
         : null;
     final currentTrack = nextState.currentTrack;
     final currentItemId = currentSong?.id ?? currentTrack?.id;
-    final currentItemTitle =
-        currentSong?.displayTitle ?? currentTrack?.displayTitle;
-    final currentItemArtist =
-        currentSong?.displayArtist ?? currentTrack?.displayArtist;
-    final currentItemAlbum =
-        currentSong?.displayAlbum ?? currentTrack?.displayAlbum;
-    final currentItemLocalCover =
-        currentSong?.displayLocalCoverPath ?? currentTrack?.localCoverPath;
-    final currentItemRemoteCover =
-        currentSong?.displayCoverUrl ?? currentTrack?.autoScrapedCoverUrl;
+    final currentItemTitle = _firstNonEmpty(
+      currentSong?.displayTitle,
+      currentTrack?.displayTitle,
+      currentTrack?.title,
+    );
+    final currentItemArtist = _firstNonEmpty(
+      currentSong?.displayArtist,
+      currentTrack?.displayArtist,
+    );
+    final currentItemAlbum = _firstNonEmpty(
+      currentSong?.displayAlbum,
+      currentTrack?.displayAlbum,
+    );
+    final currentItemLocalCover = _firstNonEmpty(
+      currentSong?.displayLocalCoverPath,
+      currentTrack?.localCoverPath,
+    );
+    final currentItemRemoteCover = _firstNonEmpty(
+      currentSong?.displayCoverUrl,
+      currentTrack?.autoScrapedCoverUrl,
+    );
+    final currentItemDurationMs = nextState.duration?.inMilliseconds;
+    final queueKey = [
+      _playlistRevision,
+      nextState.currentIndex,
+      currentItemDurationMs,
+    ].join('|');
     final currentItemKey = currentItemId == null
         ? null
         : [
@@ -880,43 +974,33 @@ class PlayerController extends _$PlayerController {
             currentItemAlbum,
             currentItemLocalCover,
             currentItemRemoteCover,
+            currentItemDurationMs,
             nextState.currentIndex,
           ].join('|');
-    if (_lastSystemQueueRevision != _playlistRevision) {
-      _lastSystemQueueRevision = _playlistRevision;
-      final queueItems = nextState.playlist
-          .map(
-            (song) => MediaItem(
-              id: song.id,
-              title: song.displayTitle,
-              album: _hasText(song.displayAlbum) ? song.displayAlbum : null,
-              artist: _hasText(song.displayArtist) ? song.displayArtist : null,
-            ),
-          )
-          .toList(growable: false);
+    if (_lastSystemQueueKey != queueKey) {
+      _lastSystemQueueKey = queueKey;
+      final queueItems = <MediaItem>[];
+      for (var index = 0; index < nextState.playlist.length; index++) {
+        queueItems.add(
+          _mediaItemForSong(
+            nextState.playlist[index],
+            duration: index == nextState.currentIndex
+                ? nextState.duration
+                : null,
+          ),
+        );
+      }
       systemAudioHandler.updateQueue(queueItems);
     }
     if (_lastSystemCurrentItemKey != currentItemKey) {
       _lastSystemCurrentItemKey = currentItemKey;
       final mediaItem = currentItemId == null
           ? null
-          : MediaItem(
+          : _mediaItemForCurrent(
               id: currentItemId,
-              title: currentItemTitle ?? '',
-              album: _hasText(currentItemAlbum) ? currentItemAlbum : null,
-              artist: _hasText(currentItemArtist) ? currentItemArtist : null,
-              artUri: _artUriForState(currentSong, currentTrack),
-              extras: <String, dynamic>{
-                if (_hasText(currentSong?.sourceId ?? currentTrack?.sourceId))
-                  'sourceId': currentSong?.sourceId ?? currentTrack!.sourceId,
-                if (_hasText(currentTrack?.sourceName))
-                  'sourceName': currentTrack!.sourceName,
-                if (_hasText(
-                  currentSong?.remotePath ?? currentTrack?.remotePath,
-                ))
-                  'remotePath':
-                      currentSong?.remotePath ?? currentTrack!.remotePath,
-              },
+              song: currentSong,
+              track: currentTrack,
+              duration: nextState.duration,
             );
       systemAudioHandler.updateCurrentItem(mediaItem);
     }
@@ -930,8 +1014,129 @@ class PlayerController extends _$PlayerController {
       queueIndex: nextState.currentIndex >= 0 ? nextState.currentIndex : null,
       canSkipToPrevious: nextState.canPlayPrevious,
       canSkipToNext: nextState.canPlayNext,
+      canSeek:
+          nextState.duration != null && nextState.duration! > Duration.zero,
+      hasQueue: nextState.playlist.isNotEmpty,
     );
   }
+
+  MediaItem _mediaItemForSong(LibrarySong song, {Duration? duration}) {
+    final title = _firstNonEmpty(song.displayTitle, song.title) ?? song.title;
+    final artist = _firstNonEmpty(song.displayArtist, song.sourceName);
+    final album = _firstNonEmpty(song.displayAlbum, song.folderAlbumTitle);
+    final artUri = _artUriForSong(song);
+    return MediaItem(
+      id: song.id,
+      title: title,
+      album: album,
+      artist: artist,
+      duration: _positiveDuration(duration),
+      artUri: artUri,
+      displayTitle: title,
+      displaySubtitle: _mediaSubtitle(artist: artist, album: album),
+      displayDescription: song.sourceName,
+      extras: _mediaExtras(
+        sourceId: song.sourceId,
+        sourceName: song.sourceName,
+        remotePath: song.remotePath,
+        fileName: song.fileName,
+        sizeBytes: song.size,
+        localCoverPath: song.displayLocalCoverPath,
+        coverUrl: song.displayCoverUrl,
+        artUri: artUri,
+      ),
+    );
+  }
+
+  MediaItem _mediaItemForCurrent({
+    required String id,
+    required LibrarySong? song,
+    required PlayableTrack? track,
+    required Duration? duration,
+  }) {
+    final title =
+        _firstNonEmpty(song?.displayTitle, track?.displayTitle, track?.title) ??
+        '';
+    final artist = _firstNonEmpty(song?.displayArtist, track?.displayArtist);
+    final album = _firstNonEmpty(song?.displayAlbum, track?.displayAlbum);
+    final sourceName = _firstNonEmpty(song?.sourceName, track?.sourceName);
+    final remotePath = _firstNonEmpty(song?.remotePath, track?.remotePath);
+    final localCoverPath = _firstNonEmpty(
+      song?.displayLocalCoverPath,
+      track?.localCoverPath,
+    );
+    final coverUrl = _firstNonEmpty(
+      song?.displayCoverUrl,
+      track?.autoScrapedCoverUrl,
+    );
+    final artUri = _artUriForState(song, track);
+    return MediaItem(
+      id: id,
+      title: title,
+      album: album,
+      artist: artist,
+      duration: _positiveDuration(duration),
+      artUri: artUri,
+      displayTitle: title,
+      displaySubtitle: _mediaSubtitle(artist: artist, album: album),
+      displayDescription: sourceName,
+      extras: _mediaExtras(
+        sourceId: _firstNonEmpty(song?.sourceId, track?.sourceId),
+        sourceName: sourceName,
+        remotePath: remotePath,
+        fileName: song?.fileName,
+        sizeBytes: song?.size ?? track?.sourceSizeBytes,
+        localCoverPath: localCoverPath,
+        coverUrl: coverUrl,
+        artUri: artUri,
+      ),
+    );
+  }
+
+  Map<String, dynamic> _mediaExtras({
+    String? sourceId,
+    String? sourceName,
+    String? remotePath,
+    String? fileName,
+    int? sizeBytes,
+    String? localCoverPath,
+    String? coverUrl,
+    Uri? artUri,
+  }) {
+    final extras = <String, dynamic>{};
+    void addText(String key, String? value) {
+      if (_hasText(value)) {
+        extras[key] = value!.trim();
+      }
+    }
+
+    addText('sourceId', sourceId);
+    addText('sourceName', sourceName);
+    addText('remotePath', remotePath);
+    addText('fileName', fileName);
+    addText('localCoverPath', localCoverPath);
+    addText('coverUrl', coverUrl);
+    addText('artUri', artUri?.toString());
+    if (sizeBytes != null && sizeBytes > 0) {
+      extras['sizeBytes'] = sizeBytes;
+    }
+    return extras;
+  }
+
+  String? _mediaSubtitle({String? artist, String? album}) {
+    final cleanArtist = _firstNonEmpty(artist);
+    final cleanAlbum = _firstNonEmpty(album);
+    if (cleanArtist == null) {
+      return cleanAlbum;
+    }
+    if (cleanAlbum == null || cleanAlbum == cleanArtist) {
+      return cleanArtist;
+    }
+    return '$cleanArtist • $cleanAlbum';
+  }
+
+  Duration? _positiveDuration(Duration? duration) =>
+      duration != null && duration > Duration.zero ? duration : null;
 
   AudioProcessingState _audioProcessingState(ProcessingState state) {
     return switch (state) {
@@ -956,6 +1161,19 @@ class PlayerController extends _$PlayerController {
       song?.displayCoverUrl,
       track?.autoScrapedCoverUrl,
     );
+    if (_hasText(remoteUrl)) {
+      return Uri.tryParse(remoteUrl!);
+    }
+    return null;
+  }
+
+  Uri? _artUriForSong(LibrarySong song) {
+    final localPath = _firstNonEmpty(song.displayLocalCoverPath);
+    if (_hasText(localPath)) {
+      return Uri.file(localPath!);
+    }
+
+    final remoteUrl = _firstNonEmpty(song.displayCoverUrl);
     if (_hasText(remoteUrl)) {
       return Uri.tryParse(remoteUrl!);
     }
@@ -1131,9 +1349,21 @@ class PlayerController extends _$PlayerController {
         sourceSizeBytes: track.sourceSizeBytes,
         artistName: track.artistName,
         albumTitle: track.albumTitle,
-        autoScrapedTitle: null,
-        autoScrapedArtist: null,
-        autoScrapedAlbum: null,
+        autoScrapedTitle: _firstNonEmpty(
+          metadata.manuallyScrapedTitle,
+          metadata.autoScrapedTitle,
+          track.autoScrapedTitle,
+        ),
+        autoScrapedArtist: _firstNonEmpty(
+          metadata.manuallyScrapedArtist,
+          metadata.autoScrapedArtist,
+          track.autoScrapedArtist,
+        ),
+        autoScrapedAlbum: _firstNonEmpty(
+          metadata.manuallyScrapedAlbum,
+          metadata.autoScrapedAlbum,
+          track.autoScrapedAlbum,
+        ),
         autoScrapedCoverUrl: _firstNonEmpty(
           metadata.manuallyScrapedCoverUrl,
           metadata.autoScrapedCoverUrl,
@@ -1183,7 +1413,7 @@ class PlayerController extends _$PlayerController {
         .toList(growable: false);
   }
 
-  String? _firstNonEmpty(String? first, String? second, [String? third]) {
+  String? _firstNonEmpty(String? first, [String? second, String? third]) {
     for (final value in [first, second, third]) {
       if (value?.trim().isNotEmpty == true) {
         return value!.trim();
@@ -1386,11 +1616,10 @@ class PlayerController extends _$PlayerController {
           metadata.autoScrapedLyrics ?? currentSong.autoScrapedLyrics,
     );
 
-    _playlist = List<LibrarySong>.unmodifiable([
-      ..._playlist.sublist(0, songIndex),
-      updatedSong,
-      if (songIndex + 1 < _playlist.length) ..._playlist.sublist(songIndex + 1),
-    ]);
+    final nextPlaylist = List<LibrarySong>.of(_playlist);
+    nextPlaylist[songIndex] = updatedSong;
+    _playlist = List<LibrarySong>.unmodifiable(nextPlaylist);
+    _playlistRevision++;
 
     _applyScrapingMetadataToCurrentTrack(songId, metadata, syncState: false);
 
@@ -2119,12 +2348,9 @@ class PlayerController extends _$PlayerController {
         autoScrapedLocalCoverPath: currentSong.autoScrapedLocalCoverPath,
         autoScrapedLyrics: currentSong.autoScrapedLyrics,
       );
-      _playlist = List<LibrarySong>.unmodifiable([
-        ..._playlist.sublist(0, songIndex),
-        updatedSong,
-        if (songIndex + 1 < _playlist.length)
-          ..._playlist.sublist(songIndex + 1),
-      ]);
+      final nextPlaylist = List<LibrarySong>.of(_playlist);
+      nextPlaylist[songIndex] = updatedSong;
+      _playlist = List<LibrarySong>.unmodifiable(nextPlaylist);
     }
 
     final currentTrack = _service.currentTrack;

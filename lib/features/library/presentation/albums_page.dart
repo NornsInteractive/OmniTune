@@ -117,9 +117,9 @@ class _AlbumsPageState extends ConsumerState<AlbumsPage> {
                 selectedSource.id,
                 groupingMode,
               );
-              final sourceTracks = catalog.tracks
-                  .where((track) => track.sourceId == selectedSource.id)
-                  .length;
+              final sourceTracks = catalog.trackCountForSource(
+                selectedSource.id,
+              );
 
               return _AlbumsContent(
                 sources: browser.sources,
@@ -210,12 +210,10 @@ class _AlbumsContent extends ConsumerWidget {
     final trackCountBySource = <String, int>{};
     for (final source in sources) {
       albumCountBySource[source.id] =
-          catalog?.albumsForSource(source.id, groupingMode).length ??
+          catalog?.albumCountForSource(source.id, groupingMode) ??
           (source.id == selectedSource.id ? albums.length : 0);
       trackCountBySource[source.id] =
-          catalog?.tracks
-              .where((track) => track.sourceId == source.id)
-              .length ??
+          catalog?.trackCountForSource(source.id) ??
           (source.id == selectedSource.id ? sourceTracks : 0);
     }
 
@@ -1310,6 +1308,20 @@ class _AlbumArtwork extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final leadTrack = album.tracks.isEmpty ? null : album.tracks.first;
+    if (leadTrack != null &&
+        ((leadTrack.displayLocalCoverPath?.isNotEmpty ?? false) ||
+            (leadTrack.displayCoverUrl?.isNotEmpty ?? false))) {
+      return TrackCoverThumbnail(
+        title: leadTrack.displayTitle,
+        subtitle: leadTrack.displayArtist,
+        size: size,
+        borderRadius: borderRadius,
+        showFrame: showFrame,
+        localCoverPath: leadTrack.displayLocalCoverPath,
+        coverUrl: leadTrack.displayCoverUrl,
+      );
+    }
+
     if (leadTrack != null) {
       final folderArtwork = ref.watch(
         folderArtworkProvider(
@@ -1330,20 +1342,6 @@ class _AlbumArtwork extends ConsumerWidget {
           localCoverPath: folderData.localPath,
         );
       }
-    }
-
-    if (leadTrack != null &&
-        ((leadTrack.displayLocalCoverPath?.isNotEmpty ?? false) ||
-            (leadTrack.displayCoverUrl?.isNotEmpty ?? false))) {
-      return TrackCoverThumbnail(
-        title: leadTrack.displayTitle,
-        subtitle: leadTrack.displayArtist,
-        size: size,
-        borderRadius: borderRadius,
-        showFrame: showFrame,
-        localCoverPath: leadTrack.displayLocalCoverPath,
-        coverUrl: leadTrack.displayCoverUrl,
-      );
     }
 
     return GeneratedCoverArt(
@@ -1466,11 +1464,7 @@ class _AlbumTrackTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cardRadius = studioRadiusOf(context, 22);
     final coverSize = studioListIconBoxSizeOf(context).clamp(36.0, 46.0);
-    final isCurrentTrack = ref.watch(
-      playerControllerProvider.select(
-        (state) => state.currentTrack?.id == track.id,
-      ),
-    );
+    final isCurrentTrack = ref.watch(isCurrentTrackIdProvider(track.id));
     return ClipRRect(
       borderRadius: BorderRadius.circular(cardRadius),
       child: BackdropFilter(

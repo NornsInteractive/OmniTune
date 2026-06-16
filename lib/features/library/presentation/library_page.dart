@@ -7,17 +7,14 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:music/features/settings/presentation/add_source_page.dart';
 import 'package:music/l10n/app_localizations.dart';
 
-import '../../../core/database/isar_manager.dart';
 import '../../../core/models/library_song.dart';
 import '../../../core/models/remote_entry.dart';
 import '../../../core/widgets/studio_chrome.dart';
 import '../../../core/widgets/top_snackbar.dart';
 import '../../player/application/player_controller.dart';
 import '../../player/presentation/widgets/track_cover_thumbnail.dart';
-import '../../settings/application/app_settings_controller.dart';
 import '../application/library_catalog_controller.dart';
 import '../application/library_controller.dart';
-import 'folder_artwork_provider.dart';
 
 enum LibraryCollectionSection { favorites, liked, allSongs }
 
@@ -335,10 +332,10 @@ class LibraryBrowserPage extends ConsumerWidget {
         error: (error, _) => _GlacierCenteredMessage(message: error.toString()),
         data: (browser) {
           final controller = ref.read(libraryControllerProvider.notifier);
-          final tracksByKey = {
-            for (final track in catalog?.tracks ?? const <LibrarySong>[])
-              '${track.sourceId}::${track.remotePath}': track,
-          };
+          final tracksByKey = _tracksByVisibleEntryKey(
+            catalog?.tracks ?? const <LibrarySong>[],
+            browser.entries,
+          );
 
           return RefreshIndicator(
             color: _GlacierPalette.primary,
@@ -511,6 +508,33 @@ String _folderOrFileLabel(BuildContext context, bool isDirectory) {
     return isDirectory ? '文件夹' : '文件';
   }
   return isDirectory ? 'Folder' : 'File';
+}
+
+Map<String, LibrarySong> _tracksByVisibleEntryKey(
+  List<LibrarySong> tracks,
+  List<RemoteEntry> entries,
+) {
+  final visibleAudioKeys = <String>{
+    for (final entry in entries)
+      if (entry.kind == RemoteEntryKind.audio)
+        '${entry.sourceId}::${entry.path}',
+  };
+  if (visibleAudioKeys.isEmpty || tracks.isEmpty) {
+    return const <String, LibrarySong>{};
+  }
+
+  final indexedTracks = <String, LibrarySong>{};
+  for (final track in tracks) {
+    final key = '${track.sourceId}::${track.remotePath}';
+    if (!visibleAudioKeys.contains(key)) {
+      continue;
+    }
+    indexedTracks[key] = track;
+    if (indexedTracks.length == visibleAudioKeys.length) {
+      break;
+    }
+  }
+  return indexedTracks;
 }
 
 bool _isChineseLocale(BuildContext context) {
@@ -995,11 +1019,7 @@ class _SongCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cardRadius = studioRadiusOf(context, 22);
     final coverSize = studioListIconBoxSizeOf(context).clamp(36.0, 46.0);
-    final isCurrentTrack = ref.watch(
-      playerControllerProvider.select(
-        (state) => state.currentTrack?.id == song.id,
-      ),
-    );
+    final isCurrentTrack = ref.watch(isCurrentTrackIdProvider(song.id));
     return ClipRRect(
       borderRadius: BorderRadius.circular(cardRadius),
       child: BackdropFilter(
@@ -1080,7 +1100,7 @@ class _SongCard extends ConsumerWidget {
   }
 }
 
-class _LibraryTrackThumbnail extends ConsumerWidget {
+class _LibraryTrackThumbnail extends StatelessWidget {
   const _LibraryTrackThumbnail({
     required this.song,
     required this.subtitle,
@@ -1096,51 +1116,18 @@ class _LibraryTrackThumbnail extends ConsumerWidget {
   final bool isCurrentTrack;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final preferences = ref.watch(appSettingsControllerProvider).valueOrNull;
-    final metadata = IsarManager.getMetadata(song.id);
-    final hasResolvedSongCover =
-        song.displayLocalCoverPath?.trim().isNotEmpty == true ||
-        song.displayCoverUrl?.trim().isNotEmpty == true;
-    final hasManualCover =
-        (metadata?.manuallyScrapedLocalCoverPath?.trim().isNotEmpty ?? false) ||
-        (metadata?.manuallyScrapedCoverUrl?.trim().isNotEmpty ?? false);
-    final hasEmbeddedCover = metadata?.autoScrapedCoverSource == 'embedded';
-    final shouldUseFolderArtwork =
-        (preferences?.enableFolderArtworkForSongs ?? false) &&
-        !hasManualCover &&
-        !hasEmbeddedCover;
-
-    if (!shouldUseFolderArtwork || (metadata == null && hasResolvedSongCover)) {
-      return TrackCoverThumbnail(
-        title: song.displayTitle,
-        subtitle: subtitle,
-        size: size,
-        borderRadius: borderRadius,
-        localCoverPath: song.displayLocalCoverPath,
-        coverUrl: song.displayCoverUrl,
-        isCurrentTrack: isCurrentTrack,
-      );
-    }
-
-    final folderArtwork = ref.watch(
-      folderArtworkProvider(
-        FolderArtworkRequest(
-          sourceId: song.sourceId,
-          directoryPath: song.directoryPath,
-        ),
-      ),
-    );
-    final fallbackPath = folderArtwork.valueOrNull?.localPath;
-
+  Widget build(BuildContext context) {
     return TrackCoverThumbnail(
       title: song.displayTitle,
       subtitle: subtitle,
       size: size,
       borderRadius: borderRadius,
-      localCoverPath: fallbackPath ?? song.displayLocalCoverPath,
-      coverUrl: fallbackPath == null ? song.displayCoverUrl : null,
+      localCoverPath: song.displayLocalCoverPath,
+      coverUrl: song.displayCoverUrl,
       isCurrentTrack: isCurrentTrack,
+      trackId: song.id,
+      sourceId: song.sourceId,
+      directoryPath: song.directoryPath,
     );
   }
 }
@@ -1316,11 +1303,12 @@ class _BrowserEntryCard extends ConsumerWidget {
     final isCurrentTrack =
         isAudio &&
         ref.watch(
-          playerControllerProvider.select((state) {
-            final currentTrack = state.currentTrack;
-            return currentTrack?.remotePath == entry.path &&
-                currentTrack?.sourceId == entry.sourceId;
-          }),
+          isCurrentRemoteTrackProvider(
+            CurrentRemoteTrackKey(
+              sourceId: entry.sourceId,
+              remotePath: entry.path,
+            ),
+          ),
         );
     final title = track?.displayTitle ?? entry.title;
     final subtitle = isAudio

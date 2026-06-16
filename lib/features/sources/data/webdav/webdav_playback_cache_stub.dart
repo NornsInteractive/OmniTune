@@ -33,6 +33,12 @@ class _UnsupportedWebDavPlaybackCache implements WebDavPlaybackCache {
   }
 
   @override
+  Future<void> prefetchEntry({
+    required RemoteEntry entry,
+    required WebDavRemoteClient client,
+  }) async {}
+
+  @override
   Future<WebDavCachedRange?> readCachedRange({
     required RemoteEntry entry,
     required int start,
