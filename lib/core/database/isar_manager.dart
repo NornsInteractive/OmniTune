@@ -79,11 +79,55 @@ class IsarManager {
     return null;
   }
 
+  /// 批量获取元数据。用于曲库启动/扫描收尾这类大列表场景，避免逐首歌
+  /// 触发调试日志和长时间连续 JSON 解析占住 UI isolate。
+  static Future<Map<String, ScrapingMetadata>> getMetadataByIds(
+    Iterable<String> ids, {
+    int batchSize = 64,
+  }) async {
+    final uniqueIds = ids.toSet();
+    final result = <String, ScrapingMetadata>{};
+    var processed = 0;
+
+    for (final id in uniqueIds) {
+      final cached = _metadataCache[id];
+      if (cached != null) {
+        result[id] = cached;
+      } else {
+        final raw = _prefs.getString('$_metadataPrefix$id');
+        if (raw != null) {
+          try {
+            final metadata = ScrapingMetadata.fromJson(jsonDecode(raw));
+            _metadataCache[id] = metadata;
+            result[id] = metadata;
+          } catch (e, stack) {
+            DebugLogger.error(
+              'IsarManager',
+              '批量解析元数据 JSON 失败: id=$id',
+              e.toString(),
+              stack,
+            );
+          }
+        }
+      }
+
+      processed++;
+      if (processed % batchSize == 0) {
+        await Future<void>.delayed(Duration.zero);
+      }
+    }
+
+    return result;
+  }
+
   /// 获取所有元数据
   static List<ScrapingMetadata> getAllMetadata() {
     final list = _prefs.getStringList(_metadataListKey) ?? [];
     DebugLogger.info('IsarManager', '获取所有元数据, 总数: ${list.length}');
-    return list.map((id) => getMetadata(id)).whereType<ScrapingMetadata>().toList();
+    return list
+        .map((id) => getMetadata(id))
+        .whereType<ScrapingMetadata>()
+        .toList();
   }
 
   /// 删除元数据

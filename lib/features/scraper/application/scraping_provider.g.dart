@@ -51,7 +51,7 @@ final scrapingCacheRepositoryProvider =
 typedef ScrapingCacheRepositoryRef =
     AutoDisposeProviderRef<ScrapingCacheRepository>;
 String _$musicBrainzScraperHash() =>
-    r'eb651276aabd8d4bb4c7e5762899aff5cdbf19dc';
+    r'c9445d4233cd63c5d968dab12e9708d78361ec6b';
 
 /// 获取 MusicBrainz 刮削器
 ///

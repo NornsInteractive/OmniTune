@@ -1,11 +1,22 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:path_provider/path_provider.dart';
 
 import '../models/library_song.dart';
 import '../utils/debug_logger.dart';
 import 'library_scan_cache_repository_contract.dart';
+
+const _scanCacheDecodeYieldBatchSize = 128;
+
+Map<String, dynamic> _decodeScanCacheJson(String content) {
+  return jsonDecode(content) as Map<String, dynamic>;
+}
+
+String _encodeScanCacheJson(Map<String, dynamic> data) {
+  return jsonEncode(data);
+}
 
 /// 使用 JSON 文件的实现
 class JsonFileScanCacheRepository implements LibraryScanCacheRepository {
@@ -26,17 +37,23 @@ class JsonFileScanCacheRepository implements LibraryScanCacheRepository {
       }
 
       final content = await file.readAsString();
-      final json = jsonDecode(content) as Map<String, dynamic>;
+      final json = await Isolate.run(() => _decodeScanCacheJson(content));
       final sourceData = json[sourceId] as List<dynamic>?;
 
       if (sourceData == null) {
         return [];
       }
 
-      return sourceData
-          .cast<Map<String, dynamic>>()
-          .map((item) => LibrarySong.fromJson(item))
-          .toList();
+      final songs = <LibrarySong>[];
+      for (var index = 0; index < sourceData.length; index++) {
+        songs.add(
+          LibrarySong.fromJson(sourceData[index] as Map<String, dynamic>),
+        );
+        if ((index + 1) % _scanCacheDecodeYieldBatchSize == 0) {
+          await Future<void>.delayed(Duration.zero);
+        }
+      }
+      return songs;
     } catch (e) {
       // 忽略加载失败，返回空列表
       return [];
@@ -64,7 +81,7 @@ class JsonFileScanCacheRepository implements LibraryScanCacheRepository {
           '缓存文件已存在，读取现有数据',
         );
         final content = await file.readAsString();
-        allData.addAll(jsonDecode(content) as Map<String, dynamic>);
+        allData.addAll(await Isolate.run(() => _decodeScanCacheJson(content)));
         DebugLogger.info(
           'JsonFileScanCacheRepository.saveScanResults',
           '已读取现有数据，现有源数: ${allData.length}',
@@ -90,7 +107,8 @@ class JsonFileScanCacheRepository implements LibraryScanCacheRepository {
         'JsonFileScanCacheRepository.saveScanResults',
         '开始写入文件: ${_cacheFile.path}',
       );
-      await file.writeAsString(jsonEncode(allData), flush: true);
+      final encoded = await Isolate.run(() => _encodeScanCacheJson(allData));
+      await file.writeAsString(encoded, flush: true);
       DebugLogger.success(
         'JsonFileScanCacheRepository.saveScanResults',
         '✅ 保存成功: sourceId=$sourceId, 歌曲数=${songs.length}',
@@ -116,7 +134,8 @@ class JsonFileScanCacheRepository implements LibraryScanCacheRepository {
         for (final entry in results.entries)
           entry.key: entry.value.map((song) => song.toJson()).toList(),
       };
-      await _cacheFile.writeAsString(jsonEncode(serialized), flush: true);
+      final encoded = await Isolate.run(() => _encodeScanCacheJson(serialized));
+      await _cacheFile.writeAsString(encoded, flush: true);
       DebugLogger.success(
         'JsonFileScanCacheRepository.saveAllResults',
         '✅ 批量保存成功: 源数=${results.length}',
@@ -140,10 +159,11 @@ class JsonFileScanCacheRepository implements LibraryScanCacheRepository {
       }
 
       final content = await file.readAsString();
-      final allData = jsonDecode(content) as Map<String, dynamic>;
+      final allData = await Isolate.run(() => _decodeScanCacheJson(content));
       allData.remove(sourceId);
 
-      await file.writeAsString(jsonEncode(allData), flush: true);
+      final encoded = await Isolate.run(() => _encodeScanCacheJson(allData));
+      await file.writeAsString(encoded, flush: true);
     } catch (e) {
       rethrow;
     }
@@ -230,7 +250,7 @@ class JsonFileScanCacheRepository implements LibraryScanCacheRepository {
       );
       Map<String, dynamic> allData;
       try {
-        allData = jsonDecode(content) as Map<String, dynamic>;
+        allData = await Isolate.run(() => _decodeScanCacheJson(content));
       } catch (e) {
         DebugLogger.error(
           'JsonFileScanCacheRepository.loadAllResults',
@@ -271,10 +291,16 @@ class JsonFileScanCacheRepository implements LibraryScanCacheRepository {
             'JsonFileScanCacheRepository.loadAllResults',
             '加载源: ${entry.key}, 歌曲数: ${(entry.value as List).length}',
           );
-          final songs = (entry.value as List<dynamic>)
-              .cast<Map<String, dynamic>>()
-              .map((item) => LibrarySong.fromJson(item))
-              .toList();
+          final sourceSongs = entry.value as List<dynamic>;
+          final songs = <LibrarySong>[];
+          for (var index = 0; index < sourceSongs.length; index++) {
+            songs.add(
+              LibrarySong.fromJson(sourceSongs[index] as Map<String, dynamic>),
+            );
+            if ((index + 1) % _scanCacheDecodeYieldBatchSize == 0) {
+              await Future<void>.delayed(Duration.zero);
+            }
+          }
           result[entry.key] = songs;
         } catch (e) {
           DebugLogger.error(

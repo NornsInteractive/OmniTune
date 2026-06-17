@@ -6,7 +6,7 @@ part of 'scraper_chain.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$scraperChainHash() => r'c917c9ceb1279ae9888d91f1112a3b0796a0c9ef';
+String _$scraperChainHash() => r'59b8a7185c859384fa973331b0a9ba6cd64469fb';
 
 /// See also [scraperChain].
 @ProviderFor(scraperChain)

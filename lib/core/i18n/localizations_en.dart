@@ -1,6 +1,6 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-import 'app_localizations.dart';
+import 'localizations.dart';
 
 // ignore_for_file: type=lint
 
@@ -273,6 +273,133 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get webApkBannerLaunchFailedMessage =>
       'Unable to open the APK download link on this device.';
+
+  @override
+  String get landingBadge => 'Web preview for your self-hosted music library';
+
+  @override
+  String get landingHeroTitle => 'One calm place for every album you keep.';
+
+  @override
+  String get landingHeroSubtitle =>
+      'OmniTune brings remote sources, local-style browsing, metadata cleanup, lyrics, and playback cache into a single cross-platform music player.';
+
+  @override
+  String get landingPrimaryAction => 'Enter app';
+
+  @override
+  String get landingApkUnavailableAction => 'APK link unavailable';
+
+  @override
+  String get landingSignalSources => 'WebDAV, SFTP, FTP, Samba, cloud drive';
+
+  @override
+  String get landingSignalMetadata => 'Metadata and lyrics scraping';
+
+  @override
+  String get landingSignalPlatforms => 'Web, mobile, desktop, TV';
+
+  @override
+  String get landingPreviewKicker => 'Interface preview';
+
+  @override
+  String get landingPreviewTitle =>
+      'Browse, scan, and play without losing context.';
+
+  @override
+  String get landingPreviewScanStatus => 'Scanning library';
+
+  @override
+  String get landingPreviewAlbumOne => 'Late Night Analog';
+
+  @override
+  String get landingPreviewAlbumTwo => 'Aerial Drift';
+
+  @override
+  String get landingPreviewAlbumThree => 'Rain Room Sessions';
+
+  @override
+  String get landingPreviewSourceWebDav => 'WebDAV source';
+
+  @override
+  String get landingPreviewSourceCloud => 'Cloud drive source';
+
+  @override
+  String get landingPreviewSourceLocal => 'Local collection';
+
+  @override
+  String get landingPreviewNowPlaying => 'Now playing';
+
+  @override
+  String get landingPreviewTrackTitle => 'Signals across the archive';
+
+  @override
+  String get landingDownloadTitle => 'Choose how you want to listen';
+
+  @override
+  String get landingDownloadDescription =>
+      'Start instantly in the browser, or install the Android APK when you need fuller protocol support and the most complete playback experience.';
+
+  @override
+  String get landingDownloadWebTitle => 'Open the Web app';
+
+  @override
+  String get landingDownloadWebDescription =>
+      'Use the hosted Web build for quick access from this browser. It keeps the existing app interface behind a dedicated /app entry point.';
+
+  @override
+  String get landingDownloadApkTitle => 'Android APK';
+
+  @override
+  String get landingDownloadApkDescription =>
+      'Install the Android build for broader protocol coverage, background playback, and a native mobile experience.';
+
+  @override
+  String get landingFeaturesTitle =>
+      'Built for music libraries that live everywhere';
+
+  @override
+  String get landingFeaturesDescription =>
+      'The main app stays focused on connecting your own sources, organizing the library, and keeping playback smooth across devices.';
+
+  @override
+  String get landingFeatureSourcesTitle => 'Bring your own source';
+
+  @override
+  String get landingFeatureSourcesDescription =>
+      'Connect WebDAV, SFTP, FTP, Samba, cloud drive, or local files depending on the platform you are using.';
+
+  @override
+  String get landingFeatureLibraryTitle => 'Unified library views';
+
+  @override
+  String get landingFeatureLibraryDescription =>
+      'Scan saved sources into album, collection, favorites, and liked-song views without locking your files into a service.';
+
+  @override
+  String get landingFeatureMetadataTitle => 'Cleaner metadata';
+
+  @override
+  String get landingFeatureMetadataDescription =>
+      'Use scraper integrations to fill in cover art, lyrics, and track details when folders or tags are incomplete.';
+
+  @override
+  String get landingFeaturePlaybackTitle => 'Playback that keeps up';
+
+  @override
+  String get landingFeaturePlaybackDescription =>
+      'Remote streaming starts quickly, while cache settings help repeated plays avoid unnecessary network work.';
+
+  @override
+  String get landingClosingTitle => 'Ready to try the real app?';
+
+  @override
+  String get landingClosingDescription =>
+      'Jump into the existing OmniTune interface. Existing deep links such as albums, collection, browser, and settings still point to the app shell.';
+
+  @override
+  String get landingFooterNote =>
+      'The Web landing page is promotional only; the full player remains available through the app routes.';
 
   @override
   String get playbackCacheTitle => 'Playback cache';

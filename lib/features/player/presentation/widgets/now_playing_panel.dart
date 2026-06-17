@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:music/l10n/app_localizations.dart';
+import 'package:music/core/i18n/localizations.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../../core/models/library_song.dart';

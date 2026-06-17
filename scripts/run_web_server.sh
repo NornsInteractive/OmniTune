@@ -27,14 +27,16 @@ ensure_flutter_on_path
 
 APK_URL="${OMNITUNE_WEB_APK_URL:-}"
 
-if [[ -z "$APK_URL" ]]; then
-  echo "OMNITUNE_WEB_APK_URL is required"
-  echo "Example: OMNITUNE_WEB_APK_URL=https://example.com/omnitune.apk ./scripts/run_web_server.sh"
-  exit 1
-fi
+# if [[ -z "$APK_URL" ]]; then
+#   echo "OMNITUNE_WEB_APK_URL is required"
+#   echo "Example: OMNITUNE_WEB_APK_URL=https://example.com/omnitune.apk ./scripts/run_web_server.sh"
+#   exit 1
+# fi
 
 cd "$ROOT_DIR"
 flutter pub get
+rm -rf "$ROOT_DIR/.dart_tool/flutter_build"
+"$ROOT_DIR/scripts/generate_l10n.sh"
 dart_define_args=("--dart-define=OMNITUNE_WEB_APK_URL=$APK_URL")
 if [[ -n "${OMNITUNE_WEB_WEBDAV_PROXY_BASE_URL:-}" ]]; then
   dart_define_args+=(
@@ -42,4 +44,4 @@ if [[ -n "${OMNITUNE_WEB_WEBDAV_PROXY_BASE_URL:-}" ]]; then
   )
 fi
 
-flutter run -d web-server "${dart_define_args[@]}" "$@"
+flutter run -d web-server --no-pub "${dart_define_args[@]}" "$@"

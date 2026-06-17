@@ -117,6 +117,7 @@ echo "Updated version: $current_version -> $next_version"
 
 cd "$ROOT_DIR"
 flutter --no-version-check pub get
+"$ROOT_DIR/scripts/generate_l10n.sh"
 rm -rf "$ROOT_DIR/.dart_tool/flutter_build"
 flutter --no-version-check build appbundle --release --no-pub "$@"
 flutter --no-version-check build apk --release --no-pub "$@"

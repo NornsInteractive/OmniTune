@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:music/features/settings/presentation/add_source_page.dart';
-import 'package:music/l10n/app_localizations.dart';
+import 'package:music/core/i18n/localizations.dart';
 
 import '../../../core/models/library_song.dart';
 import '../../../core/models/remote_entry.dart';

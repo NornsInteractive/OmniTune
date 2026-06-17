@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:music/l10n/app_localizations.dart';
+import 'package:music/core/i18n/localizations.dart';
 
 import '../../../../core/utils/debug_log_store.dart';
 import '../../../../core/widgets/top_snackbar.dart';

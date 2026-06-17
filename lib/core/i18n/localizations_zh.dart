@@ -1,6 +1,6 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-import 'app_localizations.dart';
+import 'localizations.dart';
 
 // ignore_for_file: type=lint
 
@@ -262,6 +262,129 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get webApkBannerLaunchFailedMessage => '无法在当前设备打开 APK 下载链接。';
+
+  @override
+  String get landingBadge => '面向自托管音乐库的 Web 预览';
+
+  @override
+  String get landingHeroTitle => '把分散的专辑收进一个安静的播放器。';
+
+  @override
+  String get landingHeroSubtitle =>
+      'OmniTune 将远程音源、类似本地的浏览体验、元数据整理、歌词和播放缓存整合到一个跨平台音乐播放器中。';
+
+  @override
+  String get landingPrimaryAction => '进入应用';
+
+  @override
+  String get landingApkUnavailableAction => 'APK 链接未配置';
+
+  @override
+  String get landingSignalSources => 'WebDAV、SFTP、FTP、Samba、云盘';
+
+  @override
+  String get landingSignalMetadata => '元数据与歌词刮削';
+
+  @override
+  String get landingSignalPlatforms => 'Web、移动端、桌面端、TV';
+
+  @override
+  String get landingPreviewKicker => '界面预览';
+
+  @override
+  String get landingPreviewTitle => '浏览、扫描和播放都不打断当前上下文。';
+
+  @override
+  String get landingPreviewScanStatus => '正在扫描音乐库';
+
+  @override
+  String get landingPreviewAlbumOne => '午夜模拟电台';
+
+  @override
+  String get landingPreviewAlbumTwo => '空中漂移';
+
+  @override
+  String get landingPreviewAlbumThree => '雨房现场';
+
+  @override
+  String get landingPreviewSourceWebDav => 'WebDAV 音源';
+
+  @override
+  String get landingPreviewSourceCloud => '云盘音源';
+
+  @override
+  String get landingPreviewSourceLocal => '本地合集';
+
+  @override
+  String get landingPreviewNowPlaying => '正在播放';
+
+  @override
+  String get landingPreviewTrackTitle => '穿过档案库的信号';
+
+  @override
+  String get landingDownloadTitle => '选择你的聆听方式';
+
+  @override
+  String get landingDownloadDescription =>
+      '可以直接在浏览器中开始使用；如果需要更完整的协议支持和播放体验，请安装 Android APK。';
+
+  @override
+  String get landingDownloadWebTitle => '打开 Web 应用';
+
+  @override
+  String get landingDownloadWebDescription =>
+      '使用当前托管的 Web 版本快速访问。真正的现有应用界面保留在独立的 /app 入口之后。';
+
+  @override
+  String get landingDownloadApkTitle => 'Android APK';
+
+  @override
+  String get landingDownloadApkDescription =>
+      '安装 Android 版本可获得更完整的协议覆盖、后台播放和原生移动端体验。';
+
+  @override
+  String get landingFeaturesTitle => '为散落在各处的音乐库而做';
+
+  @override
+  String get landingFeaturesDescription => '主应用专注于连接你自己的音源、组织音乐库，并让跨设备播放保持顺滑。';
+
+  @override
+  String get landingFeatureSourcesTitle => '连接你自己的音源';
+
+  @override
+  String get landingFeatureSourcesDescription =>
+      '根据平台能力连接 WebDAV、SFTP、FTP、Samba、云盘或本地文件。';
+
+  @override
+  String get landingFeatureLibraryTitle => '统一的音乐库视图';
+
+  @override
+  String get landingFeatureLibraryDescription =>
+      '将已保存音源扫描进专辑、合集、收藏和喜欢歌曲视图，不把文件锁进某个服务。';
+
+  @override
+  String get landingFeatureMetadataTitle => '更干净的元数据';
+
+  @override
+  String get landingFeatureMetadataDescription =>
+      '当文件夹或标签不完整时，通过刮削补齐封面、歌词和歌曲详情。';
+
+  @override
+  String get landingFeaturePlaybackTitle => '跟得上的播放体验';
+
+  @override
+  String get landingFeaturePlaybackDescription =>
+      '远程流能快速开始播放，缓存设置则帮助重复播放减少不必要的网络请求。';
+
+  @override
+  String get landingClosingTitle => '准备进入真正的应用了吗？';
+
+  @override
+  String get landingClosingDescription =>
+      '直接跳转到现有 OmniTune 界面。专辑、音乐库、文件浏览和设置等已有深链仍然指向应用 Shell。';
+
+  @override
+  String get landingFooterNote => 'Web 宣传页只用于介绍产品；完整播放器仍通过应用路由访问。';
 
   @override
   String get playbackCacheTitle => '播放缓存';

@@ -5,8 +5,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart' as intl;
 
-import 'app_localizations_en.dart';
-import 'app_localizations_zh.dart';
+import 'localizations_en.dart';
+import 'localizations_zh.dart';
 
 // ignore_for_file: type=lint
 
@@ -18,7 +18,7 @@ import 'app_localizations_zh.dart';
 /// `supportedLocales` list. For example:
 ///
 /// ```dart
-/// import 'l10n/app_localizations.dart';
+/// import 'omnitune_l10n/app_localizations.dart';
 ///
 /// return MaterialApp(
 ///   localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -571,6 +571,234 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unable to open the APK download link on this device.'**
   String get webApkBannerLaunchFailedMessage;
+
+  /// No description provided for @landingBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Web preview for your self-hosted music library'**
+  String get landingBadge;
+
+  /// No description provided for @landingHeroTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'One calm place for every album you keep.'**
+  String get landingHeroTitle;
+
+  /// No description provided for @landingHeroSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'OmniTune brings remote sources, local-style browsing, metadata cleanup, lyrics, and playback cache into a single cross-platform music player.'**
+  String get landingHeroSubtitle;
+
+  /// No description provided for @landingPrimaryAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter app'**
+  String get landingPrimaryAction;
+
+  /// No description provided for @landingApkUnavailableAction.
+  ///
+  /// In en, this message translates to:
+  /// **'APK link unavailable'**
+  String get landingApkUnavailableAction;
+
+  /// No description provided for @landingSignalSources.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV, SFTP, FTP, Samba, cloud drive'**
+  String get landingSignalSources;
+
+  /// No description provided for @landingSignalMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Metadata and lyrics scraping'**
+  String get landingSignalMetadata;
+
+  /// No description provided for @landingSignalPlatforms.
+  ///
+  /// In en, this message translates to:
+  /// **'Web, mobile, desktop, TV'**
+  String get landingSignalPlatforms;
+
+  /// No description provided for @landingPreviewKicker.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface preview'**
+  String get landingPreviewKicker;
+
+  /// No description provided for @landingPreviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse, scan, and play without losing context.'**
+  String get landingPreviewTitle;
+
+  /// No description provided for @landingPreviewScanStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning library'**
+  String get landingPreviewScanStatus;
+
+  /// No description provided for @landingPreviewAlbumOne.
+  ///
+  /// In en, this message translates to:
+  /// **'Late Night Analog'**
+  String get landingPreviewAlbumOne;
+
+  /// No description provided for @landingPreviewAlbumTwo.
+  ///
+  /// In en, this message translates to:
+  /// **'Aerial Drift'**
+  String get landingPreviewAlbumTwo;
+
+  /// No description provided for @landingPreviewAlbumThree.
+  ///
+  /// In en, this message translates to:
+  /// **'Rain Room Sessions'**
+  String get landingPreviewAlbumThree;
+
+  /// No description provided for @landingPreviewSourceWebDav.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV source'**
+  String get landingPreviewSourceWebDav;
+
+  /// No description provided for @landingPreviewSourceCloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud drive source'**
+  String get landingPreviewSourceCloud;
+
+  /// No description provided for @landingPreviewSourceLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Local collection'**
+  String get landingPreviewSourceLocal;
+
+  /// No description provided for @landingPreviewNowPlaying.
+  ///
+  /// In en, this message translates to:
+  /// **'Now playing'**
+  String get landingPreviewNowPlaying;
+
+  /// No description provided for @landingPreviewTrackTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Signals across the archive'**
+  String get landingPreviewTrackTitle;
+
+  /// No description provided for @landingDownloadTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose how you want to listen'**
+  String get landingDownloadTitle;
+
+  /// No description provided for @landingDownloadDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Start instantly in the browser, or install the Android APK when you need fuller protocol support and the most complete playback experience.'**
+  String get landingDownloadDescription;
+
+  /// No description provided for @landingDownloadWebTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the Web app'**
+  String get landingDownloadWebTitle;
+
+  /// No description provided for @landingDownloadWebDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the hosted Web build for quick access from this browser. It keeps the existing app interface behind a dedicated /app entry point.'**
+  String get landingDownloadWebDescription;
+
+  /// No description provided for @landingDownloadApkTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Android APK'**
+  String get landingDownloadApkTitle;
+
+  /// No description provided for @landingDownloadApkDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Install the Android build for broader protocol coverage, background playback, and a native mobile experience.'**
+  String get landingDownloadApkDescription;
+
+  /// No description provided for @landingFeaturesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Built for music libraries that live everywhere'**
+  String get landingFeaturesTitle;
+
+  /// No description provided for @landingFeaturesDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'The main app stays focused on connecting your own sources, organizing the library, and keeping playback smooth across devices.'**
+  String get landingFeaturesDescription;
+
+  /// No description provided for @landingFeatureSourcesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Bring your own source'**
+  String get landingFeatureSourcesTitle;
+
+  /// No description provided for @landingFeatureSourcesDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect WebDAV, SFTP, FTP, Samba, cloud drive, or local files depending on the platform you are using.'**
+  String get landingFeatureSourcesDescription;
+
+  /// No description provided for @landingFeatureLibraryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unified library views'**
+  String get landingFeatureLibraryTitle;
+
+  /// No description provided for @landingFeatureLibraryDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan saved sources into album, collection, favorites, and liked-song views without locking your files into a service.'**
+  String get landingFeatureLibraryDescription;
+
+  /// No description provided for @landingFeatureMetadataTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleaner metadata'**
+  String get landingFeatureMetadataTitle;
+
+  /// No description provided for @landingFeatureMetadataDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Use scraper integrations to fill in cover art, lyrics, and track details when folders or tags are incomplete.'**
+  String get landingFeatureMetadataDescription;
+
+  /// No description provided for @landingFeaturePlaybackTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback that keeps up'**
+  String get landingFeaturePlaybackTitle;
+
+  /// No description provided for @landingFeaturePlaybackDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote streaming starts quickly, while cache settings help repeated plays avoid unnecessary network work.'**
+  String get landingFeaturePlaybackDescription;
+
+  /// No description provided for @landingClosingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready to try the real app?'**
+  String get landingClosingTitle;
+
+  /// No description provided for @landingClosingDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Jump into the existing OmniTune interface. Existing deep links such as albums, collection, browser, and settings still point to the app shell.'**
+  String get landingClosingDescription;
+
+  /// No description provided for @landingFooterNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The Web landing page is promotional only; the full player remains available through the app routes.'**
+  String get landingFooterNote;
 
   /// No description provided for @playbackCacheTitle.
   ///

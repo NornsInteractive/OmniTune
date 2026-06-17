@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:music/l10n/app_localizations.dart';
+import 'package:music/core/i18n/localizations.dart';
 
 import '../../../core/models/app_preferences.dart';
 import '../../../core/models/custom_theme_colors.dart';

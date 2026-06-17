@@ -25,4 +25,6 @@ fi
 
 cd "$ROOT_DIR"
 flutter pub get
-flutter build web --release "${dart_define_args[@]}" "$@"
+rm -rf "$ROOT_DIR/.dart_tool/flutter_build"
+"$ROOT_DIR/scripts/generate_l10n.sh"
+flutter build web --release --no-pub "${dart_define_args[@]}" "$@"

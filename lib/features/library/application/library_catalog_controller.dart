@@ -256,6 +256,7 @@ class LibraryCatalogController extends _$LibraryCatalogController {
   static const int _embeddedMetadataHydrationConcurrency = 3;
   static const int _embeddedMetadataRefreshBatchSize = 8;
   static const int _scanTrackPublishBatchSize = 12;
+  static const int _libraryProcessingYieldBatchSize = 64;
   static const Duration _scanTrackPublishInterval = Duration(milliseconds: 250);
 
   int _metadataHydrationGeneration = 0;
@@ -321,15 +322,15 @@ class LibraryCatalogController extends _$LibraryCatalogController {
         );
 
         // 应用已缓存的刮削数据到歌曲
-        allTracks = _applyCachedScrapingMetadata(allTracks);
+        allTracks = await _applyCachedScrapingMetadataAsync(allTracks);
 
         DebugLogger.success(
           'LibraryCatalogController.build',
           '库加载完成：${allTracks.length} 首歌曲',
         );
 
-        final folderAlbums = _buildFolderAlbums(allTracks);
-        final metadataAlbums = _buildMetadataAlbums(allTracks);
+        final folderAlbums = await _buildFolderAlbumsAsync(allTracks);
+        final metadataAlbums = await _buildMetadataAlbumsAsync(allTracks);
 
         cachedState = LibraryCatalogState(
           tracks: allTracks,
@@ -524,15 +525,17 @@ class LibraryCatalogController extends _$LibraryCatalogController {
       }
 
       // 在展示前应用已缓存的刮削数据
-      final displayTracks = _applyCachedScrapingMetadata(discovered);
+      final displayTracks = await _applyCachedScrapingMetadataAsync(discovered);
+      final folderAlbums = await _buildFolderAlbumsAsync(displayTracks);
+      final metadataAlbums = await _buildMetadataAlbumsAsync(displayTracks);
 
       state = AsyncData(
         (state.valueOrNull ?? current).copyWith(
           scannedSources: sources,
           currentSource: sources.last,
           tracks: displayTracks,
-          folderAlbums: _buildFolderAlbums(displayTracks),
-          metadataAlbums: _buildMetadataAlbums(displayTracks),
+          folderAlbums: folderAlbums,
+          metadataAlbums: metadataAlbums,
           isScanning: false,
           scannedDirectoryCount: scannedDirectoryCount,
           discoveredTrackCount: displayTracks.length,
@@ -649,15 +652,17 @@ class LibraryCatalogController extends _$LibraryCatalogController {
       }
 
       // 应用已缓存的刮削数据
-      final displayTracks = _applyCachedScrapingMetadata(allTracks);
+      final displayTracks = await _applyCachedScrapingMetadataAsync(allTracks);
+      final folderAlbums = await _buildFolderAlbumsAsync(displayTracks);
+      final metadataAlbums = await _buildMetadataAlbumsAsync(displayTracks);
 
       state = AsyncData(
         (state.valueOrNull ?? current).copyWith(
           scannedSources: allSources,
           currentSource: source,
           tracks: displayTracks,
-          folderAlbums: _buildFolderAlbums(displayTracks),
-          metadataAlbums: _buildMetadataAlbums(displayTracks),
+          folderAlbums: folderAlbums,
+          metadataAlbums: metadataAlbums,
           isScanning: false,
           scannedDirectoryCount: result.scannedDirectoryCount,
           discoveredTrackCount: displayTracks.length,
@@ -865,25 +870,52 @@ class LibraryCatalogController extends _$LibraryCatalogController {
     );
   }
 
-  /// 对歌曲列表应用已缓存的刮削数据（app 初始化或扫描时调用）
-  List<LibrarySong> _applyCachedScrapingMetadata(List<LibrarySong> tracks) {
+  Future<List<LibrarySong>> _applyCachedScrapingMetadataAsync(
+    List<LibrarySong> tracks,
+  ) async {
+    if (tracks.isEmpty) {
+      return tracks;
+    }
+
+    final stopwatch = Stopwatch()..start();
+    final metadataById = await IsarManager.getMetadataByIds(
+      tracks.map((track) => track.id),
+      batchSize: _libraryProcessingYieldBatchSize,
+    );
+    if (metadataById.isEmpty) {
+      DebugLogger.performance(
+        'LibraryCatalogController._applyCachedScrapingMetadataAsync',
+        '批量读取刮削缓存（0/${tracks.length}）',
+        stopwatch.elapsed,
+      );
+      return tracks;
+    }
+
     var appliedCount = 0;
-    final result = tracks.map((track) {
-      final cachedMetadata = IsarManager.getMetadata(track.id);
+    var changed = false;
+    final result = <LibrarySong>[];
+    for (var index = 0; index < tracks.length; index++) {
+      final track = tracks[index];
+      final cachedMetadata = metadataById[track.id];
       if (cachedMetadata != null && _hasSavedScrapingData(cachedMetadata)) {
         appliedCount++;
-        return _mergeCachedMetadataIntoSong(track, cachedMetadata);
+        changed = true;
+        result.add(_mergeCachedMetadataIntoSong(track, cachedMetadata));
+      } else {
+        result.add(track);
       }
-      return track;
-    }).toList();
 
-    if (appliedCount > 0) {
-      DebugLogger.success(
-        'LibraryCatalogController._applyCachedScrapingMetadata',
-        '已应用 $appliedCount 个刮削缓存',
-      );
+      if ((index + 1) % _libraryProcessingYieldBatchSize == 0) {
+        await _yieldToUi();
+      }
     }
-    return result;
+
+    DebugLogger.performance(
+      'LibraryCatalogController._applyCachedScrapingMetadataAsync',
+      '批量应用刮削缓存（$appliedCount/${tracks.length}）',
+      stopwatch.elapsed,
+    );
+    return changed ? result : tracks;
   }
 
   List<LibraryAlbum> _buildFolderAlbums(List<LibrarySong> tracks) {
@@ -914,6 +946,54 @@ class LibraryCatalogController extends _$LibraryCatalogController {
       grouped.putIfAbsent(key, () => []).add(track);
     }
     return _toAlbums(
+      grouped,
+      titleOf: (track) => track.metadataAlbumTitle,
+      artistOf: (track) => track.metadataArtistName,
+    );
+  }
+
+  Future<List<LibraryAlbum>> _buildFolderAlbumsAsync(
+    List<LibrarySong> tracks,
+  ) async {
+    final grouped = <String, List<LibrarySong>>{};
+    for (var index = 0; index < tracks.length; index++) {
+      final track = tracks[index];
+      final key = '${track.sourceId}::${track.directoryPath.toLowerCase()}';
+      grouped.putIfAbsent(key, () => []).add(track);
+
+      if ((index + 1) % _libraryProcessingYieldBatchSize == 0) {
+        await _yieldToUi();
+      }
+    }
+    return _toAlbumsAsync(
+      grouped,
+      titleOf: (track) => track.folderAlbumTitle,
+      artistOf: (track) => track.folderArtistName,
+    );
+  }
+
+  Future<List<LibraryAlbum>> _buildMetadataAlbumsAsync(
+    List<LibrarySong> tracks,
+  ) async {
+    final grouped = <String, List<LibrarySong>>{};
+    final groupByArtist =
+        ref
+            .read(appSettingsControllerProvider)
+            .valueOrNull
+            ?.groupMetadataAlbumsByArtist ??
+        false;
+    for (var index = 0; index < tracks.length; index++) {
+      final track = tracks[index];
+      final key = groupByArtist
+          ? '${track.sourceId}::${track.metadataArtistName.toLowerCase()}::${track.metadataAlbumTitle.toLowerCase()}'
+          : '${track.sourceId}::${track.metadataAlbumTitle.toLowerCase()}';
+      grouped.putIfAbsent(key, () => []).add(track);
+
+      if ((index + 1) % _libraryProcessingYieldBatchSize == 0) {
+        await _yieldToUi();
+      }
+    }
+    return _toAlbumsAsync(
       grouped,
       titleOf: (track) => track.metadataAlbumTitle,
       artistOf: (track) => track.metadataArtistName,
@@ -974,6 +1054,45 @@ class LibraryCatalogController extends _$LibraryCatalogController {
 
     return albums;
   }
+
+  Future<List<LibraryAlbum>> _toAlbumsAsync(
+    Map<String, List<LibrarySong>> grouped, {
+    required String Function(LibrarySong track) titleOf,
+    required String Function(LibrarySong track) artistOf,
+  }) async {
+    final albums = <LibraryAlbum>[];
+    var processed = 0;
+
+    for (final entry in grouped.entries) {
+      albums.add(
+        LibraryAlbum(
+          id: entry.key,
+          title: titleOf(entry.value.first),
+          artistName: artistOf(entry.value.first),
+          sourceId: entry.value.first.sourceId,
+          sourceName: entry.value.first.sourceName,
+          tracks: [...entry.value]
+            ..sort(
+              (left, right) =>
+                  left.title.toLowerCase().compareTo(right.title.toLowerCase()),
+            ),
+        ),
+      );
+
+      processed++;
+      if (processed % _libraryProcessingYieldBatchSize == 0) {
+        await _yieldToUi();
+      }
+    }
+
+    albums.sort(
+      (left, right) =>
+          left.title.toLowerCase().compareTo(right.title.toLowerCase()),
+    );
+    return albums;
+  }
+
+  Future<void> _yieldToUi() => Future<void>.delayed(Duration.zero);
 
   /// 刷新单个歌曲的元数据（用于刮削完成后的增量更新，避免全列表重新加载）
   void refreshSongMetadata(String songId) {
@@ -1100,14 +1219,24 @@ class LibraryCatalogController extends _$LibraryCatalogController {
   }
 
   void _refreshAlbumIndexesFromCurrentTracks() {
+    unawaited(_refreshAlbumIndexesFromCurrentTracksAsync());
+  }
+
+  Future<void> _refreshAlbumIndexesFromCurrentTracksAsync() async {
     final currentState = state.valueOrNull;
     if (currentState == null) {
       return;
     }
+    final tracks = currentState.tracks;
+    final folderAlbums = await _buildFolderAlbumsAsync(tracks);
+    final metadataAlbums = await _buildMetadataAlbumsAsync(tracks);
+    if (state.valueOrNull?.tracks != tracks) {
+      return;
+    }
     state = AsyncData(
       currentState.copyWith(
-        folderAlbums: _buildFolderAlbums(currentState.tracks),
-        metadataAlbums: _buildMetadataAlbums(currentState.tracks),
+        folderAlbums: folderAlbums,
+        metadataAlbums: metadataAlbums,
       ),
     );
   }

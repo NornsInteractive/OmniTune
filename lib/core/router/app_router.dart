@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' show Ref;
 import 'package:go_router/go_router.dart';
@@ -6,6 +7,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../app/app_shell.dart';
 import '../../core/models/source_protocol.dart';
 import '../../features/debug/presentation/debug_logs_page.dart';
+import '../../features/landing/presentation/web_landing_page.dart';
 import '../../features/library/presentation/albums_page.dart';
 import '../../features/library/presentation/library_page.dart';
 import '../../features/player/presentation/now_playing_page.dart';
@@ -17,8 +19,14 @@ part 'app_router.g.dart';
 @Riverpod(keepAlive: true)
 GoRouter appRouter(Ref ref) {
   return GoRouter(
-    initialLocation: '/albums',
+    initialLocation: kIsWeb ? '/' : '/albums',
     routes: [
+      GoRoute(
+        path: '/',
+        redirect: (context, state) => kIsWeb ? null : '/albums',
+        builder: (context, state) => const WebLandingPage(),
+      ),
+      GoRoute(path: '/app', redirect: (context, state) => '/albums'),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return MusicAppShell(navigationShell: navigationShell);

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:music/l10n/app_localizations.dart';
+import 'package:music/core/i18n/localizations.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../../core/widgets/studio_chrome.dart';

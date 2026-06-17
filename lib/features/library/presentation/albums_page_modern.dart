@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:music/l10n/app_localizations.dart';
+import 'package:music/core/i18n/localizations.dart';
 import 'package:music/shared/widgets/cards/cards.dart';
 import 'package:music/shared/widgets/cards/card_styles.dart' as card_styles_lib;
 
