@@ -241,12 +241,16 @@ void main() {
           memoryCacheTrackLimit: 2,
         ),
       );
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-
-      final cachedTracks = await cache.listCachedTracks();
-      final cachedTrack = cachedTracks.singleWhere(
-        (item) => item.trackId == entry.uniqueId,
-      );
+      // Disk writes can take longer under load; wait for persistence itself.
+      final cachedTrack =
+          await Stream.periodic(const Duration(milliseconds: 10), (_) => null)
+              .asyncMap((_) => cache.listCachedTracks())
+              .expand((tracks) => tracks)
+              .firstWhere(
+                (item) =>
+                    item.trackId == entry.uniqueId && item.hasPersistentCopy,
+              )
+              .timeout(const Duration(seconds: 5));
 
       expect(cachedTrack.hasPersistentCopy, isTrue);
       expect(cachedTrack.cachedBytes, 8);

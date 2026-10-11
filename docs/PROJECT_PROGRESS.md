@@ -1,320 +1,80 @@
-# Flutter Music Player — Project Progress Update
-
-**Last Updated**: 2024-04-15  
-**Current Version**: 1.0.111+112  
-**Status**: ✨ Major architecture refactor: Play-time scraping + persistence (4/4 user requirements complete)
-
----
-
-## Recent Completion Summary
-
-### ✅ Session 4: Play-Time Scraping + Full Persistence (v1.0.111+112) ⭐ MAJOR MILESTONE
-
-**User Requirements Implemented** (all 4 completed):
-1. ✅ Remove automatic scraping from library scan, move to song play time
-2. ✅ Display scraped metadata in both library lists AND player UI
-3. ✅ Persist scraped metadata locally to prevent re-scraping
-4. ✅ Persist library scan results to avoid re-scanning on app restart
-
-**What Was Accomplished**:
-
-1. **Architecture Refactoring**: Scraping trigger moved from scan-time to play-time
-   - `LibraryCatalogController._mapSong()`: Simplified, removed all scraping logic (now 30 lines vs 110+)
-   - `PlayerController.playLibrarySong()`: Added async scraping trigger
-   - New method: `PlayerController._scrapeCurrentSongAsync()` - non-blocking async scraper
-   - Deleted orphaned methods: `_scrapeMetadataAsync()`, `_updateSongMetadata()`, `_scrapeMetadata()`
-
-2. **Scraping Result Persistence** (NEW):
-   - Created: `lib/core/database/scraped_metadata_repository.dart` (260+ lines)
-   - JSON file storage: `Application Documents/scraped_metadata_cache.json`
-   - Models: `ScrapedSongMetadata` with toJson/fromJson auto-generation
-   - Repository API: saveMetadata(), loadMetadata(), loadAllMetadata(), deleteMetadata(), clearAll()
-   - Riverpod integration: `scrapedMetadataRepository` provider + `ScrapedMetadataCache` notifier
-   - Error handling: graceful fallback to network scraping on cache miss/corruption
-
-3. **Player Display Enhancement**:
-   - Modified: `PlayerController._loadQueueIndex()`
-   - Now loads cached scraped metadata for each queued song
-   - Creates enhanced PlayableTrack with all cached fields applied
-   - Display automatically uses best available metadata (manual > auto-scraped > folder > original)
-
-4. **Library Scan Optimization**:
-   - Scanning now completes 10-50x faster (no network delays)
-   - Existing cache mechanism verified working: `loadAllResults()` + `saveScanResults()`
-   - Confirmed: App persistence already supported, just needed verification
-
-**Performance Improvements**:
-- Library scan: 30-60s → 3-10s (75-90% faster)
-- First play + scrape: Non-blocking, metadata updates asynchronously
-- Subsequent plays: Sub-100ms (from cache)
-- App restart: <200ms for library load (vs 30s+ re-scan)
-
-**Code Quality**:
-- 100 lines of clean, focused code added
-- 110 lines of auto-scraping logic removed (simplification)
-- Full Riverpod code generation completed
-- APK compiled successfully: 64.8 MB
-
----
-
-### ✅ Session 3: Network Error Handling Enhancement (v1.0.110+111)
-
----
-
-### ✅ Session 2: Metadata Scraping Fixes (v1.0.109+110)
-
-**What Was Fixed**:
-1. Multi-strategy MusicBrainz search
-   - Artist + Title (quoted)
-   - Artist + Title (unquoted)
-   - Title only
-   - Fallback: None (returns empty)
-
-2. LibrarySong displayTitle getter bug
-   - Problem: Was checking scrapedAlbumTitle (wrong field)
-   - Solution: Now correctly checks autoScrapedTitle before fallback
-   - Priority: manuallyScraped > autoScraped > original
-
----
-
-## Current Technical State
-
-### What Works ✅
-- Multiple WebDAV sources with scan directories
-- **[NEW v1.0.111+112]** Play-time async metadata scraping (non-blocking)
-- **[NEW v1.0.111+112]** Scraped metadata persistence (local JSON cache)
-- **[NEW v1.0.111+112]** Library scan persistence (scan cache)
-- Scraped metadata displays in library lists AND player UI
-- FLAC playback
-- Playback caching (memory + optional local file)
-- Albums/Library/System navigation
-- Theme customization (colors, borders, compactness)
-- Network error resilience with retry logic
-
-### What's In Progress 🔄
-- **[VERIFY NEEDED]** End-to-end testing of all 4 requirements with real WebDAV sources
-- Cache management UI (clear cache, view stats)
-- Edge cases (corrupted cache, network failures)
-
-### What's Planned 📋
-- SFTP support
-- Additional metadata sources
-- Cache TTL/expiration policy
-- Incremental library scanning
-- Batch import/export
-- Better search/sort/filter capabilities
-- Advanced scraping configuration
-
----
-
-## Version History (Recent)
-
-| Version | Key Features | Status |
-|---------|--------------|--------|
-| v1.0.108 | Async scraping framework, debug logging | ✅ Complete |
-| v1.0.109+110 | Multi-strategy search, displayTitle fix | ✅ Complete |
-| v1.0.110+111 | Network retry logic, error logging | ✅ Complete |
-| **v1.0.111+112** | **Play-time scraping, full persistence, 4/4 requirements** | **✅ Complete (THIS SESSION)** |
-| v1.0.112+ | TBD (edge cases, UI polish, next protocol) | 📋 Planned |
-
----
-
-## Key Metrics
-
-### Code Quality
-- Dart version: 3.x
-- Flutter version: 3.x
-- Lint errors in MusicBrainzClient: 0
-- Overall codebase issues: 17 (pre-existing, not from this session)
-- Test coverage: Basic (unit tests pass)
-
-### Performance
-- APK size: 62 MB (stable, no regression)
-- Build time: ~37 seconds
-- Startup time: <3 seconds (typical)
-- Memory usage: Baseline (no leaks detected)
-
-### User-Facing Reliability
-- WebDAV connection: ✅ Stable
-- Metadata scraping: 🔄 Improved (v1.0.110)
-- Display updates: ✅ Working
-- Playback: ✅ Stable
-
----
-
-## Architecture Highlights
-
-### State Management
-- **Framework**: Riverpod with code generation
-- **Key Controllers**:
-  - library_catalog_controller: Manages library scan + async scraping
-  - player_controller: Handles playback state
-  - scraping_provider: Orchestrates metadata operations
-
-### Data Layer
-- **WebDAV**: Implemented with HTTP client + cache
-- **MusicBrainz**: REST API client with retry logic (v1.0.110)
-- **Local Storage**: Riverpod state (in-memory, can be persisted)
-
-### UI Layer
-- **Routing**: go_router with nested navigation
-- **Widgets**: Material 3 design system
-- **Localization**: ARB files (English + Chinese)
-- **Theming**: Custom color/border/compactness system
-
----
-
-## Known Limitations
-
-| Limitation | Impact | Mitigation |
-|-----------|--------|-----------|
-| Only WebDAV supported | Cloud storage limited | SFTP planned for v1.0.111+ |
-| No real scraper registered | Metadata incomplete | Fallback to filename parsing works |
-| Library in app state only | Large libraries reset on restart | Database persistence planned |
-| No search/filter on lists | Hard to find songs | Feature planned for UI refresh |
-| Single MusicBrainz source | Single failure point | Fallback sources planned |
-
----
-
-## Next Session Priorities
-
-### High Priority (Blocking Scraping)
-1. **Test v1.0.110** with real users
-   - Confirm retry logic works as expected
-   - Gather feedback on reliability improvement
-   - Check if SSL/certificate issues need special handling
-
-2. **Fallback Metadata Source**
-   - If MusicBrainz fails, extract from filename
-   - Format: "Artist - Song Name" → split and use
-   - Would provide acceptable UX even if MusicBrainz down
-
-### Medium Priority (Improving UX)
-1. **Local Metadata Database**
-   - Persist scraped data across restarts
-   - Faster load times
-   - Offline support
-
-2. **Search/Sort/Filter**
-   - Find songs by artist/title
-   - Sort albums by date/name
-   - Filter by source
-
-### Low Priority (Future Expansion)
-1. **SFTP Support**
-   - Complement WebDAV
-   - Needed for some corporate environments
-
-2. **Additional Metadata Sources**
-   - Discogs API
-   - AcoustID
-   - Local tag reading
-
----
-
-## Testing Recommendations
-
-### For v1.0.110 Release
-1. **Unit Testing**
-   ```bash
-   flutter test
-   ```
-   - Currently passes (baseline)
-   - Retry logic is transparent to tests
-
-2. **Integration Testing**
-   - Test with real WebDAV source
-   - Verify scraping succeeds (with/without network issues)
-   - Check debug logs for retry attempts
-
-3. **User Acceptance Testing**
-   - Scan library with 50+ songs
-   - Wait 2 minutes for scraping
-   - Verify metadata shows in UI
-   - Check if no errors appear
-
----
-
-## Documentation Structure
-
-| Document | Purpose |
-|----------|---------|
-| NETWORK_ERROR_HANDLING_FIX_v1.0.110.md | Technical details |
-| NETWORK_ERROR_TESTING_GUIDE_v1.0.110.md | Testing procedures |
-| QUICK_REFERENCE_v1.0.110.md | Quick summary |
-| SESSION_SUMMARY_NETWORK_ERROR_FIX.md | Full session record |
-| PROJECT_PROGRESS.md | This document |
-
----
-
-## Build & Deployment Info
-
-### Latest Build
-- **Version**: 1.0.110+111
-- **APK Location**: `build/app/outputs/flutter-apk/app-release.apk`
-- **Size**: 62 MB
-- **Date**: 2024-04-15
-- **Status**: ✅ Ready for testing
-
-### Build Command
-```bash
-bash scripts/build_apk.sh
-```
-
-### Version Management
-- Automatic version bumping on each build
-- Format: `MAJOR.MINOR.PATCH+BUILD`
-- Currently at: 1.0.110+111
-
----
-
-## Risk Assessment for v1.0.110
-
-### Risk Level
-🟢 **LOW** - Changes are localized and well-tested
-
-### Mitigation Strategies
-1. Changes only affect error handling, not core logic
-2. Retry logic follows industry best practices
-3. Error logging is non-invasive (debug only)
-4. Backward compatible with existing code
-
-### Rollback Plan
-If issues arise, can revert to v1.0.109:
-- Multi-strategy search still works
-- displayTitle fixes still applied
-- Just loses retry + logging improvements
-
----
-
-## Success Criteria (This Release)
-
-✅ **Resilience**: Automatic retries work for transient errors
-✅ **Diagnostics**: Error logs provide useful debugging info
-✅ **Stability**: No crashes on network failures
-✅ **Performance**: No APK size/speed regression
-✅ **Code Quality**: Zero lint errors in modified code
-✅ **Documentation**: Comprehensive guides for testing
-
----
-
-## Lessons Learned
-
-1. **Network Errors Are Common**: Even small network hiccups can break scrapers
-2. **Retry With Backoff**: Standard approach that significantly improves reliability
-3. **Error Logging Is Essential**: Generic "network error" messages aren't helpful
-4. **Testing Multiple Scenarios**: Need to test on both good and bad networks
-
----
-
-## Conclusion
-
-The project continues to progress toward a robust, user-friendly music player. Current focus on metadata scraping reliability (v1.0.110) addresses a major pain point reported by users. Next releases should focus on persistence, search functionality, and additional protocol support.
-
-**Overall Status**: 🟢 **ON TRACK** - Steady progress with improving stability
-
----
-
-**Project Manager**: GitHub Copilot AI
-**Last Review**: 2024-04-15
-**Next Review**: After v1.0.110 testing feedback
+# OmniTune 项目进度与路线图
+
+## 固定 UI 会话
+
+- 工具：Antigravity CLI（agy）
+- 会话名：**OmniTune**
+- 会话 ID：`6c56397a-e82e-4afe-8ca5-450dbc2571e1`
+- 恢复：`agy --conversation 6c56397a-e82e-4afe-8ca5-450dbc2571e1`
+- Skill：`/home/dev/.agents/skills/design-taste-frontend/SKILL.md`
+- 所有 UI 实现、动效和 UI 回归修复都在此会话完成。
+
+## 当前任务（2026-10-11）
+
+已完成本轮实现：开放天翼资源添加、解决性能热点、全 App UI 优化与动效、移除冗余文件并更新开发规则。
+现有天翼入口已在源码和原版 Web 截图中确认，尚未复现已安装版本缺失入口的原因。发布脚本未被 Dart 消费的遗留隐藏参数已移除，不能将其当作已证实的根因。账号密码与应用授权为此次开放范围；cloudTV 后续完善。
+
+- 天翼：专辑页、设置页都可进入实际天翼表单，验证账号密码/应用授权切换；未完成的 TV 模式不出现在选择控件中。
+- UI：固定 agy 会话使用 taste skill 完成宽屏侧栏、窄屏导航、共享主题表面、空状态操作、设置与表单布局优化；移除高开销模糊，保留自定义主题和已保存背景显示。
+- 动效：导航状态、播放器路由和歌词切换使用轻量动画，遵守系统减少动画设置。
+- 性能：播放器封面和主体不随进度整树重建，进度/歌词局部订阅；原生缓存序列化在后台执行，Web 分批处理。
+- 清理：移除 130 个跟踪文件，包含重复报告、版本化说明、旧设计稿及无引用实现。保留平台工程、品牌资源和实际运行所需文件；撤回无关文件的格式化。
+- 规则：UI 实现与回归全部交给 Antigravity，复用上方 OmniTune 会话；原 RTK 强制规则已移除。
+
+## 验证基线
+
+- 版本：起始 `1.0.279+280`。
+- 原有测试：31 通过、1 失败，失败是启动测试的旧文字断言。
+- 原有静态分析：52 条问题，包含旧 UI 的未使用代码和废弃 API。
+- 原始同步歌曲字段转换 + JSON 编码：本机 Dart 脚本五轮中位数，0 首 0.012ms、1,000 首 4.068ms、10,000 首 43.954ms；属于 CPU 脚本基准，非真机帧率。
+- 原始 Web release 构建成功；已保存专辑与音源选择页的基线截图，并通过 CDP 实际切换明暗主题及中英文。浏览器验证使用本机 headless Chromium，证书绕过仅用于验证环境。
+- 缓存回归：原生/共享偏好实现 5 项通过；其中 Web 实现在 Chromium 真正编译运行 3 项通过，验证 10,000 首编码期间事件循环仍可推进，以及损坏缓存源不影响其他源保存。
+- 发布脚本回归：2 项通过，覆盖参数转发/移除遗留隐藏参数和严格 pipefail 下的签名随机密码生成。
+
+## 缓存响应性检查
+
+同一数据、本机 Dart 脚本，预热后五轮中位数；定时器间隔用于观察主 isolate 阻塞，不能视为 Flutter 帧耗时。
+
+| 歌曲数 | 同步编码耗时 | 后台编码总耗时 | 同步时最差定时器间隔中位数 | 后台时最差定时器间隔中位数 |
+|---|---:|---:|---:|---:|
+| 0 | 0.092ms | 1.270ms | 1.981ms | 1.972ms |
+| 1,000 | 13.794ms | 13.794ms | 14.860ms | 1.806ms |
+| 10,000 | 39.015ms | 52.742ms | 40.081ms | 5.243ms |
+
+后台编码包含 isolate 数据传输成本，总耗时可能增加；目的在于释放 UI 所在的主 isolate。脚本逐次验证编码结果完全一致。
+
+## 后续路线图
+
+| 优先级 | 工作 | 完成标准 |
+|---|---|---|
+| 已完成 | 本轮修复与重设计 | 天翼入口回归、UI 测试、静态分析和 APK 构建通过；记录实际性能验证范围 |
+| P1 | 真机性能与平台验收 | 各目标平台 profile 检查主线程、帧耗时、滚动、播放及后台行为；以实际指标继续定位剩余卡顿 |
+| P1 | 大音乐库可靠性 | 验证缓存并发写入、原子替换、损坏恢复，补齐持久化测试 |
+| P1 | 搜索、排序与筛选 | 按实际缺口补齐歌曲/专辑/艺术家/音源检索，不重复已有功能 |
+| P1 | 扫描任务控制 | 取消、失败重试和进度反馈，保留已有有效扫描结果 |
+| P2 | 播放队列可靠性 | 覆盖已有队列重排、会话恢复、随机/循环和后台媒体控制的回归与异常恢复 |
+| P2 | 天翼 TV 登录 | 补齐目录与文件读取，真实账号验证后开放扫码/短信入口 |
+| P2 | Web 大缓存性能 | 浏览器 profile 定位 JSON 编解码、存储和主线程开销，再选择最小优化方案 |
+
+## 验证范围
+
+- 完整测试 **56 项通过**，静态分析 **0 问题**，build_runner 生成成功。
+- UI 回归 11 项：明暗主题、中英文、412/1280 宽度、最大字号、减少动画、真实输入框快捷键、两条天翼添加路径、0/1,000/10,000 首列表懒加载、专辑分页、歌词状态切换、方向导航字号，以及真实 App 导航/确认/系统返回。
+- 播放器重建和清空状态 5 项通过。Web 缓存 3 项另在 Chromium 运行通过。
+- 修复原有播放缓存测试固定等待 50ms 的竞态，改为有超时上限地等待实际持久化完成；保留落盘与字节内容断言。
+- 当前构建版本 **`1.0.282+283`**。`./scripts/build_apk.sh` 已生成[签名 APK](../build/app/outputs/flutter-apk/app-release.apk) 和 [AAB](../build/app/outputs/bundle/release/app-release.aab)，APK 签名验证通过；Web release 构建成功。
+- 本机 Chromium release 截图已核对：[原窄屏](../build/validation/before-mobile-dark-zh.png)、[新窄屏](../build/validation/after-mobile-dark-zh.png)、[原宽屏](../build/validation/before-desktop-light-en.png)、[新宽屏](../build/validation/after-desktop-light-en.png)、[天翼入口](../build/validation/after-source.png)、[天翼表单](../build/validation/after-cloud189.png)。截图逐页执行，避免 headless 软件 GPU 多页同时绘制产生的截图拼接伪影；各页无 JavaScript 运行时异常。
+- 验证日志及截图在忽略提交的 `build/validation/`；构建产物在 `build/app/outputs/`。
+
+仅有 Linux 开发环境。未验证 Android/iOS/macOS/Windows/TV 真机帧率、后台行为及天翼真实账号登录/读取；不能据此宣称全部平台卡顿已消失。18sp 字号检查使用注入的 directional MediaQuery，真实 TV 的环境识别与字体仍需硬件验收。
+
+仓库没有原发布签名，本次脚本首次生成签名文件。请安全备份 `android/upload-keystore.jks` 和 `android/key.properties`；若旧安装使用其他签名，本 APK 无法直接覆盖升级，需要使用原发布签名重建，避免通过卸载丢失已有数据。
+
+## Android / Linux 发布（2026-10-11）
+
+- 发布标签 `1.0.282`，应用版本 `1.0.282+283`。
+- 分发 Android 通用 APK、AAB、Linux x86_64 完整压缩包与 SHA-256 校验文件，工作区文件位于 `build/releases/1.0.282/`。
+- Linux 原生后端已补齐，仅在 Linux 注册；依赖系统 libmpv，构建环境为 Debian 12 / glibc 2.36，安装方式见 README。
+- 原生 PCM 解码/播放/暂停/跳转在临时 ALSA null 输出下通过，未做物理声卡验收；完整包启动与运行库解析已检查。
+- APK/AAB、Linux、Web release 均构建成功，静态分析 0 问题，完整测试 56 项通过。
+- 已下载旧 Release APK 对比签名，确认当前签名与 1.0.254 不同，无法覆盖升级；发布说明必须保留此限制。

@@ -1,8 +1,5 @@
-import 'dart:ui';
 import 'dart:math' as math;
-import 'dart:typed_data';
 
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,7 +11,6 @@ import '../../../core/models/custom_theme_colors.dart';
 import '../../../core/models/playback_cache_settings.dart';
 import '../../../core/models/source_profile.dart';
 import '../../../core/models/source_protocol.dart';
-import '../../../core/storage/background_image_store.dart';
 import '../../../core/storage/library_preferences_repository.dart';
 import '../../../core/widgets/glacier_dialog.dart';
 import '../../../core/widgets/studio_chrome.dart';
@@ -112,7 +108,7 @@ class SettingsPage extends ConsumerWidget {
                     ),
                   ),
                 ),
-                if (trailing != null) trailing,
+                ?trailing,
               ],
             ),
             const SizedBox(height: 12),
@@ -149,32 +145,47 @@ class SettingsPage extends ConsumerWidget {
           context,
           const EdgeInsets.symmetric(vertical: 0),
         ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      color: colorScheme.onSurface,
-                      fontWeight: FontWeight.w600,
-                    ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 10,
+              runSpacing: 8,
+              children: [
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: constraints.maxWidth),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: colorScheme.onSurface,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        subtitle,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 1),
-                  Text(
-                    subtitle,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
+                ),
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: constraints.maxWidth),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: trailing,
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            trailing,
-          ],
+                ),
+              ],
+            );
+          },
         ),
       );
       if (onTap == null) {
@@ -243,11 +254,14 @@ class SettingsPage extends ConsumerWidget {
                             ),
                           ),
                           const SizedBox(width: 10),
-                          Text(
-                            l10n.settingsPageTitle,
-                            style: theme.textTheme.headlineSmall?.copyWith(
-                              color: colorScheme.primary,
-                              fontWeight: FontWeight.w700,
+                          Expanded(
+                            child: Text(
+                              l10n.settingsPageTitle,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.headlineSmall?.copyWith(
+                                color: colorScheme.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ],
@@ -337,29 +351,32 @@ class SettingsPage extends ConsumerWidget {
                         const SizedBox(height: 12),
                         divider(),
                         const SizedBox(height: 12),
-                        Row(
+                        Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 12,
+                          runSpacing: 10,
                           children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    l10n.themeSettingTitle,
-                                    style: theme.textTheme.titleMedium
-                                        ?.copyWith(fontWeight: FontWeight.w600),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  l10n.themeSettingTitle,
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
                                   ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    _themeLabel(
-                                      l10n,
-                                      preferences.themePreference,
-                                    ),
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  _themeLabel(
+                                    l10n,
+                                    preferences.themePreference,
                                   ),
-                                ],
-                              ),
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
                             ),
                             Container(
                               decoration: BoxDecoration(
@@ -372,49 +389,43 @@ class SettingsPage extends ConsumerWidget {
                                 ),
                               ),
                               padding: const EdgeInsets.all(4),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
+                              child: Wrap(
+                                spacing: 4,
+                                runSpacing: 4,
                                 children: [
                                   for (final value in AppThemePreference.values)
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 2,
-                                      ),
-                                      child: Material(
-                                        color:
-                                            preferences.themePreference == value
-                                            ? colorScheme.primary.withValues(
-                                                alpha: 0.2,
-                                              )
-                                            : Colors.transparent,
+                                    Material(
+                                      color:
+                                          preferences.themePreference == value
+                                          ? colorScheme.primary.withValues(
+                                              alpha: 0.2,
+                                            )
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: InkWell(
                                         borderRadius: BorderRadius.circular(8),
-                                        child: InkWell(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
+                                        onTap: () {
+                                          appSettingsController
+                                              .setThemePreference(value);
+                                        },
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 7,
                                           ),
-                                          onTap: () {
-                                            appSettingsController
-                                                .setThemePreference(value);
-                                          },
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 7,
-                                            ),
-                                            child: Text(
-                                              _themeLabel(l10n, value),
-                                              style: theme.textTheme.labelMedium
-                                                  ?.copyWith(
-                                                    color:
-                                                        preferences
-                                                                .themePreference ==
-                                                            value
-                                                        ? colorScheme.primary
-                                                        : colorScheme
-                                                              .onSurfaceVariant,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                            ),
+                                          child: Text(
+                                            _themeLabel(l10n, value),
+                                            style: theme.textTheme.labelMedium
+                                                ?.copyWith(
+                                                  color:
+                                                      preferences
+                                                              .themePreference ==
+                                                          value
+                                                      ? colorScheme.primary
+                                                      : colorScheme
+                                                            .onSurfaceVariant,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                           ),
                                         ),
                                       ),
@@ -1096,350 +1107,6 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  Future<void> _showCacheSettingsDialog({
-    required BuildContext context,
-    required WidgetRef ref,
-    required PlaybackCacheSettings initialSettings,
-  }) {
-    final l10n = AppLocalizations.of(context)!;
-    final materialL10n = MaterialLocalizations.of(context);
-    var enablePersistentCache = initialSettings.enablePersistentCache;
-    var memoryCacheTrackLimit = initialSettings.memoryCacheTrackLimit
-        .toDouble();
-
-    return showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return GlacierDialog(
-              title: Text(l10n.cacheSettingsEntryTitle),
-              content: SizedBox(
-                width: 460,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SwitchListTile.adaptive(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(l10n.persistentPlaybackCacheLabel),
-                        subtitle: Text(l10n.persistentPlaybackCacheDescription),
-                        value: enablePersistentCache,
-                        onChanged: (value) {
-                          setState(() {
-                            enablePersistentCache = value;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        l10n.memoryCacheTrackLimitLabel,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        l10n.memoryCacheTrackLimitDescription,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        l10n.memoryCacheTrackLimitValue(
-                          memoryCacheTrackLimit.round(),
-                        ),
-                        style: Theme.of(context).textTheme.labelLarge,
-                      ),
-                      Slider(
-                        min: 1,
-                        max: 12,
-                        divisions: 11,
-                        value: memoryCacheTrackLimit,
-                        label: l10n.memoryCacheTrackLimitValue(
-                          memoryCacheTrackLimit.round(),
-                        ),
-                        onChanged: (value) {
-                          setState(() {
-                            memoryCacheTrackLimit = value;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: Text(materialL10n.cancelButtonLabel),
-                ),
-                FilledButton(
-                  onPressed: () async {
-                    final controller = ref.read(
-                      playbackCacheSettingsControllerProvider.notifier,
-                    );
-                    await controller.setPersistentCacheEnabled(
-                      enablePersistentCache,
-                    );
-                    await controller.setMemoryCacheTrackLimit(
-                      memoryCacheTrackLimit.round(),
-                    );
-                    if (dialogContext.mounted) {
-                      Navigator.of(dialogContext).pop();
-                    }
-                  },
-                  child: Text(materialL10n.okButtonLabel),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<void> _showBackgroundImageDialog({
-    required BuildContext context,
-    required WidgetRef ref,
-    required LibraryPreferences preferences,
-  }) async {
-    final l10n = AppLocalizations.of(context)!;
-    final materialL10n = MaterialLocalizations.of(context);
-    final controller = ref.read(appSettingsControllerProvider.notifier);
-    final originalSource = preferences.backgroundImageSource;
-    final stagedSources = <String>[];
-    var didSave = false;
-    var source = preferences.backgroundImageSource;
-    var alignment = Alignment(
-      preferences.backgroundImageAlignmentX,
-      preferences.backgroundImageAlignmentY,
-    );
-    var previewFuture = source == null
-        ? Future<Uint8List?>.value()
-        : readStudioBackgroundImage(source);
-
-    final saved = await showModalBottomSheet<bool>(
-      context: context,
-      useRootNavigator: true,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            Future<void> chooseImage() async {
-              final file = await openFile(
-                acceptedTypeGroups: [
-                  XTypeGroup(
-                    label: l10n.backgroundImageFileTypeLabel,
-                    extensions: const ['jpg', 'jpeg', 'png', 'webp'],
-                    mimeTypes: const ['image/jpeg', 'image/png', 'image/webp'],
-                  ),
-                ],
-              );
-              if (file == null) {
-                return;
-              }
-
-              final bytes = await file.readAsBytes();
-              final nextSource = await saveStudioBackgroundImage(
-                bytes,
-                fileName: file.name,
-                mimeType: file.mimeType,
-              );
-              stagedSources.add(nextSource);
-              setState(() {
-                source = nextSource;
-                alignment = Alignment.center;
-                previewFuture = Future<Uint8List?>.value(bytes);
-              });
-            }
-
-            return _SettingsBottomSheetFrame(
-              title: l10n.backgroundImageDialogTitle,
-              cancelLabel: materialL10n.cancelButtonLabel,
-              confirmLabel: materialL10n.okButtonLabel,
-              onCancel: () => Navigator.of(sheetContext).pop(false),
-              onConfirm: () async {
-                final nextSource = source;
-                if (nextSource == null) {
-                  await controller.clearBackgroundImage();
-                } else {
-                  await controller.setBackgroundImage(
-                    source: nextSource,
-                    alignmentX: alignment.x,
-                    alignmentY: alignment.y,
-                  );
-                }
-                if (sheetContext.mounted) {
-                  Navigator.of(sheetContext).pop(true);
-                }
-              },
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(l10n.backgroundImageDialogDescription),
-                  const SizedBox(height: 16),
-                  _BackgroundImagePositionPreview(
-                    previewFuture: previewFuture,
-                    alignment: alignment,
-                    emptyLabel: l10n.backgroundImageEmptyPreview,
-                    onAlignmentChanged: (value) {
-                      setState(() => alignment = value);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    l10n.backgroundImagePositionHelpText,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      FilledButton.tonalIcon(
-                        onPressed: chooseImage,
-                        icon: const Icon(Icons.image_search_rounded),
-                        label: Text(
-                          source == null
-                              ? l10n.backgroundImageChooseAction
-                              : l10n.backgroundImageChangeAction,
-                        ),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: source == null
-                            ? null
-                            : () {
-                                setState(() => alignment = Alignment.center);
-                              },
-                        icon: const Icon(Icons.center_focus_strong_rounded),
-                        label: Text(l10n.backgroundImageCenterAction),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: source == null
-                            ? null
-                            : () {
-                                setState(() {
-                                  source = null;
-                                  alignment = Alignment.center;
-                                  previewFuture = Future<Uint8List?>.value();
-                                });
-                              },
-                        icon: const Icon(Icons.delete_outline_rounded),
-                        label: Text(l10n.backgroundImageClearAction),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-    didSave = saved == true;
-
-    if (didSave) {
-      if (originalSource != source) {
-        await deleteStudioBackgroundImage(originalSource);
-      }
-      for (final stagedSource in stagedSources) {
-        if (stagedSource != source) {
-          await deleteStudioBackgroundImage(stagedSource);
-        }
-      }
-      return;
-    }
-
-    for (final stagedSource in stagedSources) {
-      await deleteStudioBackgroundImage(stagedSource);
-    }
-  }
-
-  Future<void> _showScaleDialog({
-    required BuildContext context,
-    required String title,
-    required String description,
-    required double min,
-    required double max,
-    required int divisions,
-    required double initialValue,
-    required Future<void> Function(double value) onSaved,
-  }) {
-    final l10n = AppLocalizations.of(context)!;
-    final materialL10n = MaterialLocalizations.of(context);
-    var value = initialValue;
-
-    return showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return GlacierDialog(
-              title: Text(title),
-              content: SizedBox(
-                width: 460,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(description),
-                      const SizedBox(height: 20),
-                      Text(
-                        l10n.scalePercentLabel(_scalePercent(value)),
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                      const SizedBox(height: 12),
-                      Slider(
-                        min: min,
-                        max: max,
-                        divisions: divisions,
-                        value: value,
-                        label: l10n.scalePercentLabel(_scalePercent(value)),
-                        onChanged: (nextValue) {
-                          setState(() {
-                            value = nextValue;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        l10n.scaleRangeLabel(
-                          _scalePercent(min),
-                          _scalePercent(max),
-                        ),
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: Text(materialL10n.cancelButtonLabel),
-                ),
-                FilledButton(
-                  onPressed: () async {
-                    await onSaved(value);
-                    if (dialogContext.mounted) {
-                      Navigator.of(dialogContext).pop();
-                    }
-                  },
-                  child: Text(materialL10n.okButtonLabel),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
   Future<String?> _showColorPickerDialog({
     required BuildContext context,
     required String currentColor,
@@ -1607,140 +1274,6 @@ class SettingsPage extends ConsumerWidget {
     } catch (e) {
       return null;
     }
-  }
-
-  Future<double?> _showBorderRadiusSlider({
-    required BuildContext context,
-    required double initialValue,
-  }) {
-    final l10n = AppLocalizations.of(context)!;
-    final materialL10n = MaterialLocalizations.of(context);
-    var value = initialValue;
-
-    return showDialog<double?>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return GlacierDialog(
-              title: Text(l10n.themeBorderRadiusDialogTitle),
-              content: SizedBox(
-                width: 400,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${value.toStringAsFixed(1)}px',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 20),
-                    Slider(
-                      min: 12,
-                      max: 32,
-                      divisions: 20,
-                      value: value,
-                      label: '${value.toStringAsFixed(1)}px',
-                      onChanged: (nextValue) {
-                        setState(() {
-                          value = nextValue;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      l10n.themeBorderRadiusRangeLabel,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: Text(materialL10n.cancelButtonLabel),
-                ),
-                FilledButton(
-                  onPressed: () {
-                    Navigator.of(dialogContext).pop(value);
-                  },
-                  child: Text(materialL10n.okButtonLabel),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<double?> _showCompactnessSlider({
-    required BuildContext context,
-    required double initialValue,
-  }) {
-    final l10n = AppLocalizations.of(context)!;
-    final materialL10n = MaterialLocalizations.of(context);
-    var value = initialValue;
-
-    return showDialog<double?>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return GlacierDialog(
-              title: Text(l10n.themeCompactnessDialogTitle),
-              content: SizedBox(
-                width: 400,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${(value * 100).toStringAsFixed(0)}%',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 20),
-                    Slider(
-                      min: 0.5,
-                      max: 1.5,
-                      divisions: 10,
-                      value: value,
-                      label: '${(value * 100).toStringAsFixed(0)}%',
-                      onChanged: (nextValue) {
-                        setState(() {
-                          value = nextValue;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      l10n.themeCompactnessRangeLabel,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: Text(materialL10n.cancelButtonLabel),
-                ),
-                FilledButton(
-                  onPressed: () {
-                    Navigator.of(dialogContext).pop(value);
-                  },
-                  child: Text(materialL10n.okButtonLabel),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
   }
 
   Future<void> _showCacheManagementDialog({
@@ -2044,138 +1577,8 @@ class SettingsPage extends ConsumerWidget {
       SourceProtocol.sftp => l10n.sftpProtocol,
       SourceProtocol.ftp => l10n.ftpProtocol,
       SourceProtocol.samba => l10n.sambaProtocol,
-      SourceProtocol.cloudDrive => l10n.cloudDriveProtocol,
+      SourceProtocol.cloudDrive => l10n.cloud189Protocol,
     };
-  }
-}
-
-class _SettingsSection extends StatelessWidget {
-  const _SettingsSection({required this.title, required this.children});
-
-  final String title;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return StudioPanel(
-      radius: 20,
-      tint: const Color(0xFF0F1524),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: Theme.of(context).textTheme.titleLarge),
-          SizedBox(height: studioListSpacingOf(context, 10)),
-          for (var index = 0; index < children.length; index++) ...[
-            children[index],
-            if (index != children.length - 1)
-              SizedBox(height: studioListGapOf(context)),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _SettingTile extends StatelessWidget {
-  const _SettingTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-    this.trailing,
-    this.destructive = false,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-  final Widget? trailing;
-  final bool destructive;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final accentColor = destructive
-        ? colorScheme.error
-        : colorScheme.onSurfaceVariant;
-    final radius = studioRadiusOf(context, 14);
-    final iconBoxSize = studioListIconBoxSizeOf(context).clamp(34.0, 40.0);
-
-    return StudioPanel(
-      padding: EdgeInsets.zero,
-      radius: 14,
-      tint: const Color(0xFF141C2E),
-      child: Material(
-        color: colorScheme.surface.withValues(alpha: 0),
-        borderRadius: BorderRadius.circular(radius),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(radius),
-          onTap: onTap,
-          child: Padding(
-            padding: studioListPaddingOf(
-              context,
-              const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: iconBoxSize,
-                  height: iconBoxSize,
-                  decoration: BoxDecoration(
-                    color: destructive
-                        ? colorScheme.errorContainer
-                        : colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(
-                      studioRadiusOf(context, 16),
-                    ),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: studioListSpacingOf(
-                      context,
-                      20,
-                    ).clamp(18.0, 23.0).toDouble(),
-                    color: destructive
-                        ? colorScheme.onErrorContainer
-                        : colorScheme.onPrimaryContainer,
-                  ),
-                ),
-                SizedBox(width: studioListGapOf(context)),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              color: destructive ? colorScheme.error : null,
-                            ),
-                      ),
-                      SizedBox(height: studioListSpacingOf(context, 3)),
-                      Text(
-                        subtitle,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodyMedium?.copyWith(color: accentColor),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(width: studioListGapOf(context)),
-                if (trailing != null) ...[
-                  trailing!,
-                  SizedBox(width: studioListGapOf(context)),
-                ],
-                Icon(Icons.chevron_right_rounded, color: accentColor),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
   }
 }
 
@@ -2210,77 +1613,74 @@ class _SettingsBottomSheetFrame extends StatelessWidget {
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(radius),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-            child: Container(
-              height: height,
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerLow.withValues(alpha: 0.96),
-                borderRadius: BorderRadius.circular(radius),
-                border: Border.all(
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.42),
-                ),
-              ),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w700),
-                          ),
+        child: Material(
+          color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.96),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radius),
+            side: BorderSide(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.42),
+            ),
+          ),
+          child: SizedBox(
+            height: height,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
                         ),
-                        if (headerTrailing != null) ...[
-                          const SizedBox(width: 12),
-                          headerTrailing!,
-                        ],
+                      ),
+                      if (headerTrailing != null) ...[
+                        const SizedBox(width: 12),
+                        headerTrailing!,
                       ],
-                    ),
+                    ],
                   ),
+                ),
+                Divider(
+                  height: 1,
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.38),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+                    child: child,
+                  ),
+                ),
+                if (showFooter) ...[
                   Divider(
                     height: 1,
                     color: colorScheme.outlineVariant.withValues(alpha: 0.38),
                   ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
-                      child: child,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: onCancel,
+                            child: Text(cancelLabel),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: onConfirm,
+                            child: Text(confirmLabel),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  if (showFooter) ...[
-                    Divider(
-                      height: 1,
-                      color: colorScheme.outlineVariant.withValues(alpha: 0.38),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: onCancel,
-                              child: Text(cancelLabel),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: FilledButton(
-                              onPressed: onConfirm,
-                              child: Text(confirmLabel),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                 ],
-              ),
+              ],
             ),
           ),
         ),
@@ -2395,130 +1795,6 @@ class _ThemeAccentSwatchButton extends StatelessWidget {
           border: Border.all(
             color: selected ? selectionColor : colorScheme.outlineVariant,
             width: selected ? 2 : 1,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _BackgroundImagePositionPreview extends StatelessWidget {
-  const _BackgroundImagePositionPreview({
-    required this.previewFuture,
-    required this.alignment,
-    required this.emptyLabel,
-    required this.onAlignmentChanged,
-  });
-
-  final Future<Uint8List?> previewFuture;
-  final Alignment alignment;
-  final String emptyLabel;
-  final ValueChanged<Alignment> onAlignmentChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final screenSize = MediaQuery.sizeOf(context);
-    final aspectRatio = screenSize.width / screenSize.height;
-
-    return SizedBox(
-      height: 170,
-      child: AspectRatio(
-        aspectRatio: aspectRatio.clamp(0.56, 1.9).toDouble(),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(studioRadiusOf(context, 24)),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest,
-              border: Border.all(
-                color: colorScheme.outlineVariant.withValues(alpha: 0.22),
-              ),
-            ),
-            child: FutureBuilder<Uint8List?>(
-              future: previewFuture,
-              builder: (context, snapshot) {
-                final bytes = snapshot.data;
-                if (bytes == null || bytes.isEmpty) {
-                  return Center(
-                    child: Text(
-                      emptyLabel,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  );
-                }
-
-                return LayoutBuilder(
-                  builder: (context, constraints) {
-                    Alignment draggedAlignment(Offset delta) {
-                      final nextX =
-                          (alignment.x - delta.dx / constraints.maxWidth * 2)
-                              .clamp(-1.0, 1.0)
-                              .toDouble();
-                      final nextY =
-                          (alignment.y - delta.dy / constraints.maxHeight * 2)
-                              .clamp(-1.0, 1.0)
-                              .toDouble();
-                      return Alignment(nextX, nextY);
-                    }
-
-                    return GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onPanUpdate: (details) {
-                        onAlignmentChanged(draggedAlignment(details.delta));
-                      },
-                      onDoubleTap: () => onAlignmentChanged(Alignment.center),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          Image.memory(
-                            bytes,
-                            fit: BoxFit.cover,
-                            alignment: alignment,
-                            filterQuality: FilterQuality.medium,
-                          ),
-                          DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  colorScheme.surface.withValues(alpha: 0.08),
-                                  colorScheme.surface.withValues(alpha: 0.22),
-                                ],
-                              ),
-                            ),
-                          ),
-                          IgnorePointer(
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: colorScheme.onSurface.withValues(
-                                    alpha: 0.16,
-                                  ),
-                                  width: 2,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: colorScheme.shadow.withValues(
-                                      alpha: 0.18,
-                                    ),
-                                    blurRadius: 18,
-                                    offset: const Offset(0, 8),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
           ),
         ),
       ),
@@ -3246,35 +2522,6 @@ class _CacheManagementDialogState
       return l10n.cacheModeLocalLabel;
     }
     return l10n.cacheModeMemoryLabel;
-  }
-}
-
-class _MetaPill extends StatelessWidget {
-  const _MetaPill({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: colorScheme.surface.withValues(alpha: 0.76),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18, color: colorScheme.primary),
-          const SizedBox(width: 8),
-          Text(label),
-        ],
-      ),
-    );
   }
 }
 

@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' show Ref;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -9,7 +11,14 @@ import '../models/playable_track.dart';
 part 'player_service.g.dart';
 
 class PlayerService {
-  PlayerService() : _player = AudioPlayer(userAgent: 'OmniTune/1.0');
+  PlayerService() : _player = _createAudioPlayer();
+
+  static AudioPlayer _createAudioPlayer() {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.linux) {
+      JustAudioMediaKit.ensureInitialized(linux: true, windows: false);
+    }
+    return AudioPlayer(userAgent: 'OmniTune/1.0');
+  }
 
   final AudioPlayer _player;
   PlayableTrack? _currentTrack;

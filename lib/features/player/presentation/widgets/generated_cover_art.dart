@@ -100,55 +100,64 @@ class GeneratedCoverArt extends StatelessWidget {
                         ),
                       ),
                     )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Align(
-                          alignment: Alignment.topRight,
-                          child: Icon(
-                            Icons.graphic_eq_rounded,
-                            size: compact ? size * 0.14 : size * 0.1,
-                            color: colorScheme.onPrimaryContainer.withValues(
-                              alpha: 0.68,
-                            ),
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          initials,
-                          style: theme.textTheme.displaySmall?.copyWith(
-                            fontSize: compact ? size * 0.2 : size * 0.18,
-                            color: colorScheme.onPrimaryContainer.withValues(
-                              alpha: 0.24,
-                            ),
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        SizedBox(height: compact ? size * 0.01 : size * 0.02),
-                        Text(
-                          title,
-                          maxLines: compact ? 1 : 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontSize: compact ? size * 0.12 : null,
-                            color: colorScheme.onPrimaryContainer,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        if (!compact) ...[
-                          SizedBox(height: size * 0.02),
-                          Text(
-                            subtitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onPrimaryContainer.withValues(
-                                alpha: 0.82,
+                  : FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.topLeft,
+                      child: SizedBox(
+                        width: size * 0.8,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Align(
+                              alignment: Alignment.topRight,
+                              child: Icon(
+                                Icons.graphic_eq_rounded,
+                                size: compact ? size * 0.14 : size * 0.1,
+                                color: colorScheme.onPrimaryContainer
+                                    .withValues(alpha: 0.68),
                               ),
                             ),
-                          ),
-                        ],
-                      ],
+                            SizedBox(
+                              height: compact ? size * 0.04 : size * 0.08,
+                            ),
+                            Text(
+                              initials,
+                              style: theme.textTheme.displaySmall?.copyWith(
+                                fontSize: compact ? size * 0.2 : size * 0.18,
+                                color: colorScheme.onPrimaryContainer
+                                    .withValues(alpha: 0.24),
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            SizedBox(
+                              height: compact ? size * 0.01 : size * 0.02,
+                            ),
+                            Text(
+                              title,
+                              maxLines: compact ? 1 : 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                fontSize: compact ? size * 0.12 : null,
+                                color: colorScheme.onPrimaryContainer,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            if (!compact) ...[
+                              SizedBox(height: size * 0.02),
+                              Text(
+                                subtitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.onPrimaryContainer
+                                      .withValues(alpha: 0.82),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
                     ),
             ),
           ],

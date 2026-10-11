@@ -24,7 +24,7 @@ flutter pub search <keyword>
 ```
 
 ### 2. 代码生成
-项目使用 `build_runner` 生成代码（Riverpod、Isar、JSON 序列化）。
+项目使用 `build_runner` 生成 Riverpod 代码；当前扫描缓存使用 JSON，元数据使用 SharedPreferences。
 修改带 `@riverpod`、`@collection`、`@JsonSerializable` 注解的文件后，必须运行：
 ```bash
 dart run build_runner build --delete-conflicting-outputs
@@ -59,13 +59,23 @@ dart run build_runner build --delete-conflicting-outputs
 
 ---
 
+### 5. UI 实现与 Antigravity 会话（长期规则）
+- 所有 UI 问题、页面设计、组件布局、交互动画、界面重建优化和 UI 回归修复，全部交给 **Antigravity（agy）** 实现；Codex 负责定位、业务逻辑、审查和验证。
+- 必须使用 **design-taste-frontend（taste skill）**；Flutter 页面将其视觉、动效和审计原则应用到 Material 原生组件，不能引入 React/CSS 或网页技术替代 Flutter。
+- 本项目全部 UI 工作复用同一个 agy 会话，会话名称固定为 **OmniTune**。会话 ID 记录在 `docs/PROJECT_PROGRESS.md`；使用 `agy --conversation <ID>` 明确恢复，禁止用 `--continue` 猜测最近会话。
+- 首次创建后使用 `/rename OmniTune` 命名。后续不得为单个页面新建会话；会话不可恢复时先报告原因。
+- 明暗主题、i18n、用户主题配置、键鼠和 Android TV D-pad 必须保留；动画遵守系统减少动态效果设置，隐藏页面停止动画。
+- 交付 UI 时必须附上测试结果和实际验证范围；未做真机性能测量时不得声称所有平台卡顿已解决。
+
+---
+
 ## 任务执行协议
 
 ### 添加新音乐源协议
-1. 在 `lib/features/sources/` 创建 `{protocol}_source.dart`
-2. 实现 `MusicSource` 接口（见 SKILL.md）
-3. 在 `lib/core/providers/sources_provider.dart` 注册
-4. 在 `lib/features/settings/add_source_page.dart` 添加配置 UI
+1. 在 `lib/features/sources/data/{protocol}/` 创建实现
+2. 实现 `lib/features/sources/domain/music_source.dart` 中的 `MusicSource` 接口
+3. 在 `lib/features/sources/application/music_source_registry.dart` 注册
+4. 交给 Antigravity 在 `lib/features/settings/presentation/add_source_page.dart` 添加配置 UI
 5. 添加对应的 ARB 字符串
 6. 写单元测试（mock 网络层）
 
@@ -73,7 +83,7 @@ dart run build_runner build --delete-conflicting-outputs
 1. 在 `lib/features/scraper/` 创建 `{source}_scraper.dart`
 2. 实现 `MetadataScraper` 接口
 3. 设置合理的 `priority` 值
-4. 在 `ScraperChain` 中注册
+4. 在 `lib/features/scraper/application/scraping_provider.dart` 的现有刮削协调链路中接入
 5. 处理速率限制（API 有限制的加 delay）
 
 ### 添加新语言
@@ -83,7 +93,7 @@ dart run build_runner build --delete-conflicting-outputs
 4. 运行 `flutter gen-l10n` 验证
 
 ### 修改播放逻辑
-1. 所有播放操作通过 `PlayerNotifier` 进行
+1. 所有播放操作通过 `PlayerController`（`playerControllerProvider.notifier`）进行
 2. 直接操作 `AudioPlayer` 的代码只允许存在于 `player_service.dart`
 3. 修改后检查 Android TV 的 D-pad 控制是否仍正常
 
@@ -93,8 +103,7 @@ dart run build_runner build --delete-conflicting-outputs
 
 ```
 lib/core/audio/          → just_audio 封装，audio_service handler
-lib/core/database/       → Isar schemas 和 repositories  
-lib/core/providers/      → 全局 Riverpod providers
+lib/core/database/       → JSON 扫描缓存、SharedPreferences 元数据和 repositories
 lib/core/router/         → go_router 路由配置
 lib/features/library/    → 音乐库浏览、扫描
 lib/features/player/     → 播放器界面（迷你播放器、全屏播放）
@@ -112,7 +121,7 @@ lib/l10n/               → 多语言 ARB 文件
 # 获取依赖
 flutter pub get
 
-# 代码生成（Riverpod + Isar）
+# 代码生成（Riverpod 等注解）
 dart run build_runner build --delete-conflicting-outputs
 
 # 生成 l10n
@@ -162,7 +171,7 @@ AudioPlayer.useAndroidExoplayer; // Android 指定引擎
 
 ### 刮削不生效
 1. 检查 `ScrapedMetadata.priority` 排序
-2. 检查 Isar 中 `scrapedAt` 是否过于新（缓存未过期）
+2. 检查元数据缓存是否仍在有效期内
 3. MusicBrainz 搜索建议使用 `artist:xxx AND recording:xxx` 格式
 
 ---
@@ -248,55 +257,3 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
-
-# RTK - Rust Token Killer (Codex CLI)
-
-**Usage**: Token-optimized CLI proxy for shell commands.
-
-## Rule
-
-Always prefix shell commands with `rtk`.
-
-Examples:
-
-```bash
-rtk git status
-rtk cargo test
-rtk npm run build
-rtk pytest -q
-```
-
-## Meta Commands
-
-```bash
-rtk gain            # Token savings analytics
-rtk gain --history  # Recent command savings history
-rtk proxy <cmd>     # Run raw command without filtering
-```
-
-## Verification
-
-```bash
-rtk --version
-rtk gain
-which rtk
-```
-
-## Mandatory RTK Rule
-
-ALL shell commands MUST be prefixed with `rtk`.
-
-For codebase inspection, do not page through files with repeated `sed -n` unless a precise line range is already known.
-
-Use this order:
-1. `rtk find` to locate candidate files.
-2. `rtk grep -n "<keyword>" <path>` to locate exact files and line numbers.
-3. Only after line numbers are known, use `rtk summary "sed -n '<start>,<end>p' <file>"` to read the smallest necessary snippet.
-4. Avoid repeated sequential `sed -n` scans like `1,120`, `121,240`, `241,360`.
-5. Avoid full-file `cat` on large files.
-
-Examples:
-- use `rtk grep -n "appointmentPhone" .`
-- use `rtk grep -n "phone" flutter/nail_ui/lib`
-- use `rtk diff` instead of `git diff`
-- use `rtk find . -name "*.dart"` instead of raw `find`

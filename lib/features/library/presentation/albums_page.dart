@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -38,8 +36,8 @@ class _AlbumsPageState extends ConsumerState<AlbumsPage> {
 
   @override
   Widget build(BuildContext context) {
-    _GlacierPalette.sync(context);
     final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
     final preferences = ref.watch(appSettingsControllerProvider).valueOrNull;
     final browserAsync = ref.watch(libraryControllerProvider);
     final catalogAsync = ref.watch(libraryCatalogControllerProvider);
@@ -64,7 +62,7 @@ class _AlbumsPageState extends ConsumerState<AlbumsPage> {
     return _GlacierScreen(
       child: browserAsync.when(
         loading: () => Center(
-          child: CircularProgressIndicator(color: _GlacierPalette.primary),
+          child: CircularProgressIndicator(color: colorScheme.primary),
         ),
         error: (error, _) => _GlacierCenteredMessage(message: error.toString()),
         data: (browser) {
@@ -197,6 +195,7 @@ class _AlbumsContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
     final width = MediaQuery.sizeOf(context).width;
     final preferences = ref.watch(appSettingsControllerProvider).valueOrNull;
     final itemsPerPage = _itemsPerPage(width, preferences?.albumPageSize ?? 9);
@@ -247,7 +246,7 @@ class _AlbumsContent extends ConsumerWidget {
                       child: Text(
                         l10n.albumsTabLabel,
                         style: _glacierTextStyle(
-                          color: _GlacierPalette.onSurface,
+                          color: colorScheme.onSurface,
                           size: 34,
                           weight: FontWeight.w700,
                           height: 1.05,
@@ -274,7 +273,7 @@ class _AlbumsContent extends ConsumerWidget {
                 Text(
                   selectedSource.name,
                   style: _glacierTextStyle(
-                    color: _GlacierPalette.onSurfaceVariant,
+                    color: colorScheme.onSurfaceVariant,
                     size: 15,
                     weight: FontWeight.w500,
                   ),
@@ -357,9 +356,9 @@ class _AlbumsContent extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(999),
                     child: LinearProgressIndicator(
                       minHeight: 4,
-                      backgroundColor: _GlacierPalette.surfaceContainerHigh,
+                      backgroundColor: colorScheme.surfaceContainerHigh,
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        _GlacierPalette.primary,
+                        colorScheme.primary,
                       ),
                     ),
                   ),
@@ -459,104 +458,102 @@ class _AlbumsContent extends ConsumerWidget {
       isScrollControlled: true,
       builder: (sheetContext) {
         final maxSheetHeight = MediaQuery.sizeOf(sheetContext).height * 0.72;
+        final colorScheme = Theme.of(sheetContext).colorScheme;
+        final sheetRadius = studioRadiusOf(sheetContext, 28);
 
         return SafeArea(
           top: false,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(
-                studioRadiusOf(sheetContext, 28),
+            child: Material(
+              color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.96),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(sheetRadius),
+                side: BorderSide(
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+                ),
               ),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-                child: Container(
-                  constraints: BoxConstraints(maxHeight: maxSheetHeight),
-                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-                  decoration: BoxDecoration(
-                    color: _GlacierPalette.surface.withValues(alpha: 0.94),
-                    borderRadius: BorderRadius.circular(
-                      studioRadiusOf(sheetContext, 28),
-                    ),
-                  ),
-                  child: Consumer(
-                    builder: (context, sheetRef, _) {
-                      final catalogState = sheetRef
-                          .watch(libraryCatalogControllerProvider)
-                          .valueOrNull;
+              child: Container(
+                constraints: BoxConstraints(maxHeight: maxSheetHeight),
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+                child: Consumer(
+                  builder: (context, sheetRef, _) {
+                    final catalogState = sheetRef
+                        .watch(libraryCatalogControllerProvider)
+                        .valueOrNull;
 
-                      return Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _AlbumSheetHeader(album: album),
-                          const SizedBox(height: 14),
-                          Flexible(
-                            child: ListView.separated(
-                              shrinkWrap: true,
-                              itemCount: album.tracks.length,
-                              separatorBuilder: (_, _) =>
-                                  const SizedBox(height: 10),
-                              itemBuilder: (context, index) {
-                                final track = album.tracks[index];
-                                final isFavorite =
-                                    catalogState?.favoriteTrackIds.contains(
-                                      track.id,
-                                    ) ??
-                                    false;
-                                final isLiked =
-                                    catalogState?.likedTrackIds.contains(
-                                      track.id,
-                                    ) ??
-                                    false;
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _AlbumSheetHeader(album: album),
+                        const SizedBox(height: 14),
+                        Flexible(
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: album.tracks.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 10),
+                            itemBuilder: (context, index) {
+                              final track = album.tracks[index];
+                              final isFavorite =
+                                  catalogState?.favoriteTrackIds.contains(
+                                    track.id,
+                                  ) ??
+                                  false;
+                              final isLiked =
+                                  catalogState?.likedTrackIds.contains(
+                                    track.id,
+                                  ) ??
+                                  false;
 
-                                return _AlbumTrackTile(
-                                  key: ValueKey('album-track:${track.id}'),
-                                  track: track,
-                                  isFavorite: isFavorite,
-                                  isLiked: isLiked,
-                                  onFavorite: () {
-                                    sheetRef
-                                        .read(
-                                          libraryCatalogControllerProvider
-                                              .notifier,
-                                        )
-                                        .toggleFavorite(track.id);
-                                  },
-                                  onLiked: () {
-                                    sheetRef
-                                        .read(
-                                          libraryCatalogControllerProvider
-                                              .notifier,
-                                        )
-                                        .toggleLiked(track.id);
-                                  },
-                                  onTap: () {
-                                    sheetRef
-                                        .read(playerControllerProvider.notifier)
-                                        .playLibrarySong(
-                                          track,
-                                          playlist: album.tracks,
-                                        );
-                                    Navigator.of(sheetContext).pop();
-                                  },
-                                  onMoreOptions: () {
-                                    _showAlbumTrackActionsSheet(
-                                      sheetContext,
-                                      sheetRef,
-                                      track: track,
-                                      isFavorite: isFavorite,
-                                      isLiked: isLiked,
-                                      playlist: album.tracks,
-                                    );
-                                  },
-                                );
-                              },
-                            ),
+                              return _AlbumTrackTile(
+                                key: ValueKey('album-track:${track.id}'),
+                                track: track,
+                                isFavorite: isFavorite,
+                                isLiked: isLiked,
+                                onFavorite: () {
+                                  sheetRef
+                                      .read(
+                                        libraryCatalogControllerProvider
+                                            .notifier,
+                                      )
+                                      .toggleFavorite(track.id);
+                                },
+                                onLiked: () {
+                                  sheetRef
+                                      .read(
+                                        libraryCatalogControllerProvider
+                                            .notifier,
+                                      )
+                                      .toggleLiked(track.id);
+                                },
+                                onTap: () {
+                                  sheetRef
+                                      .read(playerControllerProvider.notifier)
+                                      .playLibrarySong(
+                                        track,
+                                        playlist: album.tracks,
+                                      );
+                                  Navigator.of(sheetContext).pop();
+                                },
+                                onMoreOptions: () {
+                                  _showAlbumTrackActionsSheet(
+                                    sheetContext,
+                                    sheetRef,
+                                    track: track,
+                                    isFavorite: isFavorite,
+                                    isLiked: isLiked,
+                                    playlist: album.tracks,
+                                  );
+                                },
+                              );
+                            },
                           ),
-                        ],
-                      );
-                    },
-                  ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -583,86 +580,87 @@ void _showAlbumTrackActionsSheet(
     builder: (context) {
       final l10n = AppLocalizations.of(context)!;
 
+      final colorScheme = Theme.of(context).colorScheme;
+      final sheetRadius = studioRadiusOf(context, 28);
+
       return SafeArea(
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(studioRadiusOf(context, 28)),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
-                decoration: BoxDecoration(
-                  color: _GlacierPalette.surface.withValues(alpha: 0.94),
-                  borderRadius: BorderRadius.circular(
-                    studioRadiusOf(context, 28),
+          child: Material(
+            color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.96),
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(sheetRadius),
+              side: BorderSide(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _TrackActionHeader(track: track),
+                  const SizedBox(height: 10),
+                  _TrackActionTile(
+                    icon: Icons.play_arrow_rounded,
+                    label: l10n.playAction,
+                    onTap: () {
+                      ref
+                          .read(playerControllerProvider.notifier)
+                          .playLibrarySong(track, playlist: playlist);
+                      Navigator.of(context).pop();
+                      if (albumSheetContext.mounted) {
+                        Navigator.of(albumSheetContext).pop();
+                      }
+                    },
                   ),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _TrackActionHeader(track: track),
-                    const SizedBox(height: 10),
-                    _TrackActionTile(
-                      icon: Icons.play_arrow_rounded,
-                      label: l10n.playAction,
-                      onTap: () {
-                        ref
-                            .read(playerControllerProvider.notifier)
-                            .playLibrarySong(track, playlist: playlist);
-                        Navigator.of(context).pop();
-                        if (albumSheetContext.mounted) {
-                          Navigator.of(albumSheetContext).pop();
-                        }
-                      },
-                    ),
-                    _TrackActionTile(
-                      icon: Icons.queue_play_next_rounded,
-                      label: l10n.playNextAction,
-                      onTap: () {
-                        Navigator.of(context).pop();
-                        _addAlbumTrackToPlayNext(albumSheetContext, ref, track);
-                      },
-                    ),
-                    _TrackActionTile(
-                      icon: isFavorite
-                          ? Icons.bookmark_remove_rounded
-                          : Icons.bookmark_add_rounded,
-                      label: isFavorite
-                          ? l10n.removeFromFavoritesAction
-                          : l10n.addToFavoritesAction,
-                      onTap: () {
-                        ref
-                            .read(libraryCatalogControllerProvider.notifier)
-                            .toggleFavorite(track.id);
-                        Navigator.of(context).pop();
-                      },
-                    ),
-                    _TrackActionTile(
-                      icon: isLiked
-                          ? Icons.favorite_rounded
-                          : Icons.favorite_border_rounded,
-                      label: isLiked
-                          ? l10n.removeFromLikedAction
-                          : l10n.addToLikedAction,
-                      onTap: () {
-                        ref
-                            .read(libraryCatalogControllerProvider.notifier)
-                            .toggleLiked(track.id);
-                        Navigator.of(context).pop();
-                      },
-                    ),
-                    _TrackActionTile(
-                      icon: Icons.info_outline_rounded,
-                      label: l10n.songDetailsTitle,
-                      onTap: () {
-                        Navigator.of(context).pop();
-                        _showTrackDetailsSheet(albumSheetContext, track);
-                      },
-                    ),
-                  ],
-                ),
+                  _TrackActionTile(
+                    icon: Icons.queue_play_next_rounded,
+                    label: l10n.playNextAction,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      _addAlbumTrackToPlayNext(albumSheetContext, ref, track);
+                    },
+                  ),
+                  _TrackActionTile(
+                    icon: isFavorite
+                        ? Icons.bookmark_remove_rounded
+                        : Icons.bookmark_add_rounded,
+                    label: isFavorite
+                        ? l10n.removeFromFavoritesAction
+                        : l10n.addToFavoritesAction,
+                    onTap: () {
+                      ref
+                          .read(libraryCatalogControllerProvider.notifier)
+                          .toggleFavorite(track.id);
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                  _TrackActionTile(
+                    icon: isLiked
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    label: isLiked
+                        ? l10n.removeFromLikedAction
+                        : l10n.addToLikedAction,
+                    onTap: () {
+                      ref
+                          .read(libraryCatalogControllerProvider.notifier)
+                          .toggleLiked(track.id);
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                  _TrackActionTile(
+                    icon: Icons.info_outline_rounded,
+                    label: l10n.songDetailsTitle,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      _showTrackDetailsSheet(albumSheetContext, track);
+                    },
+                  ),
+                ],
               ),
             ),
           ),
@@ -703,52 +701,45 @@ Future<void> _showTrackDetailsSheet(BuildContext context, LibrarySong song) {
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
     builder: (sheetContext) {
+      final colorScheme = Theme.of(sheetContext).colorScheme;
+      final sheetRadius = studioRadiusOf(sheetContext, 28);
+
       return SafeArea(
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(
-              studioRadiusOf(sheetContext, 28),
+          child: Material(
+            color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.96),
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(sheetRadius),
+              side: BorderSide(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+              ),
             ),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: _GlacierPalette.surface.withValues(alpha: 0.94),
-                  borderRadius: BorderRadius.circular(
-                    studioRadiusOf(sheetContext, 28),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    song.displayTitle,
+                    style: _glacierTextStyle(
+                      color: colorScheme.onSurface,
+                      size: 22,
+                      weight: FontWeight.w700,
+                    ),
                   ),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      song.displayTitle,
-                      style: _glacierTextStyle(
-                        color: _GlacierPalette.onSurface,
-                        size: 22,
-                        weight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    _DetailRow(
-                      label: l10n.artistLabel,
-                      value: song.displayArtist,
-                    ),
-                    _DetailRow(
-                      label: l10n.albumLabel,
-                      value: song.displayAlbum,
-                    ),
-                    _DetailRow(label: l10n.sourceLabel, value: song.sourceName),
-                    _DetailRow(
-                      label: l10n.filePathLabel,
-                      value: song.remotePath,
-                    ),
-                  ],
-                ),
+                  const SizedBox(height: 14),
+                  _DetailRow(
+                    label: l10n.artistLabel,
+                    value: song.displayArtist,
+                  ),
+                  _DetailRow(label: l10n.albumLabel, value: song.displayAlbum),
+                  _DetailRow(label: l10n.sourceLabel, value: song.sourceName),
+                  _DetailRow(label: l10n.filePathLabel, value: song.remotePath),
+                ],
               ),
             ),
           ),
@@ -765,8 +756,9 @@ class _GlacierScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return ColoredBox(
-      color: _GlacierPalette.background,
+      color: colorScheme.surface,
       child: SafeArea(bottom: false, child: child),
     );
   }
@@ -780,6 +772,7 @@ class _TopIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final buttonRadius = studioRadiusOf(context, 14);
     return InkWell(
       borderRadius: BorderRadius.circular(buttonRadius),
@@ -787,7 +780,7 @@ class _TopIconButton extends StatelessWidget {
       child: SizedBox(
         width: 38,
         height: 38,
-        child: Icon(icon, color: _GlacierPalette.primary, size: 22),
+        child: Icon(icon, color: colorScheme.primary, size: 22),
       ),
     );
   }
@@ -808,11 +801,12 @@ class _SourceChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final chipRadius = studioRadiusOf(context, 16);
     return Material(
       color: selected
-          ? _GlacierPalette.primary.withValues(alpha: 0.12)
-          : _GlacierPalette.surface.withValues(alpha: 0.6),
+          ? colorScheme.primary.withValues(alpha: 0.12)
+          : colorScheme.surfaceContainer.withValues(alpha: 0.6),
       borderRadius: BorderRadius.circular(chipRadius),
       child: InkWell(
         borderRadius: BorderRadius.circular(chipRadius),
@@ -833,8 +827,8 @@ class _SourceChip extends StatelessWidget {
                 label,
                 style: _glacierTextStyle(
                   color: selected
-                      ? _GlacierPalette.primary
-                      : _GlacierPalette.onSurfaceVariant,
+                      ? colorScheme.primary
+                      : colorScheme.onSurfaceVariant,
                   size: 13,
                   weight: FontWeight.w600,
                 ),
@@ -844,10 +838,8 @@ class _SourceChip extends StatelessWidget {
                 subtitle,
                 style: _glacierTextStyle(
                   color: selected
-                      ? _GlacierPalette.primary.withValues(alpha: 0.84)
-                      : _GlacierPalette.onSurfaceVariant.withValues(
-                          alpha: 0.84,
-                        ),
+                      ? colorScheme.primary.withValues(alpha: 0.84)
+                      : colorScheme.onSurfaceVariant.withValues(alpha: 0.84),
                   size: 11,
                   weight: FontWeight.w500,
                 ),
@@ -877,10 +869,11 @@ class _ViewModeButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final buttonRadius = studioRadiusOf(context, 16);
     return Material(
       color: selected
-          ? _GlacierPalette.primary.withValues(alpha: 0.12)
+          ? colorScheme.primary.withValues(alpha: 0.12)
           : Colors.transparent,
       borderRadius: BorderRadius.circular(buttonRadius),
       child: InkWell(
@@ -893,8 +886,8 @@ class _ViewModeButton extends StatelessWidget {
             icon,
             size: iconSize,
             color: selected
-                ? _GlacierPalette.primary
-                : _GlacierPalette.onSurfaceVariant,
+                ? colorScheme.primary
+                : colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -988,6 +981,7 @@ class _AlbumGridCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final cardRadius = studioRadiusOf(context, 24);
     return InkWell(
       borderRadius: BorderRadius.circular(cardRadius),
@@ -1012,7 +1006,7 @@ class _AlbumGridCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(cardRadius),
                         border: Border.all(
-                          color: _GlacierPalette.outline.withValues(
+                          color: colorScheme.outlineVariant.withValues(
                             alpha: 0.45,
                           ),
                         ),
@@ -1023,7 +1017,7 @@ class _AlbumGridCard extends StatelessWidget {
                     right: 10,
                     bottom: 10,
                     child: Material(
-                      color: _GlacierPalette.primary.withValues(alpha: 0.96),
+                      color: colorScheme.primary.withValues(alpha: 0.96),
                       shape: const CircleBorder(),
                       child: InkWell(
                         customBorder: const CircleBorder(),
@@ -1034,7 +1028,7 @@ class _AlbumGridCard extends StatelessWidget {
                           child: Icon(
                             Icons.play_arrow_rounded,
                             size: 18,
-                            color: _GlacierPalette.onPrimary,
+                            color: colorScheme.onPrimary,
                           ),
                         ),
                       ),
@@ -1050,7 +1044,7 @@ class _AlbumGridCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: _glacierTextStyle(
-              color: _GlacierPalette.onSurface,
+              color: colorScheme.onSurface,
               size: 16,
               weight: FontWeight.w500,
             ),
@@ -1061,7 +1055,7 @@ class _AlbumGridCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: _glacierTextStyle(
-              color: _GlacierPalette.onSurfaceVariant,
+              color: colorScheme.onSurfaceVariant,
               size: 12,
               weight: FontWeight.w500,
             ),
@@ -1128,10 +1122,11 @@ class _PageIndexButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final pageRadius = studioRadiusOf(context, 14);
     return Material(
       color: selected
-          ? _GlacierPalette.primary.withValues(alpha: 0.2)
+          ? colorScheme.primary.withValues(alpha: 0.2)
           : Colors.transparent,
       borderRadius: BorderRadius.circular(pageRadius),
       child: InkWell(
@@ -1144,17 +1139,15 @@ class _PageIndexButton extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(pageRadius),
             border: selected
-                ? Border.all(
-                    color: _GlacierPalette.primary.withValues(alpha: 0.3),
-                  )
+                ? Border.all(color: colorScheme.primary.withValues(alpha: 0.3))
                 : null,
           ),
           child: Text(
             label,
             style: _glacierTextStyle(
               color: selected
-                  ? _GlacierPalette.primary
-                  : _GlacierPalette.onSurfaceVariant,
+                  ? colorScheme.primary
+                  : colorScheme.onSurfaceVariant,
               size: 16,
               weight: selected ? FontWeight.w700 : FontWeight.w500,
             ),
@@ -1178,6 +1171,7 @@ class _PageArrowButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return SizedBox(
       width: 32,
       height: 32,
@@ -1189,8 +1183,8 @@ class _PageArrowButton extends StatelessWidget {
         icon: Icon(
           icon,
           color: enabled
-              ? _GlacierPalette.onSurfaceVariant
-              : _GlacierPalette.onSurfaceVariant.withValues(alpha: 0.45),
+              ? colorScheme.onSurfaceVariant
+              : colorScheme.onSurfaceVariant.withValues(alpha: 0.45),
         ),
       ),
     );
@@ -1211,9 +1205,10 @@ class _AlbumListRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final cardRadius = studioRadiusOf(context, 22);
     return Material(
-      color: _GlacierPalette.surface.withValues(alpha: 0.6),
+      color: colorScheme.surfaceContainer.withValues(alpha: 0.6),
       borderRadius: BorderRadius.circular(cardRadius),
       child: InkWell(
         borderRadius: BorderRadius.circular(cardRadius),
@@ -1237,7 +1232,7 @@ class _AlbumListRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: _glacierTextStyle(
-                        color: _GlacierPalette.onSurface,
+                        color: colorScheme.onSurface,
                         size: 16,
                         weight: FontWeight.w500,
                       ),
@@ -1248,7 +1243,7 @@ class _AlbumListRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: _glacierTextStyle(
-                        color: _GlacierPalette.onSurfaceVariant,
+                        color: colorScheme.onSurfaceVariant,
                         size: 13,
                         weight: FontWeight.w500,
                       ),
@@ -1259,7 +1254,7 @@ class _AlbumListRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: _glacierTextStyle(
-                        color: _GlacierPalette.onSurfaceVariant,
+                        color: colorScheme.onSurfaceVariant,
                         size: 12,
                         weight: FontWeight.w500,
                       ),
@@ -1268,7 +1263,7 @@ class _AlbumListRow extends StatelessWidget {
                 ),
               ),
               Material(
-                color: _GlacierPalette.primary.withValues(alpha: 0.12),
+                color: colorScheme.primary.withValues(alpha: 0.12),
                 shape: const CircleBorder(),
                 child: InkWell(
                   customBorder: const CircleBorder(),
@@ -1279,7 +1274,7 @@ class _AlbumListRow extends StatelessWidget {
                     child: Icon(
                       Icons.play_arrow_rounded,
                       size: 18,
-                      color: _GlacierPalette.primary,
+                      color: colorScheme.primary,
                     ),
                   ),
                 ),
@@ -1361,79 +1356,76 @@ class _AlbumSheetHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final cardRadius = studioRadiusOf(context, 22);
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(cardRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: _GlacierPalette.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(cardRadius),
-            border: Border.all(
-              color: _GlacierPalette.primary.withValues(alpha: 0.18),
+    return Material(
+      color: colorScheme.primary.withValues(alpha: 0.1),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(cardRadius),
+        side: BorderSide(color: colorScheme.primary.withValues(alpha: 0.18)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 64,
+              height: 64,
+              child: _AlbumArtwork(album: album, size: 64),
             ),
-          ),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 64,
-                height: 64,
-                child: _AlbumArtwork(album: album, size: 64),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      album.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    album.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: _glacierTextStyle(
+                      color: colorScheme.onSurface,
+                      size: 18,
+                      weight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    album.artistName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: _glacierTextStyle(
+                      color: colorScheme.onSurfaceVariant,
+                      size: 13,
+                      weight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainer.withValues(
+                        alpha: 0.5,
+                      ),
+                      borderRadius: BorderRadius.circular(
+                        studioRadiusOf(context, 14),
+                      ),
+                    ),
+                    child: Text(
+                      '${album.trackCount} tracks',
                       style: _glacierTextStyle(
-                        color: _GlacierPalette.onSurface,
-                        size: 18,
+                        color: colorScheme.primary,
+                        size: 12,
                         weight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      album.artistName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: _glacierTextStyle(
-                        color: _GlacierPalette.onSurfaceVariant,
-                        size: 13,
-                        weight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _GlacierPalette.surface.withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(
-                          studioRadiusOf(context, 14),
-                        ),
-                      ),
-                      child: Text(
-                        '${album.trackCount} tracks',
-                        style: _glacierTextStyle(
-                          color: _GlacierPalette.primary,
-                          size: 12,
-                          weight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1462,11 +1454,12 @@ class _AlbumTrackTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
     final cardRadius = studioRadiusOf(context, 22);
     final coverSize = studioListIconBoxSizeOf(context).clamp(36.0, 46.0);
     final isCurrentTrack = ref.watch(isCurrentTrackIdProvider(track.id));
     return Material(
-      color: _GlacierPalette.surface.withValues(alpha: 0.7),
+      color: colorScheme.surfaceContainer.withValues(alpha: 0.7),
       borderRadius: BorderRadius.circular(cardRadius),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -1501,7 +1494,7 @@ class _AlbumTrackTile extends ConsumerWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: _glacierTextStyle(
-                        color: _GlacierPalette.onSurface,
+                        color: colorScheme.onSurface,
                         size: 14,
                         weight: FontWeight.w600,
                       ),
@@ -1512,7 +1505,7 @@ class _AlbumTrackTile extends ConsumerWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: _glacierTextStyle(
-                        color: _GlacierPalette.onSurfaceVariant,
+                        color: colorScheme.onSurfaceVariant,
                         size: 11,
                         weight: FontWeight.w500,
                       ),
@@ -1559,6 +1552,7 @@ class _CompactIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final buttonRadius = studioRadiusOf(context, 16);
     return Material(
       color: Colors.transparent,
@@ -1572,9 +1566,7 @@ class _CompactIconButton extends StatelessWidget {
           child: Icon(
             icon,
             size: 20,
-            color: active
-                ? _GlacierPalette.primary
-                : _GlacierPalette.onSurfaceVariant,
+            color: active ? colorScheme.primary : colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -1589,64 +1581,59 @@ class _TrackActionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final cardRadius = studioRadiusOf(context, 22);
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(cardRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Container(
-          padding: studioListPaddingOf(context, const EdgeInsets.all(16)),
-          decoration: BoxDecoration(
-            color: _GlacierPalette.primary.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(cardRadius),
-            border: Border.all(
-              color: _GlacierPalette.primary.withValues(alpha: 0.18),
+    return Material(
+      color: colorScheme.primary.withValues(alpha: 0.08),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(cardRadius),
+        side: BorderSide(color: colorScheme.primary.withValues(alpha: 0.18)),
+      ),
+      child: Padding(
+        padding: studioListPaddingOf(context, const EdgeInsets.all(16)),
+        child: Row(
+          children: [
+            TrackCoverThumbnail(
+              title: track.displayTitle,
+              subtitle: track.displayArtist,
+              size: 56,
+              borderRadius: 18,
+              localCoverPath: track.displayLocalCoverPath,
+              coverUrl: track.displayCoverUrl,
+              trackId: track.id,
+              sourceId: track.sourceId,
+              directoryPath: track.directoryPath,
             ),
-          ),
-          child: Row(
-            children: [
-              TrackCoverThumbnail(
-                title: track.displayTitle,
-                subtitle: track.displayArtist,
-                size: 56,
-                borderRadius: 18,
-                localCoverPath: track.displayLocalCoverPath,
-                coverUrl: track.displayCoverUrl,
-                trackId: track.id,
-                sourceId: track.sourceId,
-                directoryPath: track.directoryPath,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      track.displayTitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: _glacierTextStyle(
-                        color: _GlacierPalette.onSurface,
-                        size: 16,
-                        weight: FontWeight.w700,
-                      ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    track.displayTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: _glacierTextStyle(
+                      color: colorScheme.onSurface,
+                      size: 16,
+                      weight: FontWeight.w700,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${track.displayArtist} · ${track.displayAlbum}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: _glacierTextStyle(
-                        color: _GlacierPalette.onSurfaceVariant,
-                        size: 12,
-                        weight: FontWeight.w500,
-                      ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${track.displayArtist} · ${track.displayAlbum}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: _glacierTextStyle(
+                      color: colorScheme.onSurfaceVariant,
+                      size: 12,
+                      weight: FontWeight.w500,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1666,12 +1653,13 @@ class _TrackActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return ListTile(
-      leading: Icon(icon, color: _GlacierPalette.primary),
+      leading: Icon(icon, color: colorScheme.primary),
       title: Text(
         label,
         style: _glacierTextStyle(
-          color: _GlacierPalette.onSurface,
+          color: colorScheme.onSurface,
           size: 15,
           weight: FontWeight.w500,
         ),
@@ -1689,6 +1677,7 @@ class _DetailRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
@@ -1697,7 +1686,7 @@ class _DetailRow extends StatelessWidget {
           Text(
             label,
             style: _glacierTextStyle(
-              color: _GlacierPalette.onSurfaceVariant,
+              color: colorScheme.onSurfaceVariant,
               size: 12,
               weight: FontWeight.w600,
             ),
@@ -1706,7 +1695,7 @@ class _DetailRow extends StatelessWidget {
           Text(
             value,
             style: _glacierTextStyle(
-              color: _GlacierPalette.onSurface,
+              color: colorScheme.onSurface,
               size: 14,
               weight: FontWeight.w500,
             ),
@@ -1737,6 +1726,9 @@ class _AlbumsEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cardRadius = studioRadiusOf(context, 32);
+    final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
+
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: studioListPaddingOf(
@@ -1750,7 +1742,7 @@ class _AlbumsEmptyState extends StatelessWidget {
               child: Text(
                 pageTitle,
                 style: _glacierTextStyle(
-                  color: _GlacierPalette.onSurface,
+                  color: colorScheme.onSurface,
                   size: 34,
                   weight: FontWeight.w700,
                   height: 1.05,
@@ -1768,7 +1760,7 @@ class _AlbumsEmptyState extends StatelessWidget {
         Text(
           description,
           style: _glacierTextStyle(
-            color: _GlacierPalette.onSurfaceVariant,
+            color: colorScheme.onSurfaceVariant,
             size: 15,
             weight: FontWeight.w500,
           ),
@@ -1778,50 +1770,65 @@ class _AlbumsEmptyState extends StatelessWidget {
           padding: const EdgeInsets.all(0),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 720),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(cardRadius),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-                child: Container(
-                  padding: const EdgeInsets.all(26),
-                  decoration: BoxDecoration(
-                    color: _GlacierPalette.surface.withValues(alpha: 0.62),
-                    borderRadius: BorderRadius.circular(cardRadius),
-                    border: Border.all(
-                      color: _GlacierPalette.outline.withValues(alpha: 0.4),
+            child: Material(
+              color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.88),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(cardRadius),
+                side: BorderSide(
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.45),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(26),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GeneratedCoverArt(
+                      title: title,
+                      subtitle: description,
+                      size: 180,
+                      borderRadius: 26,
                     ),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      GeneratedCoverArt(
-                        title: title,
-                        subtitle: description,
-                        size: 180,
-                        borderRadius: 26,
+                    const SizedBox(height: 20),
+                    Text(
+                      title,
+                      style: _glacierTextStyle(
+                        color: colorScheme.onSurface,
+                        size: 24,
+                        weight: FontWeight.w700,
                       ),
-                      const SizedBox(height: 20),
-                      Text(
-                        title,
-                        style: _glacierTextStyle(
-                          color: _GlacierPalette.onSurface,
-                          size: 26,
-                          weight: FontWeight.w700,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      description,
+                      style: _glacierTextStyle(
+                        color: colorScheme.onSurfaceVariant,
+                        size: 14,
+                        weight: FontWeight.w400,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 12,
+                      runSpacing: 10,
+                      children: [
+                        FilledButton.icon(
+                          onPressed: onAddSource,
+                          icon: const Icon(Icons.add_rounded),
+                          label: Text(l10n.addSourceAction),
                         ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        description,
-                        style: _glacierTextStyle(
-                          color: _GlacierPalette.onSurfaceVariant,
-                          size: 14,
-                          weight: FontWeight.w500,
+                        OutlinedButton.icon(
+                          onPressed: onOpenSettings,
+                          icon: const Icon(Icons.settings_rounded),
+                          label: Text(l10n.settingsTabLabel),
                         ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -1840,42 +1847,39 @@ class _EmptyGlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final cardRadius = studioRadiusOf(context, 32);
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(cardRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: _GlacierPalette.surface.withValues(alpha: 0.62),
-            borderRadius: BorderRadius.circular(cardRadius),
-            border: Border.all(
-              color: _GlacierPalette.outline.withValues(alpha: 0.4),
+    return Material(
+      color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.72),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(cardRadius),
+        side: BorderSide(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: _glacierTextStyle(
+                color: colorScheme.onSurface,
+                size: 24,
+                weight: FontWeight.w700,
+              ),
             ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: _glacierTextStyle(
-                  color: _GlacierPalette.onSurface,
-                  size: 24,
-                  weight: FontWeight.w700,
-                ),
+            const SizedBox(height: 10),
+            Text(
+              description,
+              style: _glacierTextStyle(
+                color: colorScheme.onSurfaceVariant,
+                size: 14,
+                weight: FontWeight.w500,
               ),
-              const SizedBox(height: 10),
-              Text(
-                description,
-                style: _glacierTextStyle(
-                  color: _GlacierPalette.onSurfaceVariant,
-                  size: 14,
-                  weight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1889,6 +1893,7 @@ class _GlacierCenteredMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -1896,36 +1901,13 @@ class _GlacierCenteredMessage extends StatelessWidget {
           message,
           textAlign: TextAlign.center,
           style: _glacierTextStyle(
-            color: _GlacierPalette.onSurface,
+            color: colorScheme.onSurface,
             size: 15,
             weight: FontWeight.w500,
           ),
         ),
       ),
     );
-  }
-}
-
-class _GlacierPalette {
-  static Color background = const Color(0xFF0A0E1A);
-  static Color surface = const Color(0xFF0F1524);
-  static Color surfaceContainerHigh = const Color(0xFF1A2438);
-  static Color primary = const Color(0xFF7DD3FC);
-  static Color onPrimary = const Color(0xFF001F2E);
-  static Color onSurface = const Color(0xFFE0E8F0);
-  static Color onSurfaceVariant = const Color(0xFFA0B4C4);
-  static Color outline = const Color(0xFF4A6070);
-
-  static void sync(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    background = scheme.surface;
-    surface = scheme.surfaceContainer;
-    surfaceContainerHigh = scheme.surfaceContainerHigh;
-    primary = scheme.primary;
-    onPrimary = scheme.onPrimary;
-    onSurface = scheme.onSurface;
-    onSurfaceVariant = scheme.onSurfaceVariant;
-    outline = scheme.outline;
   }
 }
 

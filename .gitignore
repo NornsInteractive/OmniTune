@@ -43,3 +43,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Release upload signing files and transient downloads
+/android/key.properties
+/android/upload-keystore.jks
+/wget-log*

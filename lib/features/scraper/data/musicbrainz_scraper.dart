@@ -479,59 +479,6 @@ class MusicBrainzScraper implements MetadataScraper {
       lyricsScrapingServiceBaseUrl != null &&
       lyricsScrapingServiceBaseUrl!.trim().isNotEmpty;
 
-  Future<_ResolvedScrapeCandidate?> _searchBestFromMusicBrainz(
-    List<String> titleVariants, {
-    String? artist,
-    required AppLocalePreference localePreference,
-  }) async {
-    for (final queryTitle in titleVariants) {
-      DebugLogger.info(
-        'MusicBrainzScraper',
-        '【快速刮削】MusicBrainz 搜索: "$queryTitle"',
-      );
-      final recordings = artist != null && artist.trim().isNotEmpty
-          ? await musicbrainzClient.searchByArtistAndTitle(
-              artist.trim(),
-              queryTitle.trim(),
-              limit: 8,
-              localePreference: localePreference,
-            )
-          : await musicbrainzClient.searchRecordings(
-              queryTitle.trim(),
-              limit: 8,
-              localePreference: localePreference,
-            );
-      if (recordings.isEmpty) {
-        continue;
-      }
-
-      final rankedRecordings = [...recordings]
-        ..sort(
-          (left, right) =>
-              _scoreMusicBrainzRecording(
-                right,
-                queryTitle: queryTitle,
-                queryArtist: artist,
-              ).compareTo(
-                _scoreMusicBrainzRecording(
-                  left,
-                  queryTitle: queryTitle,
-                  queryArtist: artist,
-                ),
-              ),
-        );
-      final best = rankedRecordings.first;
-      return _ResolvedScrapeCandidate(
-        title: best.title,
-        artist: best.artistName,
-        album: best.albumTitle,
-        coverUrl: best.coverArtUrl,
-        duration: best.duration,
-      );
-    }
-    return null;
-  }
-
   List<String> _buildTitleVariants(String rawTitle) {
     final variants = <String>[];
 
@@ -561,66 +508,6 @@ class MusicBrainzScraper implements MetadataScraper {
     return normalized;
   }
 
-  int _scoreMusicBrainzRecording(
-    MusicBrainzRecording recording, {
-    required String queryTitle,
-    String? queryArtist,
-  }) {
-    return _scoreCandidateText(
-          candidateTitle: recording.title,
-          candidateArtist: recording.artistName,
-          queryTitle: queryTitle,
-          queryArtist: queryArtist,
-        ) +
-        ((recording.score ?? 0) ~/ 8);
-  }
-
-  int _scoreCandidateText({
-    required String candidateTitle,
-    required String? candidateArtist,
-    required String queryTitle,
-    String? queryArtist,
-  }) {
-    final queryTitleNormalized = _normalizeMatchText(queryTitle);
-    final queryTitleSimplified = _normalizeMatchText(
-      _stripTitleDecorators(queryTitle),
-    );
-    final candidateTitleNormalized = _normalizeMatchText(candidateTitle);
-    final candidateTitleSimplified = _normalizeMatchText(
-      _stripTitleDecorators(candidateTitle),
-    );
-
-    var score = 0;
-    if (candidateTitleNormalized == queryTitleNormalized) {
-      score += 120;
-    }
-    if (candidateTitleSimplified == queryTitleSimplified) {
-      score += 70;
-    }
-    if (candidateTitleSimplified.contains(queryTitleSimplified) ||
-        queryTitleSimplified.contains(candidateTitleSimplified)) {
-      score += 25;
-    }
-
-    final normalizedArtist = _normalizeMatchText(queryArtist);
-    final normalizedCandidateArtist = _normalizeMatchText(candidateArtist);
-    if (normalizedArtist.isNotEmpty && normalizedCandidateArtist.isNotEmpty) {
-      if (normalizedArtist == normalizedCandidateArtist) {
-        score += 35;
-      } else if (normalizedCandidateArtist.contains(normalizedArtist) ||
-          normalizedArtist.contains(normalizedCandidateArtist)) {
-        score += 12;
-      } else {
-        score -= 10;
-      }
-    }
-
-    if (_hasVersionMarker(candidateTitle) && !_hasVersionMarker(queryTitle)) {
-      score -= 24;
-    }
-    return score;
-  }
-
   String _stripTitleDecorators(String value) {
     var output = value.trim();
     output = output.replaceFirst(RegExp(r'^\d+\.\s*'), '');
@@ -628,40 +515,6 @@ class MusicBrainzScraper implements MetadataScraper {
     output = output.replaceAll(RegExp(r'\s+'), ' ').trim();
     return output;
   }
-
-  String _normalizeMatchText(String? value) {
-    return _stripTitleDecorators(
-      value ?? '',
-    ).toLowerCase().replaceAll(RegExp(r'[\s\-_.,:;!?/\\&]+'), '');
-  }
-
-  bool _hasVersionMarker(String value) {
-    final normalized = value.toLowerCase();
-    return normalized.contains('live') ||
-        normalized.contains('remix') ||
-        normalized.contains('demo') ||
-        normalized.contains('karaoke') ||
-        normalized.contains('instrumental') ||
-        normalized.contains('伴奏') ||
-        normalized.contains('现场') ||
-        normalized.contains('版');
-  }
-}
-
-class _ResolvedScrapeCandidate {
-  const _ResolvedScrapeCandidate({
-    required this.title,
-    this.artist,
-    this.album,
-    this.coverUrl,
-    this.duration,
-  });
-
-  final String title;
-  final String? artist;
-  final String? album;
-  final String? coverUrl;
-  final Duration? duration;
 }
 
 /// 搜索结果

@@ -88,11 +88,19 @@ class MusicApp extends ConsumerWidget {
       supportedLocales: AppLocalizations.supportedLocales,
       builder: (context, child) {
         final mediaQuery = MediaQuery.of(context);
+        final isDirectional =
+            mediaQuery.navigationMode == NavigationMode.directional;
+        final baseScale = preferences.fontScaleFactor;
+        final baseScaler = TextScaler.linear(baseScale);
+        final effectiveScaler = isDirectional
+            ? _DirectionalMinTextScaler(
+                baseScaler: baseScaler,
+                minFontSize: 18.0,
+              )
+            : baseScaler;
         return ExceptionHandlerWidget(
           child: MediaQuery(
-            data: mediaQuery.copyWith(
-              textScaler: TextScaler.linear(preferences.fontScaleFactor),
-            ),
+            data: mediaQuery.copyWith(textScaler: effectiveScaler),
             child: child ?? const SizedBox.shrink(),
           ),
         );
@@ -421,6 +429,40 @@ class MusicApp extends ConsumerWidget {
       // 同样对待其他容器颜色
       secondaryContainer: baseScheme.secondary,
       tertiaryContainer: baseScheme.tertiary,
+    );
+  }
+}
+
+class _DirectionalMinTextScaler implements TextScaler {
+  const _DirectionalMinTextScaler({
+    required this.baseScaler,
+    required this.minFontSize,
+  });
+
+  final TextScaler baseScaler;
+  final double minFontSize;
+
+  @override
+  double scale(double fontSize) {
+    final scaled = baseScaler.scale(fontSize);
+    return scaled < minFontSize ? minFontSize : scaled;
+  }
+
+  @override
+  // ignore: deprecated_member_use
+  double get textScaleFactor => baseScaler.textScaleFactor;
+
+  @override
+  TextScaler clamp({
+    double minScaleFactor = 0,
+    double maxScaleFactor = double.infinity,
+  }) {
+    return _DirectionalMinTextScaler(
+      baseScaler: baseScaler.clamp(
+        minScaleFactor: minScaleFactor,
+        maxScaleFactor: maxScaleFactor,
+      ),
+      minFontSize: minFontSize,
     );
   }
 }

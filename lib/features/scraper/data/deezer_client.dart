@@ -149,7 +149,7 @@ class DeezerClient {
         if (album is! Map) {
           continue;
         }
-        final albumMap = Map<String, dynamic>.from(album as Map);
+        final albumMap = Map<String, dynamic>.from(album);
         final cover = (albumMap['cover_xl'] as String?)?.trim();
         final coverBig = (albumMap['cover_big'] as String?)?.trim();
         final coverMedium = (albumMap['cover_medium'] as String?)?.trim();

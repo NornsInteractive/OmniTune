@@ -88,27 +88,41 @@ GoRouter appRouter(Ref ref) {
       ),
       GoRoute(
         path: '/player',
-        pageBuilder: (context, state) => CustomTransitionPage<void>(
-          key: state.pageKey,
-          child: const NowPlayingPage(),
-          transitionDuration: const Duration(milliseconds: 260),
-          reverseTransitionDuration: const Duration(milliseconds: 220),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            final curvedAnimation = CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-              reverseCurve: Curves.easeInCubic,
-            );
+        pageBuilder: (context, state) {
+          final disableAnimations = MediaQuery.disableAnimationsOf(context);
+          return CustomTransitionPage<void>(
+            key: state.pageKey,
+            child: const NowPlayingPage(),
+            transitionDuration: disableAnimations
+                ? Duration.zero
+                : const Duration(milliseconds: 220),
+            reverseTransitionDuration: disableAnimations
+                ? Duration.zero
+                : const Duration(milliseconds: 180),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+                  if (disableAnimations) {
+                    return child;
+                  }
+                  final curvedAnimation = CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                    reverseCurve: Curves.easeInCubic,
+                  );
 
-            return SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 1),
-                end: Offset.zero,
-              ).animate(curvedAnimation),
-              child: child,
-            );
-          },
-        ),
+                  return SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0, 0.2),
+                      end: Offset.zero,
+                    ).animate(curvedAnimation),
+                    child: FadeTransition(
+                      opacity: curvedAnimation,
+                      child: child,
+                    ),
+                  );
+                },
+          );
+        },
       ),
       GoRoute(
         path: '/settings/add-source',

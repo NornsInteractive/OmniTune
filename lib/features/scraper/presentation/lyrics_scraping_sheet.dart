@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music/core/models/scraping_preferences.dart';
@@ -284,175 +282,166 @@ class _LyricsScrapingSheetState extends ConsumerState<_LyricsScrapingSheet> {
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(radius),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-            child: Container(
-              height: MediaQuery.sizeOf(context).height * 0.66,
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerLow.withValues(alpha: 0.96),
-                borderRadius: BorderRadius.circular(radius),
-                border: Border.all(
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.42),
+        child: Material(
+          color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.96),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radius),
+            side: BorderSide(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.42),
+            ),
+          ),
+          child: SizedBox(
+            height: MediaQuery.sizeOf(context).height * 0.66,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          l10n.scrapingUpdateLyricsAction,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
-                    child: Row(
+                Divider(
+                  height: 1,
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.38),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            l10n.scrapingUpdateLyricsAction,
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w700),
+                        TextField(
+                          controller: _titleController,
+                          textInputAction: TextInputAction.next,
+                          decoration: InputDecoration(
+                            labelText: l10n.scrapingSongName,
                           ),
                         ),
-                        IconButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          icon: const Icon(Icons.close_rounded),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: _artistController,
+                          textInputAction: TextInputAction.search,
+                          onSubmitted: (_) => _search(),
+                          decoration: InputDecoration(
+                            labelText: l10n.scrapingArtistName,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: _searching || _applying ? null : _search,
+                            icon: _searching
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.search_rounded),
+                            label: Text(
+                              _searching
+                                  ? l10n.scrapingSearchingLabel
+                                  : l10n.scrapingSearchButton,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          l10n.scrapingSearchResultsTitle,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 8),
+                        if (_errorText != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Text(
+                              _errorText!,
+                              style: TextStyle(color: colorScheme.error),
+                            ),
+                          ),
+                        SizedBox(
+                          height: resultHeight,
+                          child: _searching
+                              ? const Center(child: CircularProgressIndicator())
+                              : _candidates.isEmpty
+                              ? Center(
+                                  child: Text(l10n.scrapingNoResultsMessage),
+                                )
+                              : ListView.separated(
+                                  scrollDirection: Axis.horizontal,
+                                  physics: const BouncingScrollPhysics(),
+                                  itemCount: _candidates.length,
+                                  separatorBuilder: (_, _) =>
+                                      const SizedBox(width: 10),
+                                  itemBuilder: (context, index) {
+                                    final item = _candidates[index];
+                                    final key =
+                                        '${item.id}_${item.trackName}_${item.artistName}';
+                                    return SizedBox(
+                                      width: cardWidth,
+                                      height: resultHeight,
+                                      child: _LyricsCandidateCard(
+                                        candidate: item,
+                                        currentPosition: playbackPosition,
+                                        applying: _applyingCandidateKey == key,
+                                        selected: _selectedCandidateKey == key,
+                                        onSelect: _applying
+                                            ? null
+                                            : () => setState(() {
+                                                _selectedCandidateKey = key;
+                                              }),
+                                      ),
+                                    );
+                                  },
+                                ),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed:
+                                _applying || _selectedCandidateKey == null
+                                ? null
+                                : () {
+                                    final candidate = _candidates.firstWhere(
+                                      (item) =>
+                                          '${item.id}_${item.trackName}_${item.artistName}' ==
+                                          _selectedCandidateKey,
+                                    );
+                                    _applyLyrics(candidate);
+                                  },
+                            child: _applying
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Text(l10n.scrapingSelectButtonLabel),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  Divider(
-                    height: 1,
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.38),
-                  ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          TextField(
-                            controller: _titleController,
-                            textInputAction: TextInputAction.next,
-                            decoration: InputDecoration(
-                              labelText: l10n.scrapingSongName,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          TextField(
-                            controller: _artistController,
-                            textInputAction: TextInputAction.search,
-                            onSubmitted: (_) => _search(),
-                            decoration: InputDecoration(
-                              labelText: l10n.scrapingArtistName,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton.icon(
-                              onPressed: _searching || _applying
-                                  ? null
-                                  : _search,
-                              icon: _searching
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Icon(Icons.search_rounded),
-                              label: Text(
-                                _searching
-                                    ? l10n.scrapingSearchingLabel
-                                    : l10n.scrapingSearchButton,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          Text(
-                            l10n.scrapingSearchResultsTitle,
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 8),
-                          if (_errorText != null)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Text(
-                                _errorText!,
-                                style: TextStyle(color: colorScheme.error),
-                              ),
-                            ),
-                          SizedBox(
-                            height: resultHeight,
-                            child: _searching
-                                ? const Center(
-                                    child: CircularProgressIndicator(),
-                                  )
-                                : _candidates.isEmpty
-                                ? Center(
-                                    child: Text(l10n.scrapingNoResultsMessage),
-                                  )
-                                : ListView.separated(
-                                    scrollDirection: Axis.horizontal,
-                                    physics: const BouncingScrollPhysics(),
-                                    itemCount: _candidates.length,
-                                    separatorBuilder: (_, _) =>
-                                        const SizedBox(width: 10),
-                                    itemBuilder: (context, index) {
-                                      final item = _candidates[index];
-                                      final key =
-                                          '${item.id}_${item.trackName}_${item.artistName}';
-                                      return SizedBox(
-                                        width: cardWidth,
-                                        height: resultHeight,
-                                        child: _LyricsCandidateCard(
-                                          candidate: item,
-                                          currentPosition: playbackPosition,
-                                          applying:
-                                              _applyingCandidateKey == key,
-                                          selected:
-                                              _selectedCandidateKey == key,
-                                          onSelect: _applying
-                                              ? null
-                                              : () => setState(() {
-                                                  _selectedCandidateKey = key;
-                                                }),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton(
-                              onPressed:
-                                  _applying || _selectedCandidateKey == null
-                                  ? null
-                                  : () {
-                                      final candidate = _candidates.firstWhere(
-                                        (item) =>
-                                            '${item.id}_${item.trackName}_${item.artistName}' ==
-                                            _selectedCandidateKey,
-                                      );
-                                      _applyLyrics(candidate);
-                                    },
-                              child: _applying
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : Text(l10n.scrapingSelectButtonLabel),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),

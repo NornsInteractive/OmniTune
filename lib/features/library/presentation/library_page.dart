@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -51,15 +49,15 @@ class LibraryPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    _GlacierPalette.sync(context);
     final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
     final browserAsync = ref.watch(libraryControllerProvider);
     final catalog = ref.watch(libraryCatalogControllerProvider).valueOrNull;
 
     return _GlacierScreen(
       child: browserAsync.when(
         loading: () => Center(
-          child: CircularProgressIndicator(color: _GlacierPalette.primary),
+          child: CircularProgressIndicator(color: colorScheme.primary),
         ),
         error: (error, _) => _GlacierCenteredMessage(message: error.toString()),
         data: (browser) {
@@ -76,7 +74,7 @@ class LibraryPage extends ConsumerWidget {
                     child: Text(
                       l10n.libraryTitle,
                       style: _glacierTextStyle(
-                        color: _GlacierPalette.onSurface,
+                        color: colorScheme.onSurface,
                         size: 34,
                         weight: FontWeight.w700,
                         height: 1.05,
@@ -112,7 +110,7 @@ class LibraryPage extends ConsumerWidget {
                       )
                     : l10n.sourceManagementEmptySummary,
                 style: _glacierTextStyle(
-                  color: _GlacierPalette.onSurfaceVariant,
+                  color: colorScheme.onSurfaceVariant,
                   size: 15,
                   weight: FontWeight.w500,
                 ),
@@ -128,7 +126,7 @@ class LibraryPage extends ConsumerWidget {
                   children: [
                     _LibraryCategoryCard(
                       icon: Icons.library_music_rounded,
-                      accent: _GlacierPalette.primary,
+                      accent: colorScheme.primary,
                       title: l10n.allSongsCollectionTitle,
                       subtitle:
                           '${catalog?.tracks.length ?? 0} ${l10n.tracksLabel}',
@@ -137,7 +135,7 @@ class LibraryPage extends ConsumerWidget {
                     const SizedBox(height: 12),
                     _LibraryCategoryCard(
                       icon: Icons.favorite_rounded,
-                      accent: _GlacierPalette.tertiary,
+                      accent: colorScheme.tertiary,
                       title: l10n.favoritesCollectionTitle,
                       subtitle:
                           '${catalog?.favoriteTracks.length ?? 0} ${l10n.tracksLabel}',
@@ -146,7 +144,7 @@ class LibraryPage extends ConsumerWidget {
                     const SizedBox(height: 12),
                     _LibraryCategoryCard(
                       icon: Icons.history_rounded,
-                      accent: _GlacierPalette.secondary,
+                      accent: colorScheme.secondary,
                       title: l10n.likedCollectionTitle,
                       subtitle:
                           '${catalog?.likedTracks.length ?? 0} ${l10n.tracksLabel}',
@@ -155,7 +153,7 @@ class LibraryPage extends ConsumerWidget {
                     const SizedBox(height: 12),
                     _LibraryCategoryCard(
                       icon: Icons.queue_music_rounded,
-                      accent: _GlacierPalette.primary,
+                      accent: colorScheme.primary,
                       title: l10n.albumsTabLabel,
                       subtitle:
                           '${catalog?.albums.length ?? 0} ${l10n.albumsTabLabel}',
@@ -178,14 +176,14 @@ class LibrarySongsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    _GlacierPalette.sync(context);
     final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
     final catalogAsync = ref.watch(libraryCatalogControllerProvider);
 
     return _GlacierScreen(
       child: catalogAsync.when(
         loading: () => Center(
-          child: CircularProgressIndicator(color: _GlacierPalette.primary),
+          child: CircularProgressIndicator(color: colorScheme.primary),
         ),
         error: (error, _) => _GlacierCenteredMessage(message: error.toString()),
         data: (catalog) {
@@ -210,102 +208,112 @@ class LibrarySongsPage extends ConsumerWidget {
             LibraryCollectionSection.allSongs => l10n.allSongsEmptyTitle,
           };
 
-          return CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _SongsPinnedHeaderDelegate(
-                  title: section.title(l10n),
-                  subtitle: collectionSubtitle,
-                  onBack: () => context.pop(),
-                  actions: [
-                    _TopIconButton(
-                      icon: Icons.radar_rounded,
-                      onTap: () {
-                        ref
-                            .read(libraryCatalogControllerProvider.notifier)
-                            .scanAllSources();
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    _TopIconButton(
-                      icon: Icons.add_link_rounded,
-                      onTap: () => showSourceTypePicker(context),
-                    ),
-                    const SizedBox(width: 8),
-                    _TopIconButton(
-                      icon: Icons.settings_rounded,
-                      onTap: () => context.push('/settings'),
-                    ),
+          return Column(
+            children: [
+              _SongsPinnedHeader(
+                title: section.title(l10n),
+                subtitle: collectionSubtitle,
+                onBack: () => context.pop(),
+                actions: [
+                  _TopIconButton(
+                    icon: Icons.radar_rounded,
+                    onTap: () {
+                      ref
+                          .read(libraryCatalogControllerProvider.notifier)
+                          .scanAllSources();
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  _TopIconButton(
+                    icon: Icons.add_link_rounded,
+                    onTap: () => showSourceTypePicker(context),
+                  ),
+                  const SizedBox(width: 8),
+                  _TopIconButton(
+                    icon: Icons.settings_rounded,
+                    onTap: () => context.push('/settings'),
+                  ),
+                ],
+              ),
+              Expanded(
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    if (tracks.isEmpty)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: studioListPaddingOf(
+                            context,
+                            const EdgeInsets.fromLTRB(28, 18, 28, 144),
+                          ),
+                          child: _EmptyGlassCard(
+                            title: emptyTitle,
+                            description: l10n.collectionEmptyDescription,
+                          ),
+                        ),
+                      )
+                    else
+                      SliverPadding(
+                        padding: studioListPaddingOf(
+                          context,
+                          const EdgeInsets.fromLTRB(28, 18, 28, 144),
+                        ),
+                        sliver: SliverList(
+                          delegate: SliverChildBuilderDelegate((
+                            context,
+                            index,
+                          ) {
+                            if (index.isOdd) {
+                              return const SizedBox(height: 8);
+                            }
+                            final trackIndex = index ~/ 2;
+                            return _SongCard(
+                              key: ValueKey('song:${tracks[trackIndex].id}'),
+                              song: tracks[trackIndex],
+                              isFavorite: catalog.favoriteTrackIds.contains(
+                                tracks[trackIndex].id,
+                              ),
+                              isLiked: catalog.likedTrackIds.contains(
+                                tracks[trackIndex].id,
+                              ),
+                              onTap: () {
+                                ref
+                                    .read(playerControllerProvider.notifier)
+                                    .playLibrarySong(
+                                      tracks[trackIndex],
+                                      playlist: tracks,
+                                    );
+                              },
+                              onFavorite: () {
+                                ref
+                                    .read(
+                                      libraryCatalogControllerProvider.notifier,
+                                    )
+                                    .toggleFavorite(tracks[trackIndex].id);
+                              },
+                              onLiked: () {
+                                ref
+                                    .read(
+                                      libraryCatalogControllerProvider.notifier,
+                                    )
+                                    .toggleLiked(tracks[trackIndex].id);
+                              },
+                              onMore: () {
+                                _showSongActionsSheet(
+                                  context,
+                                  ref,
+                                  tracks[trackIndex],
+                                  tracks,
+                                  catalog,
+                                );
+                              },
+                            );
+                          }, childCount: tracks.length * 2 - 1),
+                        ),
+                      ),
                   ],
                 ),
               ),
-              if (tracks.isEmpty)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: studioListPaddingOf(
-                      context,
-                      const EdgeInsets.fromLTRB(28, 18, 28, 144),
-                    ),
-                    child: _EmptyGlassCard(
-                      title: emptyTitle,
-                      description: l10n.collectionEmptyDescription,
-                    ),
-                  ),
-                )
-              else
-                SliverPadding(
-                  padding: studioListPaddingOf(
-                    context,
-                    const EdgeInsets.fromLTRB(28, 18, 28, 144),
-                  ),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      if (index.isOdd) {
-                        return const SizedBox(height: 8);
-                      }
-                      final trackIndex = index ~/ 2;
-                      return _SongCard(
-                        key: ValueKey('song:${tracks[trackIndex].id}'),
-                        song: tracks[trackIndex],
-                        isFavorite: catalog.favoriteTrackIds.contains(
-                          tracks[trackIndex].id,
-                        ),
-                        isLiked: catalog.likedTrackIds.contains(
-                          tracks[trackIndex].id,
-                        ),
-                        onTap: () {
-                          ref
-                              .read(playerControllerProvider.notifier)
-                              .playLibrarySong(
-                                tracks[trackIndex],
-                                playlist: tracks,
-                              );
-                        },
-                        onFavorite: () {
-                          ref
-                              .read(libraryCatalogControllerProvider.notifier)
-                              .toggleFavorite(tracks[trackIndex].id);
-                        },
-                        onLiked: () {
-                          ref
-                              .read(libraryCatalogControllerProvider.notifier)
-                              .toggleLiked(tracks[trackIndex].id);
-                        },
-                        onMore: () {
-                          _showSongActionsSheet(
-                            context,
-                            ref,
-                            tracks[trackIndex],
-                            tracks,
-                            catalog,
-                          );
-                        },
-                      );
-                    }, childCount: tracks.length * 2 - 1),
-                  ),
-                ),
             ],
           );
         },
@@ -319,15 +327,15 @@ class LibraryBrowserPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    _GlacierPalette.sync(context);
     final browserAsync = ref.watch(libraryControllerProvider);
     final catalog = ref.watch(libraryCatalogControllerProvider).valueOrNull;
     final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return _GlacierScreen(
       child: browserAsync.when(
         loading: () => Center(
-          child: CircularProgressIndicator(color: _GlacierPalette.primary),
+          child: CircularProgressIndicator(color: colorScheme.primary),
         ),
         error: (error, _) => _GlacierCenteredMessage(message: error.toString()),
         data: (browser) {
@@ -338,8 +346,8 @@ class LibraryBrowserPage extends ConsumerWidget {
           );
 
           return RefreshIndicator(
-            color: _GlacierPalette.primary,
-            backgroundColor: _GlacierPalette.surface,
+            color: colorScheme.primary,
+            backgroundColor: colorScheme.surface,
             onRefresh: controller.refresh,
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -359,7 +367,7 @@ class LibraryBrowserPage extends ConsumerWidget {
                               child: Text(
                                 l10n.browserTitle,
                                 style: _glacierTextStyle(
-                                  color: _GlacierPalette.onSurface,
+                                  color: colorScheme.onSurface,
                                   size: 32,
                                   weight: FontWeight.w700,
                                   height: 1.05,
@@ -394,7 +402,7 @@ class LibraryBrowserPage extends ConsumerWidget {
                           browser.selectedSource?.name ??
                               _noActiveSourceLabel(context),
                           style: _glacierTextStyle(
-                            color: _GlacierPalette.onSurfaceVariant,
+                            color: colorScheme.onSurfaceVariant,
                             size: 15,
                             weight: FontWeight.w500,
                           ),
@@ -558,85 +566,86 @@ Future<void> _showSongActionsSheet(
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
     builder: (sheetContext) {
+      final sheetColorScheme = Theme.of(sheetContext).colorScheme;
       return SafeArea(
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(studioRadiusOf(context, 28)),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
-                decoration: BoxDecoration(
-                  color: _GlacierPalette.surface.withValues(alpha: 0.94),
-                  borderRadius: BorderRadius.circular(
-                    studioRadiusOf(context, 28),
+          child: Material(
+            color: sheetColorScheme.surfaceContainerHigh.withValues(
+              alpha: 0.96,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(studioRadiusOf(context, 28)),
+              side: BorderSide(
+                color: sheetColorScheme.outlineVariant.withValues(alpha: 0.45),
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _TrackActionHeader(track: song),
+                  const SizedBox(height: 10),
+                  _TrackActionTile(
+                    icon: Icons.play_arrow_rounded,
+                    label: l10n.playAction,
+                    onTap: () async {
+                      Navigator.of(sheetContext).pop();
+                      await ref
+                          .read(playerControllerProvider.notifier)
+                          .playLibrarySong(song, playlist: playlist);
+                    },
                   ),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _TrackActionHeader(track: song),
-                    const SizedBox(height: 10),
-                    _TrackActionTile(
-                      icon: Icons.play_arrow_rounded,
-                      label: l10n.playAction,
-                      onTap: () async {
-                        Navigator.of(sheetContext).pop();
-                        await ref
-                            .read(playerControllerProvider.notifier)
-                            .playLibrarySong(song, playlist: playlist);
-                      },
-                    ),
-                    _TrackActionTile(
-                      icon: Icons.queue_play_next_rounded,
-                      label: l10n.playNextAction,
-                      onTap: () async {
-                        Navigator.of(sheetContext).pop();
-                        await ref
-                            .read(playerControllerProvider.notifier)
-                            .addToPlayNext(song);
-                      },
-                    ),
-                    _TrackActionTile(
-                      icon: isFavorite
-                          ? Icons.bookmark_remove_rounded
-                          : Icons.bookmark_add_rounded,
-                      label: isFavorite
-                          ? l10n.removeFromFavoritesAction
-                          : l10n.addToFavoritesAction,
-                      onTap: () async {
-                        Navigator.of(sheetContext).pop();
-                        await ref
-                            .read(libraryCatalogControllerProvider.notifier)
-                            .toggleFavorite(song.id);
-                      },
-                    ),
-                    _TrackActionTile(
-                      icon: isLiked
-                          ? Icons.favorite_rounded
-                          : Icons.favorite_border_rounded,
-                      label: isLiked
-                          ? l10n.removeFromLikedAction
-                          : l10n.addToLikedAction,
-                      onTap: () async {
-                        Navigator.of(sheetContext).pop();
-                        await ref
-                            .read(libraryCatalogControllerProvider.notifier)
-                            .toggleLiked(song.id);
-                      },
-                    ),
-                    _TrackActionTile(
-                      icon: Icons.info_outline_rounded,
-                      label: l10n.songDetailsTitle,
-                      onTap: () {
-                        Navigator.of(sheetContext).pop();
-                        _showTrackDetailsSheet(context, song);
-                      },
-                    ),
-                  ],
-                ),
+                  _TrackActionTile(
+                    icon: Icons.queue_play_next_rounded,
+                    label: l10n.playNextAction,
+                    onTap: () async {
+                      Navigator.of(sheetContext).pop();
+                      await ref
+                          .read(playerControllerProvider.notifier)
+                          .addToPlayNext(song);
+                    },
+                  ),
+                  _TrackActionTile(
+                    icon: isFavorite
+                        ? Icons.bookmark_remove_rounded
+                        : Icons.bookmark_add_rounded,
+                    label: isFavorite
+                        ? l10n.removeFromFavoritesAction
+                        : l10n.addToFavoritesAction,
+                    onTap: () async {
+                      Navigator.of(sheetContext).pop();
+                      await ref
+                          .read(libraryCatalogControllerProvider.notifier)
+                          .toggleFavorite(song.id);
+                    },
+                  ),
+                  _TrackActionTile(
+                    icon: isLiked
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    label: isLiked
+                        ? l10n.removeFromLikedAction
+                        : l10n.addToLikedAction,
+                    onTap: () async {
+                      Navigator.of(sheetContext).pop();
+                      await ref
+                          .read(libraryCatalogControllerProvider.notifier)
+                          .toggleLiked(song.id);
+                    },
+                  ),
+                  _TrackActionTile(
+                    icon: Icons.info_outline_rounded,
+                    label: l10n.songDetailsTitle,
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      _showTrackDetailsSheet(context, song);
+                    },
+                  ),
+                ],
               ),
             ),
           ),
@@ -655,48 +664,45 @@ Future<void> _showTrackDetailsSheet(BuildContext context, LibrarySong song) {
     isScrollControlled: true,
     builder: (sheetContext) {
       final radius = studioRadiusOf(sheetContext, 24);
+      final sheetColorScheme = Theme.of(sheetContext).colorScheme;
       return SafeArea(
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(radius),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: _GlacierPalette.surface.withValues(alpha: 0.94),
-                  borderRadius: BorderRadius.circular(radius),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      song.displayTitle,
-                      style: _glacierTextStyle(
-                        color: _GlacierPalette.onSurface,
-                        size: 22,
-                        weight: FontWeight.w700,
-                      ),
+          child: Material(
+            color: sheetColorScheme.surfaceContainerHigh.withValues(
+              alpha: 0.96,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(radius),
+              side: BorderSide(
+                color: sheetColorScheme.outlineVariant.withValues(alpha: 0.45),
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    song.displayTitle,
+                    style: _glacierTextStyle(
+                      color: sheetColorScheme.onSurface,
+                      size: 22,
+                      weight: FontWeight.w700,
                     ),
-                    const SizedBox(height: 12),
-                    _DetailRow(
-                      label: l10n.artistLabel,
-                      value: song.displayArtist,
-                    ),
-                    _DetailRow(
-                      label: l10n.albumLabel,
-                      value: song.displayAlbum,
-                    ),
-                    _DetailRow(label: l10n.sourceLabel, value: song.sourceName),
-                    _DetailRow(
-                      label: l10n.filePathLabel,
-                      value: song.remotePath,
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 12),
+                  _DetailRow(
+                    label: l10n.artistLabel,
+                    value: song.displayArtist,
+                  ),
+                  _DetailRow(label: l10n.albumLabel, value: song.displayAlbum),
+                  _DetailRow(label: l10n.sourceLabel, value: song.sourceName),
+                  _DetailRow(label: l10n.filePathLabel, value: song.remotePath),
+                ],
               ),
             ),
           ),
@@ -714,7 +720,7 @@ class _GlacierScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: _GlacierPalette.background,
+      color: Theme.of(context).colorScheme.surface,
       child: SafeArea(bottom: false, child: child),
     );
   }
@@ -729,13 +735,14 @@ class _TopIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final buttonRadius = studioRadiusOf(context, 14);
+    final colorScheme = Theme.of(context).colorScheme;
     return InkWell(
       borderRadius: BorderRadius.circular(buttonRadius),
       onTap: onTap,
       child: SizedBox(
         width: 38,
         height: 38,
-        child: Icon(icon, color: _GlacierPalette.primary, size: 22),
+        child: Icon(icon, color: colorScheme.primary, size: 22),
       ),
     );
   }
@@ -750,8 +757,9 @@ class _HeaderIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final buttonRadius = studioRadiusOf(context, 14);
+    final colorScheme = Theme.of(context).colorScheme;
     return Material(
-      color: _GlacierPalette.surface.withValues(alpha: 0.58),
+      color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.8),
       borderRadius: BorderRadius.circular(buttonRadius),
       child: InkWell(
         borderRadius: BorderRadius.circular(buttonRadius),
@@ -759,7 +767,7 @@ class _HeaderIconButton extends StatelessWidget {
         child: SizedBox(
           width: 42,
           height: 42,
-          child: Icon(icon, color: _GlacierPalette.primary),
+          child: Icon(icon, color: colorScheme.primary),
         ),
       ),
     );
@@ -781,13 +789,14 @@ class _AccentPillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final pillRadius = studioRadiusOf(context, 16);
     final background = outlined
         ? Colors.transparent
-        : _GlacierPalette.primary.withValues(alpha: 0.12);
+        : colorScheme.primary.withValues(alpha: 0.12);
     final border = outlined
-        ? _GlacierPalette.primary.withValues(alpha: 0.22)
-        : _GlacierPalette.primary.withValues(alpha: 0.14);
+        ? colorScheme.primary.withValues(alpha: 0.22)
+        : colorScheme.primary.withValues(alpha: 0.14);
 
     return Material(
       color: background,
@@ -807,12 +816,12 @@ class _AccentPillButton extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 16, color: _GlacierPalette.primary),
+              Icon(icon, size: 16, color: colorScheme.primary),
               const SizedBox(width: 8),
               Text(
                 label,
                 style: _glacierTextStyle(
-                  color: _GlacierPalette.primary,
+                  color: colorScheme.primary,
                   size: 13,
                   weight: FontWeight.w600,
                 ),
@@ -842,71 +851,67 @@ class _LibraryCategoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final cardRadius = studioRadiusOf(context, 20);
     final iconRadius = studioRadiusOf(context, 14);
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(cardRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Material(
-          color: _GlacierPalette.surface.withValues(alpha: 0.62),
-          child: InkWell(
-            onTap: onTap,
-            child: Container(
-              padding: studioListPaddingOf(
-                context,
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    return Material(
+      color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.94),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(cardRadius),
+        side: BorderSide(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: studioListPaddingOf(
+            context,
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(iconRadius),
+                  color: accent.withValues(alpha: 0.12),
+                ),
+                child: Icon(icon, size: 22, color: accent),
               ),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(cardRadius),
-                border: Border.all(
-                  color: _GlacierPalette.outline.withValues(alpha: 0.16),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: _glacierTextStyle(
+                        color: colorScheme.onSurface,
+                        size: 16,
+                        weight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: _glacierTextStyle(
+                        color: colorScheme.onSurfaceVariant,
+                        size: 12,
+                        weight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(iconRadius),
-                      color: accent.withValues(alpha: 0.12),
-                    ),
-                    child: Icon(icon, size: 22, color: accent),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: _glacierTextStyle(
-                            color: _GlacierPalette.onSurface,
-                            size: 16,
-                            weight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          subtitle,
-                          style: _glacierTextStyle(
-                            color: _GlacierPalette.onSurfaceVariant,
-                            size: 12,
-                            weight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    color: _GlacierPalette.onSurfaceVariant,
-                    size: 20,
-                  ),
-                ],
+              Icon(
+                Icons.chevron_right_rounded,
+                color: colorScheme.onSurfaceVariant,
+                size: 20,
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -914,8 +919,8 @@ class _LibraryCategoryCard extends StatelessWidget {
   }
 }
 
-class _SongsPinnedHeaderDelegate extends SliverPersistentHeaderDelegate {
-  _SongsPinnedHeaderDelegate({
+class _SongsPinnedHeader extends StatelessWidget {
+  const _SongsPinnedHeader({
     required this.title,
     required this.subtitle,
     required this.onBack,
@@ -928,70 +933,54 @@ class _SongsPinnedHeaderDelegate extends SliverPersistentHeaderDelegate {
   final List<Widget> actions;
 
   @override
-  double get minExtent => 92;
-
-  @override
-  double get maxExtent => 110;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      color: _GlacierPalette.background.withValues(alpha: 0.96),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: studioListPaddingOf(
-            context,
-            const EdgeInsets.fromLTRB(28, 14, 28, 10),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _HeaderIconButton(icon: Icons.arrow_back_rounded, onTap: onBack),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: _glacierTextStyle(
-                        color: _GlacierPalette.onSurface,
-                        size: 27,
-                        weight: FontWeight.w700,
-                        height: 1.06,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: _glacierTextStyle(
-                        color: _GlacierPalette.onSurfaceVariant,
-                        size: 13,
-                        weight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+      color: colorScheme.surface.withValues(alpha: 0.96),
+      padding: studioListPaddingOf(
+        context,
+        const EdgeInsets.fromLTRB(28, 12, 28, 8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          _HeaderIconButton(icon: Icons.arrow_back_rounded, onTap: onBack),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _glacierTextStyle(
+                    color: colorScheme.onSurface,
+                    size: 22,
+                    weight: FontWeight.w700,
+                    height: 1.12,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Row(mainAxisSize: MainAxisSize.min, children: actions),
-            ],
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _glacierTextStyle(
+                    color: colorScheme.onSurfaceVariant,
+                    size: 13,
+                    weight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+          const SizedBox(width: 8),
+          Row(mainAxisSize: MainAxisSize.min, children: actions),
+        ],
       ),
     );
-  }
-
-  @override
-  bool shouldRebuild(covariant _SongsPinnedHeaderDelegate oldDelegate) {
-    return oldDelegate.title != title || oldDelegate.subtitle != subtitle;
   }
 }
 
@@ -1017,11 +1006,14 @@ class _SongCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
     final cardRadius = studioRadiusOf(context, 22);
     final coverSize = studioListIconBoxSizeOf(context).clamp(36.0, 46.0);
     final isCurrentTrack = ref.watch(isCurrentTrackIdProvider(song.id));
     return Material(
-      color: _GlacierPalette.surface.withValues(alpha: 0.7),
+      color: isCurrentTrack
+          ? colorScheme.primaryContainer.withValues(alpha: 0.45)
+          : colorScheme.surfaceContainerHigh.withValues(alpha: 0.8),
       borderRadius: BorderRadius.circular(cardRadius),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -1051,7 +1043,7 @@ class _SongCard extends ConsumerWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: _glacierTextStyle(
-                        color: _GlacierPalette.onSurface,
+                        color: colorScheme.onSurface,
                         size: 14,
                         weight: FontWeight.w600,
                       ),
@@ -1062,7 +1054,7 @@ class _SongCard extends ConsumerWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: _glacierTextStyle(
-                        color: _GlacierPalette.onSurfaceVariant,
+                        color: colorScheme.onSurfaceVariant,
                         size: 11,
                         weight: FontWeight.w500,
                       ),
@@ -1138,6 +1130,7 @@ class _CompactIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final buttonRadius = studioRadiusOf(context, 16);
     return Material(
       color: Colors.transparent,
@@ -1151,9 +1144,7 @@ class _CompactIconButton extends StatelessWidget {
           child: Icon(
             icon,
             size: 20,
-            color: active
-                ? _GlacierPalette.primary
-                : _GlacierPalette.onSurfaceVariant,
+            color: active ? colorScheme.primary : colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -1175,11 +1166,12 @@ class _SourceChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final chipRadius = studioRadiusOf(context, 16);
     return Material(
       color: selected
-          ? _GlacierPalette.primary.withValues(alpha: 0.12)
-          : _GlacierPalette.surface.withValues(alpha: 0.6),
+          ? colorScheme.primary.withValues(alpha: 0.12)
+          : colorScheme.surfaceContainerHigh.withValues(alpha: 0.6),
       borderRadius: BorderRadius.circular(chipRadius),
       child: InkWell(
         borderRadius: BorderRadius.circular(chipRadius),
@@ -1196,8 +1188,8 @@ class _SourceChip extends StatelessWidget {
             label,
             style: _glacierTextStyle(
               color: selected
-                  ? _GlacierPalette.primary
-                  : _GlacierPalette.onSurfaceVariant,
+                  ? colorScheme.primary
+                  : colorScheme.onSurfaceVariant,
               size: 13,
               weight: FontWeight.w600,
             ),
@@ -1224,53 +1216,51 @@ class _PathToolbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: _GlacierPalette.surface.withValues(alpha: 0.62),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: _GlacierPalette.outline.withValues(alpha: 0.4),
+    final colorScheme = Theme.of(context).colorScheme;
+    return Material(
+      color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.94),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              path,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: _glacierTextStyle(
+                color: colorScheme.onSurface,
+                size: 15,
+                weight: FontWeight.w600,
+              ),
             ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                path,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: _glacierTextStyle(
-                  color: _GlacierPalette.onSurface,
-                  size: 15,
-                  weight: FontWeight.w600,
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                _AccentPillButton(
+                  label: l10n.upAction,
+                  icon: Icons.arrow_upward_rounded,
+                  outlined: true,
+                  onTap: onUp ?? () {},
                 ),
-              ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  _AccentPillButton(
-                    label: l10n.upAction,
-                    icon: Icons.arrow_upward_rounded,
-                    outlined: true,
-                    onTap: onUp ?? () {},
-                  ),
-                  _AccentPillButton(
-                    label: l10n.refreshAction,
-                    icon: Icons.refresh_rounded,
-                    outlined: true,
-                    onTap: onRefresh,
-                  ),
-                ],
-              ),
-            ],
-          ),
+                _AccentPillButton(
+                  label: l10n.refreshAction,
+                  icon: Icons.refresh_rounded,
+                  outlined: true,
+                  onTap: onRefresh,
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -1291,6 +1281,7 @@ class _BrowserEntryCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
     final cardRadius = studioRadiusOf(context, 22);
     final isAudio = entry.kind == RemoteEntryKind.audio;
     final isCurrentTrack =
@@ -1313,8 +1304,8 @@ class _BrowserEntryCard extends ConsumerWidget {
 
     return Material(
       color: isCurrentTrack
-          ? _GlacierPalette.primary.withValues(alpha: 0.14)
-          : _GlacierPalette.surface.withValues(alpha: 0.7),
+          ? colorScheme.primaryContainer.withValues(alpha: 0.45)
+          : colorScheme.surfaceContainerHigh.withValues(alpha: 0.8),
       borderRadius: BorderRadius.circular(cardRadius),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -1341,7 +1332,7 @@ class _BrowserEntryCard extends ConsumerWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: _glacierTextStyle(
-                        color: _GlacierPalette.onSurface,
+                        color: colorScheme.onSurface,
                         size: 15,
                         weight: FontWeight.w600,
                       ),
@@ -1354,7 +1345,7 @@ class _BrowserEntryCard extends ConsumerWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: _glacierTextStyle(
-                        color: _GlacierPalette.onSurfaceVariant,
+                        color: colorScheme.onSurfaceVariant,
                         size: 13,
                         weight: FontWeight.w500,
                       ),
@@ -1366,7 +1357,7 @@ class _BrowserEntryCard extends ConsumerWidget {
                 entry.isDirectory
                     ? Icons.chevron_right_rounded
                     : Icons.play_arrow_rounded,
-                color: _GlacierPalette.onSurfaceVariant,
+                color: colorScheme.onSurfaceVariant,
               ),
             ],
           ),
@@ -1389,6 +1380,7 @@ class _EntryLeading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     if (entry.kind == RemoteEntryKind.audio) {
       if (track != null) {
         return _LibraryTrackThumbnail(
@@ -1418,9 +1410,9 @@ class _EntryLeading extends StatelessWidget {
       height: 56,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(iconRadius),
-        color: _GlacierPalette.primary.withValues(alpha: 0.12),
+        color: colorScheme.primary.withValues(alpha: 0.12),
       ),
-      child: Icon(icon, color: _GlacierPalette.primary),
+      child: Icon(icon, color: colorScheme.primary),
     );
   }
 }
@@ -1432,59 +1424,55 @@ class _TrackActionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final cardRadius = studioRadiusOf(context, 22);
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(cardRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Container(
-          padding: studioListPaddingOf(context, const EdgeInsets.all(16)),
-          decoration: BoxDecoration(
-            color: _GlacierPalette.primary.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(cardRadius),
-            border: Border.all(
-              color: _GlacierPalette.primary.withValues(alpha: 0.18),
+    return Material(
+      color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(cardRadius),
+        side: BorderSide(color: colorScheme.primary.withValues(alpha: 0.22)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        padding: studioListPaddingOf(context, const EdgeInsets.all(16)),
+        child: Row(
+          children: [
+            _LibraryTrackThumbnail(
+              song: track,
+              subtitle: track.displayArtist,
+              size: 56,
+              borderRadius: 18,
             ),
-          ),
-          child: Row(
-            children: [
-              _LibraryTrackThumbnail(
-                song: track,
-                subtitle: track.displayArtist,
-                size: 56,
-                borderRadius: 18,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      track.displayTitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: _glacierTextStyle(
-                        color: _GlacierPalette.onSurface,
-                        size: 16,
-                        weight: FontWeight.w700,
-                      ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    track.displayTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: _glacierTextStyle(
+                      color: colorScheme.onSurface,
+                      size: 16,
+                      weight: FontWeight.w700,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${track.displayArtist} · ${track.displayAlbum}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: _glacierTextStyle(
-                        color: _GlacierPalette.onSurfaceVariant,
-                        size: 12,
-                        weight: FontWeight.w500,
-                      ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${track.displayArtist} · ${track.displayAlbum}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: _glacierTextStyle(
+                      color: colorScheme.onSurfaceVariant,
+                      size: 12,
+                      weight: FontWeight.w500,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1504,12 +1492,13 @@ class _TrackActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return ListTile(
-      leading: Icon(icon, color: _GlacierPalette.primary),
+      leading: Icon(icon, color: colorScheme.primary),
       title: Text(
         label,
         style: _glacierTextStyle(
-          color: _GlacierPalette.onSurface,
+          color: colorScheme.onSurface,
           size: 15,
           weight: FontWeight.w500,
         ),
@@ -1527,6 +1516,7 @@ class _DetailRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
@@ -1535,7 +1525,7 @@ class _DetailRow extends StatelessWidget {
           Text(
             label,
             style: _glacierTextStyle(
-              color: _GlacierPalette.onSurfaceVariant,
+              color: colorScheme.onSurfaceVariant,
               size: 12,
               weight: FontWeight.w600,
             ),
@@ -1544,7 +1534,7 @@ class _DetailRow extends StatelessWidget {
           Text(
             value,
             style: _glacierTextStyle(
-              color: _GlacierPalette.onSurface,
+              color: colorScheme.onSurface,
               size: 14,
               weight: FontWeight.w500,
             ),
@@ -1568,41 +1558,39 @@ class _EmptyGlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(compact ? 24 : 32),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Container(
-          padding: EdgeInsets.all(compact ? 18 : 24),
-          decoration: BoxDecoration(
-            color: _GlacierPalette.surface.withValues(alpha: 0.62),
-            borderRadius: BorderRadius.circular(compact ? 24 : 32),
-            border: Border.all(
-              color: _GlacierPalette.outline.withValues(alpha: 0.4),
+    final colorScheme = Theme.of(context).colorScheme;
+    return Material(
+      color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.94),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(compact ? 24 : 32),
+        side: BorderSide(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        padding: EdgeInsets.all(compact ? 18 : 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: _glacierTextStyle(
+                color: colorScheme.onSurface,
+                size: compact ? 20 : 24,
+                weight: FontWeight.w700,
+              ),
             ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: _glacierTextStyle(
-                  color: _GlacierPalette.onSurface,
-                  size: compact ? 20 : 24,
-                  weight: FontWeight.w700,
-                ),
+            const SizedBox(height: 10),
+            Text(
+              description,
+              style: _glacierTextStyle(
+                color: colorScheme.onSurfaceVariant,
+                size: 14,
+                weight: FontWeight.w500,
               ),
-              const SizedBox(height: 10),
-              Text(
-                description,
-                style: _glacierTextStyle(
-                  color: _GlacierPalette.onSurfaceVariant,
-                  size: 14,
-                  weight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1616,6 +1604,7 @@ class _GlacierCenteredMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -1623,36 +1612,13 @@ class _GlacierCenteredMessage extends StatelessWidget {
           message,
           textAlign: TextAlign.center,
           style: _glacierTextStyle(
-            color: _GlacierPalette.onSurface,
+            color: colorScheme.onSurface,
             size: 15,
             weight: FontWeight.w500,
           ),
         ),
       ),
     );
-  }
-}
-
-class _GlacierPalette {
-  static Color background = const Color(0xFF0A0E1A);
-  static Color surface = const Color(0xFF0F1524);
-  static Color primary = const Color(0xFF7DD3FC);
-  static Color secondary = const Color(0xFF88B4CC);
-  static Color tertiary = const Color(0xFFC8A0F0);
-  static Color onSurface = const Color(0xFFE0E8F0);
-  static Color onSurfaceVariant = const Color(0xFFA0B4C4);
-  static Color outline = const Color(0xFF4A6070);
-
-  static void sync(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    background = scheme.surface;
-    surface = scheme.surfaceContainer;
-    primary = scheme.primary;
-    secondary = scheme.secondary;
-    tertiary = scheme.tertiary;
-    onSurface = scheme.onSurface;
-    onSurfaceVariant = scheme.onSurfaceVariant;
-    outline = scheme.outline;
   }
 }
 

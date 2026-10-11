@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -75,7 +74,10 @@ class StudioBackdrop extends StatelessWidget {
       builder: (context, constraints) {
         final width = constraints.maxWidth;
         final contentWidth = maxContentWidth ?? width;
-        final studioTheme = Theme.of(context).extension<StudioThemeData>();
+        final theme = Theme.of(context);
+        final scheme = theme.colorScheme;
+        final isDark = theme.brightness == Brightness.dark;
+        final studioTheme = theme.extension<StudioThemeData>();
         final backgroundImageSource = studioTheme?.backgroundImageSource;
 
         return Stack(
@@ -86,10 +88,10 @@ class StudioBackdrop extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: const [
-                    _GlacierPalette.background,
-                    _GlacierPalette.surface,
-                    _GlacierPalette.background,
+                  colors: [
+                    scheme.surface,
+                    scheme.surfaceContainerLowest,
+                    scheme.surface,
                   ],
                 ),
               ),
@@ -109,7 +111,7 @@ class StudioBackdrop extends StatelessWidget {
               top: -140,
               child: _BackdropGlow(
                 size: math.max(280, width * 0.56),
-                color: _GlacierPalette.primary.withValues(alpha: 0.24),
+                color: scheme.primary.withValues(alpha: isDark ? 0.20 : 0.08),
               ),
             ),
             Positioned(
@@ -117,7 +119,7 @@ class StudioBackdrop extends StatelessWidget {
               top: 120,
               child: _BackdropGlow(
                 size: math.max(220, width * 0.42),
-                color: _GlacierPalette.tertiary.withValues(alpha: 0.18),
+                color: scheme.tertiary.withValues(alpha: isDark ? 0.14 : 0.06),
               ),
             ),
             Positioned.fill(
@@ -128,9 +130,9 @@ class StudioBackdrop extends StatelessWidget {
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        _GlacierPalette.background.withValues(alpha: 0.08),
-                        _GlacierPalette.background.withValues(alpha: 0),
-                        _GlacierPalette.background.withValues(alpha: 0.1),
+                        scheme.surface.withValues(alpha: 0.06),
+                        scheme.surface.withValues(alpha: 0),
+                        scheme.surface.withValues(alpha: 0.08),
                       ],
                     ),
                   ),
@@ -172,34 +174,24 @@ class StudioPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final surface = tint ?? _GlacierPalette.surface;
+    final scheme = Theme.of(context).colorScheme;
+    final surface = tint ?? scheme.surfaceContainerHigh;
     final effectiveRadius = studioRadiusOf(context, radius);
     final effectivePadding = studioPaddingOf(context, padding);
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(effectiveRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: surface.withValues(alpha: 0.74),
-            borderRadius: BorderRadius.circular(effectiveRadius),
-            border: Border.all(
-              color: _GlacierPalette.primary.withValues(alpha: 0.12),
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x22000000),
-                blurRadius: 24,
-                offset: Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Align(
-            alignment: alignment,
-            child: Padding(padding: effectivePadding, child: child),
-          ),
+    return Material(
+      color: surface.withValues(alpha: 0.94),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(effectiveRadius),
+        side: BorderSide(
+          color: scheme.outlineVariant.withValues(alpha: 0.45),
+          width: 1,
         ),
+      ),
+      child: Align(
+        alignment: alignment,
+        child: Padding(padding: effectivePadding, child: child),
       ),
     );
   }
@@ -422,12 +414,13 @@ class StudioPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final background = prominent
-        ? _GlacierPalette.primary.withValues(alpha: 0.12)
-        : _GlacierPalette.surfaceContainerHighest.withValues(alpha: 0.78);
+        ? scheme.primaryContainer
+        : scheme.surfaceContainerHighest.withValues(alpha: 0.78);
     final foreground = prominent
-        ? _GlacierPalette.primary
-        : _GlacierPalette.onSurfaceVariant;
+        ? scheme.onPrimaryContainer
+        : scheme.onSurfaceVariant;
 
     return Container(
       padding: studioPaddingOf(
@@ -438,7 +431,7 @@ class StudioPill extends StatelessWidget {
         color: background,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: _GlacierPalette.primary.withValues(alpha: 0.12),
+          color: scheme.outlineVariant.withValues(alpha: 0.45),
         ),
       ),
       child: Row(
@@ -446,7 +439,7 @@ class StudioPill extends StatelessWidget {
         children: [
           if (icon != null) ...[
             Icon(icon, size: 15, color: foreground),
-            StudioGap(width: 6),
+            const StudioGap(width: 6),
           ],
           Text(
             label,
@@ -478,6 +471,7 @@ class StudioSectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -490,7 +484,7 @@ class StudioSectionTitle extends StatelessWidget {
                 Text(
                   eyebrow!,
                   style: theme.textTheme.labelMedium?.copyWith(
-                    color: _GlacierPalette.primary,
+                    color: scheme.primary,
                     letterSpacing: 0.8,
                   ),
                 ),
@@ -502,7 +496,7 @@ class StudioSectionTitle extends StatelessWidget {
                 Text(
                   description!,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: _GlacierPalette.onSurfaceVariant,
+                    color: scheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -533,14 +527,15 @@ class StudioStatBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
 
     return Container(
       padding: studioPaddingOf(context, const EdgeInsets.all(16)),
       decoration: BoxDecoration(
-        color: _GlacierPalette.surface.withValues(alpha: 0.72),
+        color: scheme.surfaceContainerHigh.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: _GlacierPalette.primary.withValues(alpha: 0.12),
+          color: scheme.outlineVariant.withValues(alpha: 0.35),
         ),
       ),
       child: Row(
@@ -551,10 +546,10 @@ class StudioStatBlock extends StatelessWidget {
               width: 34,
               height: 34,
               decoration: BoxDecoration(
-                color: _GlacierPalette.primary.withValues(alpha: 0.12),
+                color: scheme.primary.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Icon(icon, size: 18, color: _GlacierPalette.primary),
+              child: Icon(icon, size: 18, color: scheme.primary),
             ),
             const StudioGap(width: 10),
           ],
@@ -572,7 +567,7 @@ class StudioStatBlock extends StatelessWidget {
               Text(
                 label,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: _GlacierPalette.onSurfaceVariant,
+                  color: scheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -581,15 +576,6 @@ class StudioStatBlock extends StatelessWidget {
       ),
     );
   }
-}
-
-class _GlacierPalette {
-  static const background = Color(0xFF0A0E1A);
-  static const surface = Color(0xFF0F1524);
-  static const surfaceContainerHighest = Color(0xFF202C42);
-  static const primary = Color(0xFF7DD3FC);
-  static const tertiary = Color(0xFFC8A0F0);
-  static const onSurfaceVariant = Color(0xFFA0B4C4);
 }
 
 class _BackdropGlow extends StatelessWidget {

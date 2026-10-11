@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -33,79 +32,75 @@ Future<void> showSourceTypePicker(BuildContext context) async {
       return SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHigh.withValues(
-                    alpha: isDark ? 0.9 : 0.96,
-                  ),
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(
-                    color: scheme.outlineVariant.withValues(
-                      alpha: isDark ? 0.42 : 0.62,
-                    ),
-                  ),
+          child: Material(
+            color: scheme.surfaceContainerHigh.withValues(
+              alpha: isDark ? 0.94 : 0.98,
+            ),
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(28),
+              side: BorderSide(
+                color: scheme.outlineVariant.withValues(
+                  alpha: isDark ? 0.42 : 0.62,
                 ),
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.84,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l10n.settingsAddSourceTitle,
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              color: scheme.primary,
-                              fontWeight: FontWeight.w700,
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.84,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.settingsAddSourceTitle,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: scheme.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      l10n.sourceTypeSelectionTitle,
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      l10n.sourceTypeSelectionDescription,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Expanded(
+                      child: GridView.builder(
+                        itemCount: protocols.length,
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              mainAxisSpacing: 12,
+                              crossAxisSpacing: 12,
+                              childAspectRatio: 1.25,
                             ),
+                        itemBuilder: (context, index) {
+                          final protocol = protocols[index];
+                          return _SourceTypeGridCard(
+                            protocol: protocol,
+                            onTap: () {
+                              Navigator.of(sheetContext).pop();
+                              router.push(
+                                '/settings/add-source/${protocol.storageValue}',
+                              );
+                            },
+                          );
+                        },
                       ),
-                      const SizedBox(height: 14),
-                      Text(
-                        l10n.sourceTypeSelectionTitle,
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        l10n.sourceTypeSelectionDescription,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      Expanded(
-                        child: GridView.builder(
-                          itemCount: protocols.length,
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                mainAxisSpacing: 12,
-                                crossAxisSpacing: 12,
-                                childAspectRatio: 1.25,
-                              ),
-                          itemBuilder: (context, index) {
-                            final protocol = protocols[index];
-                            return _SourceTypeGridCard(
-                              protocol: protocol,
-                              onTap: () {
-                                Navigator.of(sheetContext).pop();
-                                router.push(
-                                  '/settings/add-source/${protocol.storageValue}',
-                                );
-                              },
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -303,342 +298,318 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
                   ),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 420),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(28),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-                        child: Container(
-                          constraints: BoxConstraints(maxHeight: maxCardHeight),
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: colorScheme.surface.withValues(
-                              alpha: isDark ? 0.75 : 0.94,
-                            ),
-                            borderRadius: BorderRadius.circular(28),
-                            border: Border.all(
-                              color: colorScheme.primary.withValues(
-                                alpha: isDark ? 0.2 : 0.3,
-                              ),
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: colorScheme.primary.withValues(
-                                  alpha: 0.08,
-                                ),
-                                blurRadius: 40,
-                                spreadRadius: 2,
-                              ),
-                            ],
+                    child: Material(
+                      color: colorScheme.surfaceContainerHigh.withValues(
+                        alpha: isDark ? 0.94 : 0.98,
+                      ),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(28),
+                        side: BorderSide(
+                          color: colorScheme.outlineVariant.withValues(
+                            alpha: isDark ? 0.42 : 0.62,
                           ),
-                          child: Form(
-                            key: _formKey,
-                            child: Column(
-                              children: [
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Container(
-                                      width: 48,
-                                      height: 48,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
+                        ),
+                      ),
+                      child: Container(
+                        constraints: BoxConstraints(maxHeight: maxCardHeight),
+                        padding: const EdgeInsets.all(20),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    width: 48,
+                                    height: 48,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: colorScheme.primary.withValues(
+                                        alpha: 0.1,
+                                      ),
+                                      border: Border.all(
                                         color: colorScheme.primary.withValues(
-                                          alpha: 0.1,
-                                        ),
-                                        border: Border.all(
-                                          color: colorScheme.primary.withValues(
-                                            alpha: 0.25,
-                                          ),
+                                          alpha: 0.25,
                                         ),
                                       ),
-                                      child: Icon(
-                                        _protocolIcon(_protocol),
-                                        color: colorScheme.primary,
-                                      ),
                                     ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            isEditing
-                                                ? l10n.settingsEditSourceTitle
-                                                : l10n.settingsAddSourceTitle,
-                                            style: theme.textTheme.titleMedium
-                                                ?.copyWith(
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            _sourceTypeTitle(l10n, _protocol),
-                                            style: theme.textTheme.bodySmall
-                                                ?.copyWith(
-                                                  color: colorScheme.primary,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                          ),
-                                        ],
-                                      ),
+                                    child: Icon(
+                                      _protocolIcon(_protocol),
+                                      color: colorScheme.primary,
                                     ),
-                                  ],
-                                ),
-                                const SizedBox(height: 14),
-                                Expanded(
-                                  child: SingleChildScrollView(
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
                                     child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        _ConnectionFormDeck(
-                                          nameController: _nameController,
-                                          urlController: _urlController,
-                                          usernameController:
-                                              _usernameController,
-                                          passwordController:
-                                              _passwordController,
-                                          cloud189AppKeyController:
-                                              _cloud189AppKeyController,
-                                          cloud189AppSecretController:
-                                              _cloud189AppSecretController,
-                                          cloud189RedirectUriController:
-                                              _cloud189RedirectUriController,
-                                          cloud189AuthorizationCodeController:
-                                              _cloud189AuthorizationCodeController,
-                                          rootPathController:
-                                              _rootPathController,
-                                          protocol: _protocol,
-                                          cloud189AuthMode: _cloud189AuthMode,
-                                          onProtocolChanged: (value) =>
-                                              _setProtocol(l10n, value),
-                                          onCloud189AuthModeChanged: (value) {
-                                            setState(() {
-                                              _cloud189AuthMode = value;
-                                            });
-                                          },
-                                          obscurePassword: _obscurePassword,
-                                          onTogglePassword: () {
-                                            setState(() {
-                                              _obscurePassword =
-                                                  !_obscurePassword;
-                                            });
-                                          },
-                                          onOpenCloud189Authorization: () =>
-                                              _openCloud189Authorization(
-                                                context,
+                                        Text(
+                                          isEditing
+                                              ? l10n.settingsEditSourceTitle
+                                              : l10n.settingsAddSourceTitle,
+                                          style: theme.textTheme.titleMedium
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w700,
                                               ),
                                         ),
-                                        const SizedBox(height: 12),
-                                        _DirectoryDeck(
-                                          scanDirectories: _scanDirectories,
-                                          excludedScanDirectories:
-                                              _excludedScanDirectories,
-                                          onAddScanDirectory: () async {
-                                            final result = await _promptDirectoryPath(
-                                              context,
-                                              title: l10n
-                                                  .addScanDirectoryDialogTitle,
-                                              description: l10n
-                                                  .scanDirectoriesDialogDescription,
-                                            );
-                                            if (result == null) {
-                                              return;
-                                            }
-                                            setState(() {
-                                              _appendDirectory(
-                                                _scanDirectories,
-                                                result,
-                                              );
-                                            });
-                                          },
-                                          onRemoveScanDirectory: (value) {
-                                            setState(() {
-                                              _scanDirectories.remove(value);
-                                            });
-                                          },
-                                          onAddExcludedDirectory: () async {
-                                            final result = await _promptDirectoryPath(
-                                              context,
-                                              title: l10n
-                                                  .addExcludedScanDirectoryDialogTitle,
-                                              description: l10n
-                                                  .excludedScanDirectoriesDialogDescription,
-                                            );
-                                            if (result == null) {
-                                              return;
-                                            }
-                                            setState(() {
-                                              _appendDirectory(
-                                                _excludedScanDirectories,
-                                                result,
-                                              );
-                                            });
-                                          },
-                                          onRemoveExcludedDirectory: (value) {
-                                            setState(() {
-                                              _excludedScanDirectories.remove(
-                                                value,
-                                              );
-                                            });
-                                          },
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          _sourceTypeTitle(l10n, _protocol),
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
+                                                color: colorScheme.primary,
+                                                fontWeight: FontWeight.w600,
+                                              ),
                                         ),
                                       ],
                                     ),
                                   ),
-                                ),
-                                const SizedBox(height: 12),
-                                Row(
-                                  children: [
-                                    TextButton(
-                                      onPressed: controllerState.isLoading
-                                          ? null
-                                          : () => context.pop(),
-                                      child: Text(
-                                        MaterialLocalizations.of(
-                                          context,
-                                        ).cancelButtonLabel,
+                                ],
+                              ),
+                              const SizedBox(height: 14),
+                              Expanded(
+                                child: SingleChildScrollView(
+                                  child: Column(
+                                    children: [
+                                      _ConnectionFormDeck(
+                                        nameController: _nameController,
+                                        urlController: _urlController,
+                                        usernameController: _usernameController,
+                                        passwordController: _passwordController,
+                                        cloud189AppKeyController:
+                                            _cloud189AppKeyController,
+                                        cloud189AppSecretController:
+                                            _cloud189AppSecretController,
+                                        cloud189RedirectUriController:
+                                            _cloud189RedirectUriController,
+                                        cloud189AuthorizationCodeController:
+                                            _cloud189AuthorizationCodeController,
+                                        rootPathController: _rootPathController,
+                                        protocol: _protocol,
+                                        cloud189AuthMode: _cloud189AuthMode,
+                                        onProtocolChanged: (value) =>
+                                            _setProtocol(l10n, value),
+                                        onCloud189AuthModeChanged: (value) {
+                                          setState(() {
+                                            _cloud189AuthMode = value;
+                                          });
+                                        },
+                                        obscurePassword: _obscurePassword,
+                                        onTogglePassword: () {
+                                          setState(() {
+                                            _obscurePassword =
+                                                !_obscurePassword;
+                                          });
+                                        },
+                                        onOpenCloud189Authorization: () =>
+                                            _openCloud189Authorization(context),
                                       ),
-                                    ),
-                                    const Spacer(),
-                                    OutlinedButton(
-                                      onPressed: controllerState.isLoading
-                                          ? null
-                                          : () async {
-                                              if (!_formKey.currentState!
-                                                  .validate()) {
-                                                return;
-                                              }
-                                              try {
-                                                if (_protocol ==
-                                                    SourceProtocol.cloudDrive) {
-                                                  await controller
-                                                      .testCloud189Connection(
-                                                        _createCloud189Draft(),
-                                                        captchaResolver:
-                                                            _promptCloud189Captcha,
-                                                      );
-                                                } else {
-                                                  await controller
-                                                      .testConnection(
-                                                        _createWebDavDraft(),
-                                                      );
-                                                }
-                                                if (!mounted) {
-                                                  return;
-                                                }
-                                                showTopSnackBar(
-                                                  this.context,
-                                                  l10n.connectionTestSuccess,
-                                                );
-                                                await _showCloud189DebugLog(
-                                                  controller,
-                                                );
-                                              } catch (_) {
-                                                if (!mounted) {
-                                                  return;
-                                                }
-                                                showTopSnackBar(
-                                                  this.context,
-                                                  _connectionFailedMessage(
-                                                    l10n,
-                                                  ),
-                                                );
-                                                await _showCloud189DebugLog(
-                                                  controller,
-                                                );
-                                              }
-                                            },
-                                      child: Text(l10n.testConnectionAction),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    FilledButton(
-                                      onPressed: controllerState.isLoading
-                                          ? null
-                                          : () async {
-                                              if (!_formKey.currentState!
-                                                  .validate()) {
-                                                return;
-                                              }
-                                              final router = GoRouter.of(
-                                                context,
-                                              );
-                                              try {
-                                                final isNewSource = !isEditing;
-                                                final savedProfile =
-                                                    _protocol ==
-                                                        SourceProtocol
-                                                            .cloudDrive
-                                                    ? await controller
-                                                          .saveCloud189Source(
-                                                            _createCloud189Draft(),
-                                                            captchaResolver:
-                                                                _promptCloud189Captcha,
-                                                          )
-                                                    : await controller
-                                                          .saveWebDavSource(
-                                                            _createWebDavDraft(),
-                                                          );
-                                                if (!mounted) {
-                                                  return;
-                                                }
-                                                showTopSnackBar(
-                                                  this.context,
-                                                  isEditing
-                                                      ? l10n.sourceUpdatedSuccess
-                                                      : l10n.sourceSavedSuccess,
-                                                );
-                                                await _showCloud189DebugLog(
-                                                  controller,
-                                                );
-                                                if (!mounted) {
-                                                  return;
-                                                }
-                                                if (isNewSource) {
-                                                  unawaited(
-                                                    ref
-                                                        .read(
-                                                          libraryCatalogControllerProvider
-                                                              .notifier,
-                                                        )
-                                                        .rescanSource(
-                                                          savedProfile.id,
-                                                        ),
-                                                  );
-                                                }
-                                                router.pop();
-                                              } catch (_) {
-                                                if (!mounted) {
-                                                  return;
-                                                }
-                                                showTopSnackBar(
-                                                  this.context,
-                                                  _connectionFailedMessage(
-                                                    l10n,
-                                                  ),
-                                                );
-                                                await _showCloud189DebugLog(
-                                                  controller,
-                                                );
-                                              }
-                                            },
-                                      child: controllerState.isLoading
-                                          ? const SizedBox(
-                                              width: 18,
-                                              height: 18,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                              ),
-                                            )
-                                          : Text(
-                                              isEditing
-                                                  ? l10n.saveSourceChangesAction
-                                                  : l10n.saveSourceAction,
-                                            ),
-                                    ),
-                                  ],
+                                      const SizedBox(height: 12),
+                                      _DirectoryDeck(
+                                        scanDirectories: _scanDirectories,
+                                        excludedScanDirectories:
+                                            _excludedScanDirectories,
+                                        onAddScanDirectory: () async {
+                                          final result = await _promptDirectoryPath(
+                                            context,
+                                            title: l10n
+                                                .addScanDirectoryDialogTitle,
+                                            description: l10n
+                                                .scanDirectoriesDialogDescription,
+                                          );
+                                          if (result == null) {
+                                            return;
+                                          }
+                                          setState(() {
+                                            _appendDirectory(
+                                              _scanDirectories,
+                                              result,
+                                            );
+                                          });
+                                        },
+                                        onRemoveScanDirectory: (value) {
+                                          setState(() {
+                                            _scanDirectories.remove(value);
+                                          });
+                                        },
+                                        onAddExcludedDirectory: () async {
+                                          final result = await _promptDirectoryPath(
+                                            context,
+                                            title: l10n
+                                                .addExcludedScanDirectoryDialogTitle,
+                                            description: l10n
+                                                .excludedScanDirectoriesDialogDescription,
+                                          );
+                                          if (result == null) {
+                                            return;
+                                          }
+                                          setState(() {
+                                            _appendDirectory(
+                                              _excludedScanDirectories,
+                                              result,
+                                            );
+                                          });
+                                        },
+                                        onRemoveExcludedDirectory: (value) {
+                                          setState(() {
+                                            _excludedScanDirectories.remove(
+                                              value,
+                                            );
+                                          });
+                                        },
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(height: 12),
+                              OverflowBar(
+                                alignment: MainAxisAlignment.end,
+                                spacing: 8,
+                                overflowSpacing: 8,
+                                children: [
+                                  TextButton(
+                                    onPressed: controllerState.isLoading
+                                        ? null
+                                        : () => context.pop(),
+                                    child: Text(
+                                      MaterialLocalizations.of(
+                                        context,
+                                      ).cancelButtonLabel,
+                                    ),
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: controllerState.isLoading
+                                        ? null
+                                        : () async {
+                                            if (!_formKey.currentState!
+                                                .validate()) {
+                                              return;
+                                            }
+                                            try {
+                                              if (_protocol ==
+                                                  SourceProtocol.cloudDrive) {
+                                                await controller
+                                                    .testCloud189Connection(
+                                                      _createCloud189Draft(),
+                                                      captchaResolver:
+                                                          _promptCloud189Captcha,
+                                                    );
+                                              } else {
+                                                await controller.testConnection(
+                                                  _createWebDavDraft(),
+                                                );
+                                              }
+                                              if (!mounted) {
+                                                return;
+                                              }
+                                              showTopSnackBar(
+                                                this.context,
+                                                l10n.connectionTestSuccess,
+                                              );
+                                              await _showCloud189DebugLog(
+                                                controller,
+                                              );
+                                            } catch (_) {
+                                              if (!mounted) {
+                                                return;
+                                              }
+                                              showTopSnackBar(
+                                                this.context,
+                                                _connectionFailedMessage(l10n),
+                                              );
+                                              await _showCloud189DebugLog(
+                                                controller,
+                                              );
+                                            }
+                                          },
+                                    child: Text(l10n.testConnectionAction),
+                                  ),
+                                  FilledButton(
+                                    onPressed: controllerState.isLoading
+                                        ? null
+                                        : () async {
+                                            if (!_formKey.currentState!
+                                                .validate()) {
+                                              return;
+                                            }
+                                            final router = GoRouter.of(context);
+                                            try {
+                                              final isNewSource = !isEditing;
+                                              final savedProfile =
+                                                  _protocol ==
+                                                      SourceProtocol.cloudDrive
+                                                  ? await controller
+                                                        .saveCloud189Source(
+                                                          _createCloud189Draft(),
+                                                          captchaResolver:
+                                                              _promptCloud189Captcha,
+                                                        )
+                                                  : await controller
+                                                        .saveWebDavSource(
+                                                          _createWebDavDraft(),
+                                                        );
+                                              if (!mounted) {
+                                                return;
+                                              }
+                                              showTopSnackBar(
+                                                this.context,
+                                                isEditing
+                                                    ? l10n.sourceUpdatedSuccess
+                                                    : l10n.sourceSavedSuccess,
+                                              );
+                                              await _showCloud189DebugLog(
+                                                controller,
+                                              );
+                                              if (!mounted) {
+                                                return;
+                                              }
+                                              if (isNewSource) {
+                                                unawaited(
+                                                  ref
+                                                      .read(
+                                                        libraryCatalogControllerProvider
+                                                            .notifier,
+                                                      )
+                                                      .rescanSource(
+                                                        savedProfile.id,
+                                                      ),
+                                                );
+                                              }
+                                              router.pop();
+                                            } catch (_) {
+                                              if (!mounted) {
+                                                return;
+                                              }
+                                              showTopSnackBar(
+                                                this.context,
+                                                _connectionFailedMessage(l10n),
+                                              );
+                                              await _showCloud189DebugLog(
+                                                controller,
+                                              );
+                                            }
+                                          },
+                                    child: controllerState.isLoading
+                                        ? const SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        : Text(
+                                            isEditing
+                                                ? l10n.saveSourceChangesAction
+                                                : l10n.saveSourceAction,
+                                          ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -1114,142 +1085,6 @@ class _SourceTypeGridCard extends StatelessWidget {
   }
 }
 
-class _ProtocolGridChip extends StatelessWidget {
-  const _ProtocolGridChip({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: selected
-          ? colorScheme.primary.withValues(alpha: 0.16)
-          : colorScheme.surface.withValues(alpha: 0.4),
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selected
-                  ? colorScheme.primary.withValues(alpha: 0.5)
-                  : colorScheme.outlineVariant.withValues(alpha: 0.45),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 16,
-                color: selected
-                    ? colorScheme.primary
-                    : colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: selected
-                      ? colorScheme.primary
-                      : colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AddSourceHero extends StatelessWidget {
-  const _AddSourceHero({
-    required this.isEditing,
-    required this.protocol,
-    required this.scanDirectoryCount,
-    required this.excludedDirectoryCount,
-  });
-
-  final bool isEditing;
-  final SourceProtocol protocol;
-  final int scanDirectoryCount;
-  final int excludedDirectoryCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          height: 56,
-          child: Row(
-            children: [
-              Material(
-                color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.72),
-                borderRadius: BorderRadius.circular(999),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(999),
-                  onTap: () => context.pop(),
-                  child: SizedBox(
-                    width: 40,
-                    height: 40,
-                    child: Icon(
-                      Icons.arrow_back_rounded,
-                      color: colorScheme.primary,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                l10n.settingsPageTitle,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  color: colorScheme.primary,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 18),
-        Text(
-          isEditing
-              ? l10n.settingsEditSourceTitle
-              : l10n.settingsAddSourceTitle,
-          style: theme.textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          l10n.sourceTypeSelectionDescription,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _ConnectionFormDeck extends StatelessWidget {
   const _ConnectionFormDeck({
     required this.nameController,
@@ -1307,23 +1142,27 @@ class _ConnectionFormDeck extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         if (isCloud189) ...[
-          SegmentedButton<Cloud189AuthMode>(
-            segments: [
-              ButtonSegment(
-                value: Cloud189AuthMode.openListPassword,
-                icon: const Icon(Icons.storage_rounded),
-                label: Text(l10n.cloud189OpenListModeLabel),
-              ),
-              ButtonSegment(
-                value: Cloud189AuthMode.appAuthorization,
-                icon: const Icon(Icons.app_settings_alt_rounded),
-                label: Text(l10n.cloud189AppAuthorizationModeLabel),
-              ),
-            ],
-            selected: {cloud189AuthMode},
-            onSelectionChanged: (selection) {
-              onCloud189AuthModeChanged(selection.first);
-            },
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: SegmentedButton<Cloud189AuthMode>(
+              segments: [
+                ButtonSegment(
+                  value: Cloud189AuthMode.openListPassword,
+                  icon: const Icon(Icons.storage_rounded),
+                  label: Text(l10n.cloud189OpenListModeLabel),
+                ),
+                ButtonSegment(
+                  value: Cloud189AuthMode.appAuthorization,
+                  icon: const Icon(Icons.app_settings_alt_rounded),
+                  label: Text(l10n.cloud189AppAuthorizationModeLabel),
+                ),
+              ],
+              selected: {cloud189AuthMode},
+              onSelectionChanged: (selection) {
+                onCloud189AuthModeChanged(selection.first);
+              },
+            ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -1590,10 +1429,13 @@ class _DirectoryDeck extends StatelessWidget {
           children: [
             Icon(Icons.folder_open_rounded, color: colorScheme.primary),
             const SizedBox(width: 8),
-            Text(
-              l10n.scanDirectoriesTitle,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
+            Expanded(
+              child: Text(
+                l10n.scanDirectoriesTitle,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],
@@ -1657,10 +1499,14 @@ class _PathGroupEditor extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.start,
+          spacing: 12,
+          runSpacing: 10,
           children: [
-            Expanded(
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1675,7 +1521,6 @@ class _PathGroupEditor extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 12),
             FilledButton.tonalIcon(
               onPressed: onAdd,
               icon: const Icon(Icons.add_rounded),

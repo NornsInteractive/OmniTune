@@ -97,17 +97,19 @@ class JsonFileScanCacheRepository implements LibraryScanCacheRepository {
         'JsonFileScanCacheRepository.saveScanResults',
         '开始序列化 ${songs.length} 首歌曲为 JSON',
       );
-      allData[sourceId] = songs.map((song) => song.toJson()).toList();
+      final encoded = await Isolate.run(() {
+        allData[sourceId] = songs.map((song) => song.toJson()).toList();
+        return _encodeScanCacheJson(allData);
+      });
       DebugLogger.info(
         'JsonFileScanCacheRepository.saveScanResults',
-        '序列化完成，现在有 ${allData.length} 个源',
+        '序列化完成，准备写入缓存',
       );
 
       DebugLogger.info(
         'JsonFileScanCacheRepository.saveScanResults',
         '开始写入文件: ${_cacheFile.path}',
       );
-      final encoded = await Isolate.run(() => _encodeScanCacheJson(allData));
       await file.writeAsString(encoded, flush: true);
       DebugLogger.success(
         'JsonFileScanCacheRepository.saveScanResults',
@@ -130,11 +132,13 @@ class JsonFileScanCacheRepository implements LibraryScanCacheRepository {
       '开始批量保存扫描结果: 源数=${results.length}',
     );
     try {
-      final serialized = <String, dynamic>{
-        for (final entry in results.entries)
-          entry.key: entry.value.map((song) => song.toJson()).toList(),
-      };
-      final encoded = await Isolate.run(() => _encodeScanCacheJson(serialized));
+      final encoded = await Isolate.run(() {
+        final serialized = <String, dynamic>{
+          for (final entry in results.entries)
+            entry.key: entry.value.map((song) => song.toJson()).toList(),
+        };
+        return _encodeScanCacheJson(serialized);
+      });
       await _cacheFile.writeAsString(encoded, flush: true);
       DebugLogger.success(
         'JsonFileScanCacheRepository.saveAllResults',

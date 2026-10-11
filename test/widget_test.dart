@@ -1,7 +1,10 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'package:music/app/app.dart';
+import 'package:music/core/i18n/localizations.dart';
 import 'package:music/core/models/source_profile.dart';
 import 'package:music/core/storage/library_preferences_repository.dart';
 import 'package:music/core/storage/source_profile_repository.dart';
@@ -30,23 +33,55 @@ class _FakeLibraryPreferencesRepository
 }
 
 void main() {
-  testWidgets('app boots without crashing', (tester) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          sourceProfileRepositoryProvider.overrideWithValue(
-            _FakeSourceProfileRepository(),
-          ),
-          libraryPreferencesRepositoryProvider.overrideWithValue(
-            _FakeLibraryPreferencesRepository(),
-          ),
-        ],
-        child: const MusicApp(),
-      ),
-    );
-
-    await tester.pumpAndSettle();
-
-    expect(find.text('Add source'), findsOneWidget);
+  setUp(() {
+    GoogleFonts.config.allowRuntimeFetching = false;
   });
+
+  testWidgets(
+    'app boots without crashing and exposes localized add source entrance',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sourceProfileRepositoryProvider.overrideWithValue(
+              _FakeSourceProfileRepository(),
+            ),
+            libraryPreferencesRepositoryProvider.overrideWithValue(
+              _FakeLibraryPreferencesRepository(),
+            ),
+          ],
+          child: const MusicApp(),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(Navigator).first),
+      )!;
+      expect(find.text(l10n.addSourceAction), findsAtLeastNWidgets(1));
+
+      // Meaningful entrance regression: tapping add source opens the source picker
+      await tester.tap(find.text(l10n.addSourceAction).first);
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.sourceTypeSelectionTitle), findsOneWidget);
+
+      final cloud189Finder = find.text(l10n.cloud189Protocol);
+      await tester.scrollUntilVisible(
+        cloud189Finder,
+        100,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.pumpAndSettle();
+
+      expect(cloud189Finder, findsOneWidget);
+
+      // Tapping cloud189 navigates to supported add-source form
+      await tester.tap(cloud189Finder);
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.cloud189SourceTypeTitle), findsOneWidget);
+    },
+  );
 }

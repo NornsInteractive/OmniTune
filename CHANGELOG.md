@@ -1,10 +1,27 @@
-# Changelog - v1.0.22+23
+# Changelog
+
+## 1.0.282+283 — 2026-10-11
+
+- 分发 Android APK/AAB 与 Linux x86_64 完整压缩包，附 SHA-256 校验值和安装依赖说明。
+- 补齐 Linux libmpv 音频后端及 mimalloc 链接，保持原生移动平台与 Web 的音频后端。
+- 新增真实 Linux PCM 解码、播放、暂停、跳转回归；完整测试 56 项通过。
+- 当前 Android 签名与旧 Release 1.0.254 不同，升级需使用原发布签名重建。
+
+## 1.0.281+282（本地构建）— 2026-10-11
+
+- 天翼资源添加：移除发布脚本遗留隐藏参数，验证账号密码和应用授权入口。
+- 性能：原生扫描缓存字段转换和 JSON 编码移至后台 isolate；Web 按批次编码及恢复歌曲，让出事件循环。
+- 界面：由 Antigravity 的固定 OmniTune 会话使用 taste skill 实现全应用优化与动效；具体结果及验证范围见 `docs/PROJECT_PROGRESS.md`。
+- 维护：合并开发文档、移除无引用旧实现及设计稿，统一 UI 委派规则。
+- 构建：修复严格 pipefail 下首次生成签名密码失败，签名文件加入忽略规则。
+
+## 历史记录 — v1.0.22+23
 
 ## Release Date
 2024
 
 ## Version History
-- **v1.0.22+23** ← Current (this release)
+- **v1.0.22+23**（历史版本）
 - **v1.0.20+22** - Playback latency fixes
 - **v1.0.20+21** - Scan result persistence
 
