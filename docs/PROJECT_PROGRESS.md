@@ -62,8 +62,8 @@
 - UI 回归 11 项：明暗主题、中英文、412/1280 宽度、最大字号、减少动画、真实输入框快捷键、两条天翼添加路径、0/1,000/10,000 首列表懒加载、专辑分页、歌词状态切换、方向导航字号，以及真实 App 导航/确认/系统返回。
 - 播放器重建和清空状态 5 项通过。Web 缓存 3 项另在 Chromium 运行通过。
 - 修复原有播放缓存测试固定等待 50ms 的竞态，改为有超时上限地等待实际持久化完成；保留落盘与字节内容断言。
-- 当前构建版本 **`1.0.282+283`**。`./scripts/build_apk.sh` 已生成[签名 APK](../build/app/outputs/flutter-apk/app-release.apk) 和 [AAB](../build/app/outputs/bundle/release/app-release.aab)，APK 签名验证通过；Web release 构建成功。
-- 本机 Chromium release 截图已核对：[原窄屏](../build/validation/before-mobile-dark-zh.png)、[新窄屏](../build/validation/after-mobile-dark-zh.png)、[原宽屏](../build/validation/before-desktop-light-en.png)、[新宽屏](../build/validation/after-desktop-light-en.png)、[天翼入口](../build/validation/after-source.png)、[天翼表单](../build/validation/after-cloud189.png)。截图逐页执行，避免 headless 软件 GPU 多页同时绘制产生的截图拼接伪影；各页无 JavaScript 运行时异常。
+- 当前构建版本 **`1.0.282+283`**。`./scripts/build_apk.sh` 已生成[签名 APK](https://github.com/Naruto9Kurama/OmniTune/releases/download/1.0.282/OmniTune-1.0.282-android.apk) 和 [AAB](https://github.com/Naruto9Kurama/OmniTune/releases/download/1.0.282/OmniTune-1.0.282-android.aab)，APK 签名验证通过；Web release 构建成功。
+- 本机 Chromium release 截图已核对：`before-mobile-dark-zh.png`、`after-mobile-dark-zh.png`、`before-desktop-light-en.png`、`after-desktop-light-en.png`、`after-source.png`、`after-cloud189.png`，保存在工作区 `build/validation/`。这些截图不提交到 Git。截图逐页执行，避免 headless 软件 GPU 多页同时绘制产生的截图拼接伪影；各页无 JavaScript 运行时异常。
 - 验证日志及截图在忽略提交的 `build/validation/`；构建产物在 `build/app/outputs/`。
 
 仅有 Linux 开发环境。未验证 Android/iOS/macOS/Windows/TV 真机帧率、后台行为及天翼真实账号登录/读取；不能据此宣称全部平台卡顿已消失。18sp 字号检查使用注入的 directional MediaQuery，真实 TV 的环境识别与字体仍需硬件验收。
@@ -72,9 +72,10 @@
 
 ## Android / Linux 发布（2026-10-11）
 
-- 发布标签 `1.0.282`，应用版本 `1.0.282+283`。
+- 已发布 [GitHub Release 1.0.282](https://github.com/Naruto9Kurama/OmniTune/releases/tag/1.0.282)，设为 Latest，应用版本 `1.0.282+283`。源码标签对应提交 `161b30d5741d8e27154fc9580a9b975e269128e6`。
 - 分发 Android 通用 APK、AAB、Linux x86_64 完整压缩包与 SHA-256 校验文件，工作区文件位于 `build/releases/1.0.282/`。
 - Linux 原生后端已补齐，仅在 Linux 注册；依赖系统 libmpv，构建环境为 Debian 12 / glibc 2.36，安装方式见 README。
 - 原生 PCM 解码/播放/暂停/跳转在临时 ALSA null 输出下通过，未做物理声卡验收；完整包启动与运行库解析已检查。
 - APK/AAB、Linux、Web release 均构建成功，静态分析 0 问题，完整测试 56 项通过。
 - 已下载旧 Release APK 对比签名，确认当前签名与 1.0.254 不同，无法覆盖升级；发布说明必须保留此限制。
+- 四个上传附件的 GitHub SHA-256 均与本地一致；发布状态已确认不是 draft 或 prerelease。
