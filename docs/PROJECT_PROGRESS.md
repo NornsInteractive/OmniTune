@@ -20,7 +20,8 @@
 - 播放缓存：默认关闭持久缓存时不后台预取整首；开启后只预取当前目标，切歌和停止取消旧任务，暂停保留。磁盘失败不终止音频字节流；删除、清空及设置切换使旧捕获与写入失效，继续透传音频而不重新生成内存或磁盘缓存，删除 A 不影响 B。未知总长的局部响应不标记为完整文件。
 - 扫描缓存：串行写入临时文件后替换，保留上一份有效备份；主文件损坏时读取备份，双方损坏时保留现场并拒绝增量覆盖。
 - 自动验证：全量 **206/206** 测试通过，包含 UI 21 项、播放 32 项及音源/缓存 75 项；另外在 Chromium 运行 Web 扫描缓存 3 项通过。全项目静态分析 0 问题，build_runner 与两份 ADB 脚本自检通过。Linux PCM 解码/播放/暂停/跳转使用 SDL 虚拟输出通过，未验证真实扬声器。新增及修改测试全部由已确认主模型/辅助模型费用为 0 的 OpenCode 实现。
-- 构建：`./scripts/build_apk.sh` 成功生成同签名 APK/AAB，最终版本 **1.0.295+296**；Linux x86_64 与 Web release 构建成功。APK、AAB、完整 Linux 压缩包及已校验的 `SHA256SUMS` 位于 `build/releases/local-1.0.295/`；按用户要求准备发布 GitHub Release `1.0.295`。
+- 构建：`./scripts/build_apk.sh` 成功生成同签名 APK/AAB，最终版本 **1.0.295+296**；Linux x86_64 与 Web release 构建成功。APK、AAB、完整 Linux 压缩包及已校验的 `SHA256SUMS` 位于 `build/releases/local-1.0.295/`；已发布 [GitHub Release 1.0.295](https://github.com/Naruto9Kurama/OmniTune/releases/tag/1.0.295)。
+- 发布核验：源码已推送 `main`，标签 `1.0.295` 指向 `16fee28a6ccda1829bec3f8e4676a4e0d53f11c9`；四个附件的 GitHub SHA-256 均与本地一致，确认 Latest、非 draft、非 prerelease。沿用 1.0.282 的 Android 签名；旧 1.0.254 签名不兼容的升级限制已保留在发布说明。本次发布复用上述通过验证的构建，发布收尾只更新文档与忽略规则。
 - 189 长时采样：Android 14 x86_64 模拟器（1440×3040、640dpi），原签名 `1.0.294+295` profile 包，保留用户 16 个专辑、176 首歌曲。30 分钟得到 345 次采样、9 首歌曲，338 次 PLAYING、7 次切歌 CONNECTING，无 ERROR 样本；完成自动切歌与约两分钟位置跳转，后半程覆盖后台播放。当前 PID 新增 Java FATAL EXCEPTION 为 0，ANR、网络计数和真实音频输出未测量。
 - 性能证据：PSS 起始 234.4 MiB、结束 260.5 MiB、峰值 361.8 MiB；RSS 峰值 492.5 MiB。Flutter timeline 捕获 UI 2,856 次（P95 2.663ms、最大 16.702ms）、绘制 2,851 次（P95 16.859ms、最大 4,568.297ms）。绘制侧仍有长事件；模拟器同时被其他项目使用且中途失去前台，不能据此归因或宣称卡顿全部解决。轮询事件耗时不是完整呈现帧率，也不是严格的新旧版本对比。原始 CSV/摘要在 `build/validation/iteration-289/profile-294-30min/`。
 - 最终版本前台复测：`1.0.295+296` profile 播放页保持前台 60 秒，12 次采样均为 PLAYING，UI/绘制各捕获 232 次事件，P95 分别为 2.959/4.940ms，最大值分别为 3.835/5.502ms，此窗口无超过 16.67ms 的事件。PSS 239.1→232.6 MiB，峰值 241.3 MiB。短窗口未复现长时混合场景的绘制长事件，不能据此确认根因或代替实体机验收；原始记录在 `build/validation/iteration-289/profile-295-foreground-60s/`。
