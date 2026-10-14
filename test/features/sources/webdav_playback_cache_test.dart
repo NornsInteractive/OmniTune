@@ -282,6 +282,7 @@ void main() {
       Uint8List.fromList(const [102, 76, 97, 67, 49, 50, 51, 52]),
     );
 
+    cache.setActivePlaybackTrack(entry.uniqueId);
     await cache.prefetchEntry(entry: entry, client: client);
     await _waitFor(() async {
       final cachedTracks = await cache.listCachedTracks();
@@ -302,7 +303,7 @@ void main() {
   });
 
   test(
-    'prefetches an entire track while persistent cache is disabled',
+    'prefetch does nothing when persistent cache is disabled',
     () async {
       cache = createWebDavPlaybackCache(
         initialSettings: const PlaybackCacheSettings(
@@ -322,32 +323,14 @@ void main() {
         Uint8List.fromList(const [102, 76, 97, 67, 49, 50, 51, 52]),
       );
 
+      cache.setActivePlaybackTrack(entry.uniqueId);
       await cache.prefetchEntry(entry: entry, client: client);
-      await _waitFor(() async {
-        final range = await cache.readCachedRange(
-          entry: entry,
-          start: 0,
-          end: 8,
-        );
-        return range?.bytes.length == 8;
-      });
+
+      // Prefetch should not run when persistent cache is disabled
+      expect(client.openReadCount, 0);
 
       final cachedTracks = await cache.listCachedTracks();
-      final cachedTrack = cachedTracks.singleWhere(
-        (item) => item.trackId == entry.uniqueId,
-      );
-      expect(cachedTrack.hasPersistentCopy, isFalse);
-      expect(cachedTrack.hasMemoryData, isTrue);
-      expect(cachedTrack.cachedBytes, 8);
-      expect(await cache.persistentFilePathForEntry(entry), isNull);
-      expect(client.openReadCount, 1);
-
-      final source = await cache.createCachedAudioSource(
-        entry: entry,
-        client: client,
-      );
-      expect(source, isA<UriAudioSource>());
-      expect(source, isNot(isA<StreamAudioSource>()));
+      expect(cachedTracks.any((item) => item.trackId == entry.uniqueId), isFalse);
     },
   );
 
@@ -370,6 +353,7 @@ void main() {
       Uint8List.fromList(const [102, 76, 97, 67, 49, 50, 51, 52]),
     );
 
+    cache.setActivePlaybackTrack(entry.uniqueId);
     await cache.prefetchEntry(entry: entry, client: client);
     await cache.prefetchEntry(entry: entry, client: client);
     await _waitFor(() async => client.openReadCount == 1);
@@ -395,18 +379,10 @@ void main() {
         memoryCacheTrackLimit: 1,
       ),
     );
-    const first = RemoteEntry(
+    const entry = RemoteEntry(
       sourceId: 'source-1',
-      name: 'first.flac',
-      path: '/Music/first.flac',
-      kind: RemoteEntryKind.audio,
-      mimeType: 'audio/flac',
-      size: 8,
-    );
-    const second = RemoteEntry(
-      sourceId: 'source-1',
-      name: 'second.flac',
-      path: '/Music/second.flac',
+      name: 'song.flac',
+      path: '/Music/song.flac',
       kind: RemoteEntryKind.audio,
       mimeType: 'audio/flac',
       size: 8,
@@ -415,21 +391,313 @@ void main() {
       Uint8List.fromList(const [102, 76, 97, 67, 49, 50, 51, 52]),
     );
 
-    await cache.prefetchEntry(entry: first, client: client);
-    await cache.prefetchEntry(entry: second, client: client);
+    cache.setActivePlaybackTrack(entry.uniqueId);
+    await cache.prefetchEntry(entry: entry, client: client);
+    // Second prefetch for same track should be deduplicated
+    await cache.prefetchEntry(entry: entry, client: client);
     await _waitFor(() async => client.openReadCount == 1);
-    await Future<void>.delayed(const Duration(milliseconds: 50));
-
-    expect(client.openReadCount, 1);
 
     client.release();
     await _waitFor(() async {
       final cachedTracks = await cache.listCachedTracks();
-      return cachedTracks.any((item) => item.trackId == first.uniqueId) &&
-          cachedTracks.any((item) => item.trackId == second.uniqueId);
+      return cachedTracks.any(
+        (item) =>
+            item.trackId == entry.uniqueId &&
+            item.hasPersistentCopy &&
+            item.cachedBytes == 8,
+      );
     });
 
-    expect(client.openReadCount, 2);
+    expect(client.openReadCount, 1);
+  });
+
+  test(
+    'sequential many chunks stores exact bytes via wrapPlaybackStream',
+    () async {
+      cache = createWebDavPlaybackCache(
+        initialSettings: const PlaybackCacheSettings(
+          enablePersistentCache: false,
+          memoryCacheTrackLimit: 10,
+        ),
+      );
+      const entry = RemoteEntry(
+        sourceId: 'source-1',
+        name: 'song.flac',
+        path: '/Music/song.flac',
+        kind: RemoteEntryKind.audio,
+        mimeType: 'audio/flac',
+        size: 2 * 1024 * 1024,
+      );
+
+      const chunkSize = 4096;
+      const numChunks = 512;
+      final chunks = List.generate(
+        numChunks,
+        (i) => List<int>.generate(chunkSize, (j) => (i * chunkSize + j) & 0xFF),
+      );
+      final flattenedChunks = chunks.expand((c) => c).toList();
+
+      await _flatten(
+        cache.wrapPlaybackStream(
+          entry: entry,
+          stream: Stream<List<int>>.fromIterable(chunks),
+          offset: 0,
+          requestedEnd: null,
+          expectedLength: 2 * 1024 * 1024,
+        ),
+      );
+
+      final range = await cache.readCachedRange(
+        entry: entry,
+        start: 0,
+        end: 2 * 1024 * 1024,
+      );
+      expect(range, isNotNull);
+      expect(range!.start, 0);
+      expect(range.endExclusive, 2 * 1024 * 1024);
+      expect(range.bytes, Uint8List.fromList(flattenedChunks));
+    },
+  );
+
+  test(
+    'out of order overlap newest wins and holes remain until bridged',
+    () async {
+      cache = createWebDavPlaybackCache(
+        initialSettings: const PlaybackCacheSettings(
+          enablePersistentCache: false,
+          memoryCacheTrackLimit: 10,
+        ),
+      );
+      const entry = RemoteEntry(
+        sourceId: 'source-1',
+        name: 'song.flac',
+        path: '/Music/song.flac',
+        kind: RemoteEntryKind.audio,
+        mimeType: 'audio/flac',
+        size: 100,
+      );
+
+      final stream1 = cache.wrapPlaybackStream(
+        entry: entry,
+        stream: Stream<List<int>>.fromIterable([
+          [1, 2, 3, 4, 5],
+        ]),
+        offset: 0,
+        requestedEnd: 5,
+        expectedLength: 100,
+      );
+
+      final stream2 = cache.wrapPlaybackStream(
+        entry: entry,
+        stream: Stream<List<int>>.fromIterable([
+          [10, 20, 30, 40, 50],
+        ]),
+        offset: 50,
+        requestedEnd: 55,
+        expectedLength: 100,
+      );
+
+      final stream3 = cache.wrapPlaybackStream(
+        entry: entry,
+        stream: Stream<List<int>>.fromIterable([
+          [100, 200, 300, 400, 500],
+        ]),
+        offset: 20,
+        requestedEnd: 25,
+        expectedLength: 100,
+      );
+
+      await _flatten(stream1);
+      await _flatten(stream2);
+      await _flatten(stream3);
+
+      final range1 = await cache.readCachedRange(
+        entry: entry,
+        start: 0,
+        end: 10,
+      );
+      expect(range1, isNotNull);
+      expect(range1!.bytes, Uint8List.fromList([1, 2, 3, 4, 5]));
+      expect(range1.endExclusive, 5);
+
+      final range2 = await cache.readCachedRange(
+        entry: entry,
+        start: 20,
+        end: 30,
+      );
+      expect(range2, isNotNull);
+      expect(range2!.bytes, Uint8List.fromList([100, 200, 300, 400, 500]));
+
+      final range3 = await cache.readCachedRange(
+        entry: entry,
+        start: 50,
+        end: 60,
+      );
+      expect(range3, isNotNull);
+      expect(range3!.bytes, Uint8List.fromList([10, 20, 30, 40, 50]));
+
+      final hole = await cache.readCachedRange(entry: entry, start: 5, end: 20);
+      expect(hole, isNull);
+
+      await _flatten(
+        cache.wrapPlaybackStream(
+          entry: entry,
+          stream: Stream<List<int>>.fromIterable([
+            List<int>.generate(15, (i) => 99),
+          ]),
+          offset: 5,
+          requestedEnd: 20,
+          expectedLength: 100,
+        ),
+      );
+
+      final bridged = await cache.readCachedRange(
+        entry: entry,
+        start: 0,
+        end: 25,
+      );
+      expect(bridged, isNotNull);
+      expect(bridged!.bytes.length, 25);
+      expect(bridged.bytes.sublist(0, 5), Uint8List.fromList([1, 2, 3, 4, 5]));
+      expect(
+        bridged.bytes.sublist(5, 20),
+        Uint8List.fromList(List<int>.filled(15, 99)),
+      );
+      expect(
+        bridged.bytes.sublist(20, 25),
+        Uint8List.fromList([100, 200, 300, 400, 500]),
+      );
+
+      final overwrite = cache.wrapPlaybackStream(
+        entry: entry,
+        stream: Stream<List<int>>.fromIterable([
+          [7, 8, 9, 10, 11],
+        ]),
+        offset: 3,
+        requestedEnd: 8,
+        expectedLength: 100,
+      );
+      await _flatten(overwrite);
+
+      final afterOverwrite = await cache.readCachedRange(
+        entry: entry,
+        start: 0,
+        end: 10,
+      );
+      expect(afterOverwrite, isNotNull);
+      expect(
+        afterOverwrite!.bytes,
+        Uint8List.fromList([1, 2, 3, 7, 8, 9, 10, 11, 99, 99]),
+      );
+      expect(afterOverwrite.endExclusive, 10);
+
+      final hole2 = await cache.readCachedRange(
+        entry: entry,
+        start: 8,
+        end: 20,
+      );
+      expect(hole2, isNotNull);
+      expect(hole2!.bytes, Uint8List.fromList(List<int>.filled(12, 99)));
+
+      await _flatten(
+        cache.wrapPlaybackStream(
+          entry: entry,
+          stream: Stream<List<int>>.fromIterable([
+            List<int>.generate(47, (i) => i + 200),
+          ]),
+          offset: 8,
+          requestedEnd: 55,
+          expectedLength: 100,
+        ),
+      );
+
+      final full = await cache.readCachedRange(entry: entry, start: 0, end: 55);
+      expect(full, isNotNull);
+      expect(full!.bytes.length, 55);
+      expect(full.bytes.sublist(0, 3), Uint8List.fromList([1, 2, 3]));
+      expect(full.bytes.sublist(3, 8), Uint8List.fromList([7, 8, 9, 10, 11]));
+      expect(
+        full.bytes.sublist(8, 20),
+        Uint8List.fromList(List<int>.generate(12, (i) => i + 200)),
+      );
+      expect(
+        full.bytes.sublist(20, 25),
+        Uint8List.fromList(List<int>.generate(5, (i) => i + 212)),
+      );
+      expect(
+        full.bytes.sublist(25, 50),
+        Uint8List.fromList(List<int>.generate(25, (i) => i + 217)),
+      );
+      expect(
+        full.bytes.sublist(50, 55),
+        Uint8List.fromList(List<int>.generate(5, (i) => i + 242)),
+      );
+
+      final prepend = cache.wrapPlaybackStream(
+        entry: entry,
+        stream: Stream<List<int>>.fromIterable([
+          [0, 0],
+        ]),
+        offset: 0,
+        requestedEnd: 2,
+        expectedLength: 100,
+      );
+      await _flatten(prepend);
+      final prepended = await cache.readCachedRange(
+        entry: entry,
+        start: 0,
+        end: 2,
+      );
+      expect(prepended, isNotNull);
+      expect(prepended!.bytes, Uint8List.fromList([0, 0]));
+    },
+  );
+
+  test('many chunks notifications throttled and final bytes emitted', () async {
+    cache = createWebDavPlaybackCache(
+      initialSettings: const PlaybackCacheSettings(
+        enablePersistentCache: false,
+        memoryCacheTrackLimit: 10,
+      ),
+    );
+    const entry = RemoteEntry(
+      sourceId: 'source-1',
+      name: 'song.flac',
+      path: '/Music/song.flac',
+      kind: RemoteEntryKind.audio,
+      mimeType: 'audio/flac',
+      size: 1000,
+    );
+
+    final snapshots = <PlaybackCacheSnapshot>[];
+    final sub = cache.snapshotStream
+        .where((s) => s.trackId == entry.uniqueId)
+        .listen(snapshots.add);
+
+    final chunks = List.generate(50, (i) => List<int>.filled(20, i));
+    await _flatten(
+      cache.wrapPlaybackStream(
+        entry: entry,
+        stream: Stream<List<int>>.fromIterable(chunks),
+        offset: 0,
+        requestedEnd: null,
+        expectedLength: 1000,
+      ),
+    );
+
+    await Future<void>.delayed(Duration.zero);
+    await sub.cancel();
+
+    expect(
+      snapshots.length,
+      lessThanOrEqualTo(3),
+      reason:
+          'snapshots should be throttled to first + final + optional pending timer',
+    );
+    final lastSnapshot = snapshots.last;
+    expect(lastSnapshot.totalLength, 1000);
+    expect(lastSnapshot.segments.length, 1);
+    expect(lastSnapshot.segments.single.endExclusive, 1000);
   });
 }
 

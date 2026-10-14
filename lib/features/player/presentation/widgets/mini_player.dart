@@ -41,6 +41,11 @@ class MiniPlayer extends ConsumerWidget {
       playerControllerProvider.select((state) => state.canPlayNext),
     );
 
+    final status = ref.watch(
+      playerControllerProvider.select(
+        (state) => (state.isBusy, state.errorMessage),
+      ),
+    );
     final controller = ref.read(playerControllerProvider.notifier);
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
@@ -89,16 +94,18 @@ class MiniPlayer extends ConsumerWidget {
               children: [
                 Row(
                   children: [
-                    TrackCoverThumbnail(
-                      title: displayTitle,
-                      subtitle: subtitle,
-                      size: coverSize,
-                      borderRadius: coverRadius,
-                      localCoverPath: displayLocalCoverPath,
-                      coverUrl: displayCoverUrl,
-                      trackId: displaySong?.id ?? track.id,
-                      sourceId: displaySong?.sourceId ?? track.sourceId,
-                      directoryPath: directoryPath,
+                    RepaintBoundary(
+                      child: TrackCoverThumbnail(
+                        title: displayTitle,
+                        subtitle: subtitle,
+                        size: coverSize,
+                        borderRadius: coverRadius,
+                        localCoverPath: displayLocalCoverPath,
+                        coverUrl: displayCoverUrl,
+                        trackId: displaySong?.id ?? track.id,
+                        sourceId: displaySong?.sourceId ?? track.sourceId,
+                        directoryPath: directoryPath,
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -117,7 +124,15 @@ class MiniPlayer extends ConsumerWidget {
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            subtitle.isEmpty ? track.sourceName : subtitle,
+                            status.$2 != null
+                                ? l10n.retryAction
+                                : status.$1
+                                ? l10n.playbackBufferingLabel
+                                : !isPlaying
+                                ? l10n.playbackPausedLabel
+                                : subtitle.isEmpty
+                                ? track.sourceName
+                                : subtitle,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.notoSans(
@@ -140,7 +155,9 @@ class MiniPlayer extends ConsumerWidget {
                     const SizedBox(width: 4),
                     _MiniPlayButton(
                       tooltip: isPlaying ? l10n.pauseAction : l10n.playAction,
-                      icon: isPlaying
+                      icon: status.$2 != null
+                          ? Icons.refresh_rounded
+                          : isPlaying
                           ? Icons.pause_rounded
                           : Icons.play_arrow_rounded,
                       onPressed: controller.togglePlayPause,
@@ -197,13 +214,15 @@ class _MiniPlayerProgressBar extends ConsumerWidget {
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(999),
-      child: PlaybackTimeline(
-        progress: progressData.progress,
-        cacheSegments: progressData.cacheSegments,
-        height: 3,
-        backgroundColor: colorScheme.surfaceContainerHighest,
-        cacheColor: colorScheme.outlineVariant.withValues(alpha: 0.5),
-        progressColor: colorScheme.primary,
+      child: RepaintBoundary(
+        child: PlaybackTimeline(
+          progress: progressData.progress,
+          cacheSegments: progressData.cacheSegments,
+          height: 3,
+          backgroundColor: colorScheme.surfaceContainerHighest,
+          cacheColor: colorScheme.outlineVariant.withValues(alpha: 0.5),
+          progressColor: colorScheme.primary,
+        ),
       ),
     );
   }

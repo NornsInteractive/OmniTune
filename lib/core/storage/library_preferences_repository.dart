@@ -6,6 +6,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../models/app_preferences.dart';
 import '../models/custom_theme_colors.dart';
+import '../models/library_album.dart';
 import '../models/playback_cache_settings.dart';
 
 part 'library_preferences_repository.g.dart';
@@ -27,6 +28,7 @@ class LibraryPreferences {
     this.backgroundImageAlignmentY = 0,
     this.albumPageSize = 9,
     this.albumViewGrid = false,
+    this.albumGroupingMode = LibraryAlbumGroupingMode.folder,
     this.lyricsScrapingServiceBaseUrl,
     this.enableLyricsScraping = false,
     this.enableFolderArtworkForSongs = true,
@@ -50,6 +52,7 @@ class LibraryPreferences {
   final double backgroundImageAlignmentY;
   final int albumPageSize;
   final bool albumViewGrid;
+  final LibraryAlbumGroupingMode albumGroupingMode;
   final String? lyricsScrapingServiceBaseUrl;
   final bool enableLyricsScraping;
   final bool enableFolderArtworkForSongs;
@@ -81,6 +84,7 @@ class LibraryPreferences {
     double? backgroundImageAlignmentY,
     int? albumPageSize,
     bool? albumViewGrid,
+    LibraryAlbumGroupingMode? albumGroupingMode,
     String? lyricsScrapingServiceBaseUrl,
     bool clearLyricsScrapingServiceBaseUrl = false,
     bool? enableLyricsScraping,
@@ -119,6 +123,7 @@ class LibraryPreferences {
               .toDouble(),
       albumPageSize: (albumPageSize ?? this.albumPageSize).clamp(1, 60).toInt(),
       albumViewGrid: albumViewGrid ?? this.albumViewGrid,
+      albumGroupingMode: albumGroupingMode ?? this.albumGroupingMode,
       lyricsScrapingServiceBaseUrl: clearLyricsScrapingServiceBaseUrl
           ? null
           : lyricsScrapingServiceBaseUrl ?? this.lyricsScrapingServiceBaseUrl,
@@ -139,6 +144,10 @@ abstract class LibraryPreferencesRepository {
   Future<LibraryPreferences> load();
 
   Future<void> save(LibraryPreferences preferences);
+
+  Future<LibraryPreferences> update(
+    LibraryPreferences Function(LibraryPreferences preferences) transform,
+  );
 }
 
 class SecureLibraryPreferencesRepository
@@ -149,6 +158,7 @@ class SecureLibraryPreferencesRepository
   static const _displayDefaultsVersion = 3;
 
   final FlutterSecureStorage _storage;
+  Future<void> _writeQueue = Future<void>.value();
 
   @override
   Future<LibraryPreferences> load() async {
@@ -208,6 +218,9 @@ class SecureLibraryPreferencesRepository
           .clamp(1, 60)
           .toInt(),
       albumViewGrid: json['albumViewGrid'] as bool? ?? false,
+      albumGroupingMode: json['albumGroupingMode'] == 'metadata'
+          ? LibraryAlbumGroupingMode.metadata
+          : LibraryAlbumGroupingMode.folder,
       lyricsScrapingServiceBaseUrl:
           (json['lyricsScrapingServiceBaseUrl'] as String?)?.trim().isEmpty ==
               true
@@ -227,6 +240,35 @@ class SecureLibraryPreferencesRepository
 
   @override
   Future<void> save(LibraryPreferences preferences) {
+    return _enqueueWrite(() => _write(preferences));
+  }
+
+  @override
+  Future<LibraryPreferences> update(
+    LibraryPreferences Function(LibraryPreferences preferences) transform,
+  ) {
+    return _enqueueWrite(() async {
+      final updated = transform(await load());
+      final next = updated.copyWith(
+        memoryPlaybackCacheTrackLimit:
+            updated.playbackCacheSettings.memoryCacheTrackLimit,
+      );
+      await _write(next);
+      return next;
+    });
+  }
+
+  Future<T> _enqueueWrite<T>(Future<T> Function() write) {
+    final result = _writeQueue.then((_) => write());
+    // A failed write reaches its caller without blocking later updates.
+    _writeQueue = result.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return result;
+  }
+
+  Future<void> _write(LibraryPreferences preferences) {
     final normalizedCacheSettings = preferences.playbackCacheSettings;
     final raw = jsonEncode({
       'favoriteTrackIds': preferences.favoriteTrackIds.toList()..sort(),
@@ -255,6 +297,7 @@ class SecureLibraryPreferencesRepository
           .toDouble(),
       'albumPageSize': preferences.albumPageSize.clamp(1, 60),
       'albumViewGrid': preferences.albumViewGrid,
+      'albumGroupingMode': preferences.albumGroupingMode.name,
       'lyricsScrapingServiceBaseUrl': preferences.lyricsScrapingServiceBaseUrl,
       'enableLyricsScraping': preferences.enableLyricsScraping,
       'enableFolderArtworkForSongs': preferences.enableFolderArtworkForSongs,

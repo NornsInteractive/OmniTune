@@ -1267,4 +1267,79 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get copyLogsAction => '复制日志';
+
+  @override
+  String get playbackModeRepeatAll => '列表循环';
+
+  @override
+  String get librarySearchTitle => '搜索音乐库';
+
+  @override
+  String get librarySearchHint => '歌曲、歌手或专辑';
+
+  @override
+  String get allSourcesLabel => '全部音源';
+
+  @override
+  String get sortTitleLabel => '歌曲名称';
+
+  @override
+  String get sortArtistLabel => '歌手';
+
+  @override
+  String get sortAlbumLabel => '专辑';
+
+  @override
+  String get searchNoResults => '没有找到匹配的歌曲';
+
+  @override
+  String get scanCancelledLabel => '扫描已取消，已入库歌曲已保留。';
+
+  @override
+  String get cancelScanAction => '取消扫描';
+
+  @override
+  String get retryFailedScanAction => '重试失败音源';
+
+  @override
+  String get scanFailedSourcesLabel => '失败音源';
+
+  @override
+  String get playbackSettingsTitle => '播放与缓存';
+
+  @override
+  String get advancedSettingsTitle => '高级';
+
+  @override
+  String get resumeLyricsFollow => '跟随当前歌词';
+
+  @override
+  String get playbackBufferingLabel => '缓冲中';
+
+  @override
+  String get playbackPausedLabel => '已暂停';
+
+  @override
+  String get playbackLoadingLabel => '正在加载音频';
+
+  @override
+  String get playbackPlayingLabel => '正在播放';
+
+  @override
+  String get playbackCacheNotice => '播放缓存可能被自动清理，不等同于离线下载。';
+
+  @override
+  String get clearSourceCacheAction => '清除此音源缓存';
+
+  @override
+  String get cachedBytesLabel => '已缓存';
+
+  @override
+  String get memoryCacheUsageLabel => '内存缓存';
+
+  @override
+  String get systemPlaybackChannel => '音乐播放';
+
+  @override
+  String get showCoverAction => '显示封面';
 }

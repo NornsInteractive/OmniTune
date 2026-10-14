@@ -21,9 +21,9 @@ import '../../sources/application/source_session_manager.dart';
 import '../../sources/application/sources_controller.dart';
 import '../../sources/domain/music_source.dart';
 
-part 'library_catalog_controller.g.dart';
+export '../../../core/models/library_album.dart' show LibraryAlbumGroupingMode;
 
-enum LibraryAlbumGroupingMode { folder, metadata }
+part 'library_catalog_controller.g.dart';
 
 class LibraryCatalogState {
   const LibraryCatalogState({
@@ -38,6 +38,8 @@ class LibraryCatalogState {
     this.favoriteTrackIds = const <String>{},
     this.likedTrackIds = const <String>{},
     this.isScanning = false,
+    this.isScanCancelled = false,
+    this.failedSourceIds = const [],
     this.scannedDirectoryCount = 0,
     this.discoveredTrackCount = 0,
     this.lastScanPath = '/',
@@ -57,6 +59,8 @@ class LibraryCatalogState {
   final Set<String> favoriteTrackIds;
   final Set<String> likedTrackIds;
   final bool isScanning;
+  final bool isScanCancelled;
+  final List<String> failedSourceIds;
   final int scannedDirectoryCount;
   final int discoveredTrackCount;
   final String lastScanPath;
@@ -120,6 +124,8 @@ class LibraryCatalogState {
     Set<String>? favoriteTrackIds,
     Set<String>? likedTrackIds,
     bool? isScanning,
+    bool? isScanCancelled,
+    List<String>? failedSourceIds,
     int? scannedDirectoryCount,
     int? discoveredTrackCount,
     String? lastScanPath,
@@ -155,6 +161,8 @@ class LibraryCatalogState {
       favoriteTrackIds: favoriteTrackIds ?? this.favoriteTrackIds,
       likedTrackIds: likedTrackIds ?? this.likedTrackIds,
       isScanning: isScanning ?? this.isScanning,
+      isScanCancelled: isScanCancelled ?? this.isScanCancelled,
+      failedSourceIds: failedSourceIds ?? this.failedSourceIds,
       scannedDirectoryCount:
           scannedDirectoryCount ?? this.scannedDirectoryCount,
       discoveredTrackCount: discoveredTrackCount ?? this.discoveredTrackCount,
@@ -188,6 +196,8 @@ class LibraryCatalogState {
     return Map.unmodifiable(counts);
   }
 }
+
+class _ScanCancelled implements Exception {}
 
 class _SourceScanResult {
   const _SourceScanResult({
@@ -260,6 +270,8 @@ class LibraryCatalogController extends _$LibraryCatalogController {
   static const Duration _scanTrackPublishInterval = Duration(milliseconds: 250);
 
   int _metadataHydrationGeneration = 0;
+  bool _scanRunning = false;
+  bool _scanCancelled = false;
 
   @override
   Future<LibraryCatalogState> build() async {
@@ -372,360 +384,210 @@ class LibraryCatalogController extends _$LibraryCatalogController {
     await scanAllSources();
   }
 
-  Future<void> scanAllSources() async {
-    DebugLogger.scraping('LibraryCatalogController', '开始扫描所有音乐源');
-    final sources = await ref.read(sourcesControllerProvider.future);
-    if (sources.isEmpty) {
-      DebugLogger.warning('LibraryCatalogController', '没有配置音乐源');
-      return;
-    }
+  Future<void> scanAllSources() => _scanSources();
 
-    DebugLogger.info(
-      'LibraryCatalogController',
-      '找到 ${sources.length} 个音乐源: ${sources.map((s) => s.name).join(", ")}',
-    );
+  Future<void> rescanSource(String sourceId) =>
+      _scanSources(sourceIds: {sourceId});
 
-    final current = state.valueOrNull ?? const LibraryCatalogState();
-    state = AsyncData(
-      current.copyWith(
-        currentSource: sources.first,
-        scannedSources: sources,
-        isScanning: true,
-        scannedDirectoryCount: 0,
-        discoveredTrackCount: 0,
-        lastScanPath: sources.first.effectiveScanDirectories.first,
-        lastScanSourceName: sources.first.name,
-        clearLastScanError: true,
-      ),
-    );
-
-    final discovered = <LibrarySong>[];
-    final scanErrors = <String>[];
-    var scannedDirectoryCount = 0;
-    var publishedDirectoryCount = 0;
-    var publishedPath = sources.first.effectiveScanDirectories.first;
-    var publishedSource = sources.first;
-    final trackPublisher = _IncrementalTrackPublisher(
-      initialTracks: const [],
-      batchSize: _scanTrackPublishBatchSize,
-      interval: _scanTrackPublishInterval,
-      onPublish: (tracks) {
-        state = AsyncData(
-          (state.valueOrNull ?? current).copyWith(
-            scannedSources: sources,
-            currentSource: publishedSource,
-            tracks: tracks,
-            isScanning: true,
-            scannedDirectoryCount: publishedDirectoryCount,
-            discoveredTrackCount: discovered.length,
-            lastScanPath: publishedPath,
-            lastScanSourceName: publishedSource.name,
-            clearLastScanError: scanErrors.isEmpty,
-            lastScanError: scanErrors.isEmpty ? null : scanErrors.join('\n'),
-          ),
-        );
-      },
-    );
-
-    try {
-      for (final source in sources) {
-        try {
-          DebugLogger.info('LibraryCatalogController', '开始扫描源: ${source.name}');
-          publishedSource = source;
-          publishedPath = source.effectiveScanDirectories.first;
-          final result = await _scanSourceTracks(
-            source,
-            progressOffsetDirectories: scannedDirectoryCount,
-            progressOffsetTracks: discovered.length,
-            onSongDiscovered: (song, directories, path) {
-              discovered.add(song);
-              publishedDirectoryCount = scannedDirectoryCount + directories;
-              publishedPath = path;
-              publishedSource = source;
-              trackPublisher.add(song);
-            },
-            onProgress: (directories, tracks, path) {
-              publishedDirectoryCount = directories;
-              publishedPath = path;
-              publishedSource = source;
-              DebugLogger.info(
-                'LibraryCatalogController',
-                '扫描进度 [${source.name}]: $directories 目录, $tracks 歌曲 - $path',
-              );
-              state = AsyncData(
-                (state.valueOrNull ?? current).copyWith(
-                  scannedSources: sources,
-                  currentSource: source,
-                  isScanning: true,
-                  scannedDirectoryCount: directories,
-                  discoveredTrackCount: tracks,
-                  lastScanPath: path,
-                  lastScanSourceName: source.name,
-                  lastScanError: scanErrors.isEmpty
-                      ? null
-                      : scanErrors.join('\n'),
-                ),
-              );
-            },
-          );
-
-          scannedDirectoryCount += result.scannedDirectoryCount;
-          DebugLogger.success(
-            'LibraryCatalogController',
-            '源 ${source.name} 扫描完成: ${result.tracks.length} 首歌曲',
-          );
-        } on DirectoryReadFailure catch (error) {
-          final msg = '${source.name}: ${error.message}';
-          scanErrors.add(msg);
-          DebugLogger.error('LibraryCatalogController', '目录读取失败', error);
-        } catch (error) {
-          final msg = '${source.name}: $error';
-          scanErrors.add(msg);
-          DebugLogger.error('LibraryCatalogController', '扫描异常', error);
-        }
-      }
-
-      discovered.sort(
-        (left, right) =>
-            left.title.toLowerCase().compareTo(right.title.toLowerCase()),
-      );
-
-      DebugLogger.info(
-        'LibraryCatalogController',
-        '所有源扫描完成，总共 ${discovered.length} 首歌曲',
-      );
-      trackPublisher.flush();
-
-      // 保存扫描结果到缓存
-      try {
-        DebugLogger.info(
-          'LibraryCatalogController.scanAllSources',
-          '开始保存扫描结果到缓存',
-        );
-        final cacheRepo = await createScanCacheRepository();
-        DebugLogger.info('LibraryCatalogController.scanAllSources', '缓存仓库创建成功');
-        final resultsBySource = <String, List<LibrarySong>>{
-          for (final source in sources) source.id: <LibrarySong>[],
-        };
-        for (final song in discovered) {
-          resultsBySource.putIfAbsent(song.sourceId, () => []).add(song);
-        }
-        await cacheRepo.saveAllResults(resultsBySource);
-        DebugLogger.success(
-          'LibraryCatalogController.scanAllSources',
-          '所有扫描结果已保存到缓存',
-        );
-      } catch (e, stack) {
-        DebugLogger.error(
-          'LibraryCatalogController.scanAllSources',
-          '缓存保存失败',
-          e.toString(),
-          stack,
-        );
-      }
-
-      // 在展示前应用已缓存的刮削数据
-      final displayTracks = await _applyCachedScrapingMetadataAsync(discovered);
-      final folderAlbums = await _buildFolderAlbumsAsync(displayTracks);
-      final metadataAlbums = await _buildMetadataAlbumsAsync(displayTracks);
-
-      state = AsyncData(
-        (state.valueOrNull ?? current).copyWith(
-          scannedSources: sources,
-          currentSource: sources.last,
-          tracks: displayTracks,
-          folderAlbums: folderAlbums,
-          metadataAlbums: metadataAlbums,
-          isScanning: false,
-          scannedDirectoryCount: scannedDirectoryCount,
-          discoveredTrackCount: displayTracks.length,
-          lastScanPath: '/',
-          lastScanSourceName: sources.last.name,
-          lastScannedAt: DateTime.now(),
-          clearLastScanError: scanErrors.isEmpty,
-          lastScanError: scanErrors.isEmpty ? null : scanErrors.join('\n'),
-        ),
-      );
-      unawaited(_hydrateEmbeddedMetadataInBackground(sources, discovered));
-    } catch (error) {
-      state = AsyncData(
-        (state.valueOrNull ?? current).copyWith(
-          scannedSources: sources,
-          currentSource: sources.last,
-          isScanning: false,
-          lastScanError: error.toString(),
-        ),
-      );
-    } finally {
-      trackPublisher.dispose();
+  void cancelScan() {
+    if (!_scanRunning) return;
+    _scanCancelled = true;
+    final current = state.valueOrNull;
+    if (current != null) {
+      state = AsyncData(current.copyWith(isScanCancelled: true));
     }
   }
 
-  Future<void> rescanSource(String sourceId) async {
-    final allSources = await ref.read(sourcesControllerProvider.future);
-    final source = allSources.firstWhere((item) => item.id == sourceId);
-    final current = state.valueOrNull ?? const LibraryCatalogState();
-    final retained = current.tracks
-        .where((track) => track.sourceId != sourceId)
-        .toList(growable: true);
+  Future<void> retryFailedSources() async {
+    final ids = state.valueOrNull?.failedSourceIds.toSet() ?? <String>{};
+    if (ids.isNotEmpty) await _scanSources(sourceIds: ids);
+  }
 
-    state = AsyncData(
-      current.copyWith(
-        scannedSources: allSources,
-        currentSource: source,
-        tracks: retained,
-        folderAlbums: _buildFolderAlbums(retained),
-        metadataAlbums: _buildMetadataAlbums(retained),
-        isScanning: true,
-        scannedDirectoryCount: 0,
-        discoveredTrackCount: retained.length,
-        lastScanPath: source.effectiveScanDirectories.first,
-        lastScanSourceName: source.name,
-        clearLastScanError: true,
-      ),
-    );
-
-    final sourceDiscovered = <LibrarySong>[];
-    var publishedDirectoryCount = 0;
-    var publishedPath = source.effectiveScanDirectories.first;
-    final trackPublisher = _IncrementalTrackPublisher(
-      initialTracks: retained,
-      batchSize: _scanTrackPublishBatchSize,
-      interval: _scanTrackPublishInterval,
-      onPublish: (tracks) {
-        state = AsyncData(
-          (state.valueOrNull ?? current).copyWith(
-            scannedSources: allSources,
-            currentSource: source,
-            tracks: tracks,
-            isScanning: true,
-            scannedDirectoryCount: publishedDirectoryCount,
-            discoveredTrackCount: retained.length + sourceDiscovered.length,
-            lastScanPath: publishedPath,
-            lastScanSourceName: source.name,
-          ),
-        );
-      },
-    );
-
+  Future<void> _scanSources({Set<String>? sourceIds}) async {
+    if (_scanRunning) return;
+    _scanRunning = true;
+    _scanCancelled = false;
+    _metadataHydrationGeneration++;
+    _IncrementalTrackPublisher? publisher;
     try {
-      final result = await _scanSourceTracks(
-        source,
-        progressOffsetDirectories: 0,
-        progressOffsetTracks: retained.length,
-        onSongDiscovered: (song, directories, path) {
-          sourceDiscovered.add(song);
-          publishedDirectoryCount = directories;
-          publishedPath = path;
-          trackPublisher.add(song);
-        },
-        onProgress: (directories, tracks, path) {
-          publishedDirectoryCount = directories;
-          publishedPath = path;
+      // Preserve cached tracks even when a scan starts during initial loading.
+      await future;
+      final allSources = await ref.read(sourcesControllerProvider.future);
+      final sources = allSources
+          .where((s) => sourceIds == null || sourceIds.contains(s.id))
+          .toList();
+      if (sources.isEmpty) return;
+      final current = state.valueOrNull ?? const LibraryCatalogState();
+      // Keep prior tracks until a source has completed successfully.
+      final tracksById = {for (final song in current.tracks) song.id: song};
+      final failures = current.failedSourceIds.toSet();
+      final errors = <String>[];
+      var directoryCount = 0;
+      var discoveredCount = 0;
+      var activeSource = sources.first;
+      var activePath = activeSource.effectiveScanDirectories.first;
+      state = AsyncData(
+        current.copyWith(
+          isScanning: true,
+          isScanCancelled: false,
+          scannedSources: allSources,
+          scannedDirectoryCount: 0,
+          discoveredTrackCount: 0,
+          lastScanSourceName: activeSource.name,
+          lastScanPath: activePath,
+          clearLastScanError: true,
+        ),
+      );
+      publisher = _IncrementalTrackPublisher(
+        initialTracks: const [],
+        batchSize: _scanTrackPublishBatchSize,
+        interval: _scanTrackPublishInterval,
+        onPublish: (_) {
           state = AsyncData(
             (state.valueOrNull ?? current).copyWith(
-              scannedSources: allSources,
-              currentSource: source,
-              isScanning: true,
-              scannedDirectoryCount: directories,
-              discoveredTrackCount: tracks,
-              lastScanPath: path,
-              lastScanSourceName: source.name,
+              tracks: tracksById.values.toList(growable: false),
+              currentSource: activeSource,
+              scannedDirectoryCount: directoryCount,
+              discoveredTrackCount: discoveredCount,
+              lastScanSourceName: activeSource.name,
+              lastScanPath: activePath,
             ),
           );
         },
       );
-
-      trackPublisher.flush();
-      final allTracks = [...retained, ...result.tracks];
-      allTracks.sort(
-        (left, right) =>
-            left.title.toLowerCase().compareTo(right.title.toLowerCase()),
-      );
-
-      // 保存扫描结果到缓存
-      try {
-        final cacheRepo = await createScanCacheRepository();
-        await cacheRepo.saveScanResults(source.id, result.tracks);
-      } catch (e) {
-        // 忽略保存失败
+      for (final source in sources) {
+        if (_scanCancelled) break;
+        activeSource = source;
+        final found = <LibrarySong>[];
+        var completed = false;
+        final offset = directoryCount;
+        try {
+          final result = await _scanSourceTracks(
+            source,
+            progressOffsetDirectories: offset,
+            progressOffsetTracks: discoveredCount,
+            onSongDiscovered: (song, count, path) {
+              found.add(song);
+              tracksById[song.id] = song;
+              discoveredCount++;
+              directoryCount = offset + count;
+              activePath = path;
+              publisher!.add(song);
+            },
+            onProgress: (count, _, path) {
+              directoryCount = count;
+              activePath = path;
+              state = AsyncData(
+                (state.valueOrNull ?? current).copyWith(
+                  currentSource: source,
+                  scannedDirectoryCount: count,
+                  discoveredTrackCount: discoveredCount,
+                  lastScanSourceName: source.name,
+                  lastScanPath: path,
+                ),
+              );
+            },
+          );
+          directoryCount = offset + result.scannedDirectoryCount;
+          completed = true;
+          failures.remove(source.id);
+          final foundIds = found.map((song) => song.id).toSet();
+          tracksById.removeWhere(
+            (id, song) => song.sourceId == source.id && !foundIds.contains(id),
+          );
+        } on _ScanCancelled {
+          // Persist discovered songs together with previously known songs.
+        } catch (error) {
+          failures.add(source.id);
+          errors.add('${source.name}: $error');
+        }
+        publisher.flush();
+        final sourceTracks = tracksById.values
+            .where((song) => song.sourceId == source.id)
+            .toList();
+        try {
+          final cache = await createScanCacheRepository();
+          await cache.saveScanResults(source.id, sourceTracks);
+        } catch (error) {
+          failures.add(source.id);
+          errors.add('${source.name}: $error');
+        }
+        state = AsyncData(
+          (state.valueOrNull ?? current).copyWith(
+            failedSourceIds: failures.toList(growable: false),
+            lastScanError: errors.isEmpty ? null : errors.join('\n'),
+            clearLastScanError: errors.isEmpty,
+          ),
+        );
+        if (!completed && _scanCancelled) break;
       }
-
-      // 应用已缓存的刮削数据
-      final displayTracks = await _applyCachedScrapingMetadataAsync(allTracks);
+      publisher.flush();
+      final tracks = tracksById.values.toList()
+        ..sort(
+          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+        );
+      final displayTracks = await _applyCachedScrapingMetadataAsync(tracks);
       final folderAlbums = await _buildFolderAlbumsAsync(displayTracks);
       final metadataAlbums = await _buildMetadataAlbumsAsync(displayTracks);
-
       state = AsyncData(
         (state.valueOrNull ?? current).copyWith(
-          scannedSources: allSources,
-          currentSource: source,
           tracks: displayTracks,
           folderAlbums: folderAlbums,
           metadataAlbums: metadataAlbums,
           isScanning: false,
-          scannedDirectoryCount: result.scannedDirectoryCount,
-          discoveredTrackCount: displayTracks.length,
-          lastScanPath: source.effectiveScanDirectories.first,
-          lastScanSourceName: source.name,
+          isScanCancelled: _scanCancelled,
+          failedSourceIds: failures.toList(growable: false),
+          scannedDirectoryCount: directoryCount,
+          discoveredTrackCount: discoveredCount,
           lastScannedAt: DateTime.now(),
-          clearLastScanError: true,
+          lastScanError: errors.isEmpty ? null : errors.join('\n'),
+          clearLastScanError: errors.isEmpty,
         ),
       );
-      unawaited(_hydrateEmbeddedMetadataInBackground([source], result.tracks));
-    } on DirectoryReadFailure catch (error) {
-      state = AsyncData(
-        (state.valueOrNull ?? current).copyWith(
-          scannedSources: allSources,
-          currentSource: source,
-          isScanning: false,
-          lastScanError: error.message,
-        ),
-      );
+      if (!_scanCancelled) {
+        unawaited(_hydrateEmbeddedMetadataInBackground(sources, displayTracks));
+      }
     } catch (error) {
+      final current = state.valueOrNull ?? const LibraryCatalogState();
       state = AsyncData(
-        (state.valueOrNull ?? current).copyWith(
-          scannedSources: allSources,
-          currentSource: source,
-          isScanning: false,
-          lastScanError: error.toString(),
-        ),
+        current.copyWith(isScanning: false, lastScanError: error.toString()),
       );
     } finally {
-      trackPublisher.dispose();
+      publisher?.dispose();
+      _scanRunning = false;
     }
   }
 
   Future<void> toggleFavorite(String trackId) async {
-    final current = state.valueOrNull ?? const LibraryCatalogState();
-    final updated = {...current.favoriteTrackIds};
-    if (updated.contains(trackId)) {
-      updated.remove(trackId);
-    } else {
-      updated.add(trackId);
-    }
-    await _savePreferences(current.copyWith(favoriteTrackIds: updated));
+    await _savePreferences((preferences) {
+      final updated = {...preferences.favoriteTrackIds};
+      if (!updated.remove(trackId)) {
+        updated.add(trackId);
+      }
+      return preferences.copyWith(favoriteTrackIds: updated);
+    });
   }
 
   Future<void> toggleLiked(String trackId) async {
-    final current = state.valueOrNull ?? const LibraryCatalogState();
-    final updated = {...current.likedTrackIds};
-    if (updated.contains(trackId)) {
-      updated.remove(trackId);
-    } else {
-      updated.add(trackId);
-    }
-    await _savePreferences(current.copyWith(likedTrackIds: updated));
+    await _savePreferences((preferences) {
+      final updated = {...preferences.likedTrackIds};
+      if (!updated.remove(trackId)) {
+        updated.add(trackId);
+      }
+      return preferences.copyWith(likedTrackIds: updated);
+    });
   }
 
-  Future<void> _savePreferences(LibraryCatalogState nextState) async {
-    state = AsyncData(nextState);
+  Future<void> _savePreferences(
+    LibraryPreferences Function(LibraryPreferences preferences) transform,
+  ) async {
     final repository = ref.read(libraryPreferencesRepositoryProvider);
-    final currentPreferences = await repository.load();
-    await repository.save(
-      currentPreferences.copyWith(
-        favoriteTrackIds: nextState.favoriteTrackIds,
-        likedTrackIds: nextState.likedTrackIds,
+    final preferences = await repository.update(transform);
+    final current = state.valueOrNull ?? const LibraryCatalogState();
+    state = AsyncData(
+      current.copyWith(
+        favoriteTrackIds: preferences.favoriteTrackIds,
+        likedTrackIds: preferences.likedTrackIds,
       ),
     );
   }
@@ -748,15 +610,18 @@ class LibraryCatalogController extends _$LibraryCatalogController {
     var scannedDirectoryCount = 0;
 
     while (queue.isNotEmpty) {
+      if (_scanCancelled) throw _ScanCancelled();
       final path = _normalizeDirectoryPath(queue.removeFirst());
       if (!visited.add(path) || _isExcludedPath(path, excludedDirectories)) {
         continue;
       }
 
       final listing = await session.listFiles(path);
+      if (_scanCancelled) throw _ScanCancelled();
       scannedDirectoryCount++;
 
       for (final entry in listing.entries) {
+        if (_scanCancelled) throw _ScanCancelled();
         if (entry.isDirectory) {
           final directoryPath = _normalizeDirectoryPath(entry.path);
           if (_isExcludedPath(directoryPath, excludedDirectories)) {
@@ -772,6 +637,7 @@ class LibraryCatalogController extends _$LibraryCatalogController {
         }
 
         final song = await _mapSong(source, entry, session: session);
+        if (_scanCancelled) throw _ScanCancelled();
         discovered.add(song);
         onSongDiscovered?.call(song, scannedDirectoryCount, path);
       }

@@ -33,6 +33,7 @@ class WebDavReadResult {
     required this.contentLength,
     required this.contentType,
     this.sourceLength,
+    this.sourceLengthIsAuthoritative = false,
   });
 
   final Stream<List<int>> stream;
@@ -40,6 +41,17 @@ class WebDavReadResult {
   final int contentLength;
   final String contentType;
   final int? sourceLength;
+  // Protocol adapters can explicitly rule out a previously reported size.
+  final bool sourceLengthIsAuthoritative;
+
+  int? resolveSourceLength(int? fallback) {
+    if (sourceLength != null || sourceLengthIsAuthoritative) {
+      return sourceLength;
+    }
+    return fallback != null && fallback >= offset + contentLength
+        ? fallback
+        : null;
+  }
 }
 
 class WebDavDirectoryAttempt {

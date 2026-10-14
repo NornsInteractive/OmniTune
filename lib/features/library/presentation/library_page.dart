@@ -1,3 +1,4 @@
+import 'library_scan_status.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -81,6 +82,11 @@ class LibraryPage extends ConsumerWidget {
                       ),
                     ),
                   ),
+                  IconButton(
+                    tooltip: l10n.librarySearchTitle,
+                    icon: const Icon(Icons.search_rounded),
+                    onPressed: () => context.push('/search'),
+                  ),
                   _TopIconButton(
                     icon: Icons.radar_rounded,
                     onTap: () {
@@ -115,7 +121,8 @@ class LibraryPage extends ConsumerWidget {
                   weight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 28),
+              const LibraryScanStatus(),
+              const SizedBox(height: 16),
               if (!browser.hasSources)
                 _EmptyGlassCard(
                   title: l10n.sourceManagementEmptyTitle,
@@ -208,6 +215,15 @@ class LibrarySongsPage extends ConsumerWidget {
             LibraryCollectionSection.allSongs => l10n.allSongsEmptyTitle,
           };
 
+          final isWide = MediaQuery.sizeOf(context).width >= 800;
+          final horizontalMargin = isWide ? 16.0 : 12.0;
+          final listPadding = EdgeInsets.fromLTRB(
+            horizontalMargin,
+            studioListSpacingOf(context, 16),
+            horizontalMargin,
+            144,
+          );
+
           return Column(
             children: [
               _SongsPinnedHeader(
@@ -242,10 +258,7 @@ class LibrarySongsPage extends ConsumerWidget {
                     if (tracks.isEmpty)
                       SliverToBoxAdapter(
                         child: Padding(
-                          padding: studioListPaddingOf(
-                            context,
-                            const EdgeInsets.fromLTRB(28, 18, 28, 144),
-                          ),
+                          padding: listPadding,
                           child: _EmptyGlassCard(
                             title: emptyTitle,
                             description: l10n.collectionEmptyDescription,
@@ -254,10 +267,7 @@ class LibrarySongsPage extends ConsumerWidget {
                       )
                     else
                       SliverPadding(
-                        padding: studioListPaddingOf(
-                          context,
-                          const EdgeInsets.fromLTRB(28, 18, 28, 144),
-                        ),
+                        padding: listPadding,
                         sliver: SliverList(
                           delegate: SliverChildBuilderDelegate((
                             context,
@@ -1007,8 +1017,8 @@ class _SongCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
-    final cardRadius = studioRadiusOf(context, 22);
-    final coverSize = studioListIconBoxSizeOf(context).clamp(36.0, 46.0);
+    final cardRadius = studioRadiusOf(context, 18);
+    final coverSize = studioListSpacingOf(context, 50).clamp(48.0, 56.0);
     final isCurrentTrack = ref.watch(isCurrentTrackIdProvider(song.id));
     return Material(
       color: isCurrentTrack
@@ -1019,65 +1029,75 @@ class _SongCard extends ConsumerWidget {
       child: InkWell(
         onTap: onTap,
         onLongPress: onMore,
-        child: Container(
-          padding: studioListPaddingOf(context, const EdgeInsets.all(8)),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(cardRadius),
-          ),
-          child: Row(
-            children: [
-              _LibraryTrackThumbnail(
-                song: song,
-                subtitle: '${song.displayArtist} · ${song.displayAlbum}',
-                size: coverSize,
-                borderRadius: 12,
-                isCurrentTrack: isCurrentTrack,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 72),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final showInlineFavorite = constraints.maxWidth >= 340;
+                return Row(
                   children: [
-                    Text(
-                      song.displayTitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: _glacierTextStyle(
-                        color: colorScheme.onSurface,
-                        size: 14,
-                        weight: FontWeight.w600,
+                    _LibraryTrackThumbnail(
+                      song: song,
+                      subtitle: '${song.displayArtist} · ${song.displayAlbum}',
+                      size: coverSize,
+                      borderRadius: 12,
+                      isCurrentTrack: isCurrentTrack,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            song.displayTitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: _glacierTextStyle(
+                              color: colorScheme.onSurface,
+                              size: 15,
+                              weight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            song.displayArtist,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: _glacierTextStyle(
+                              color: colorScheme.onSurfaceVariant,
+                              size: 12,
+                              weight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      song.displayArtist,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: _glacierTextStyle(
-                        color: colorScheme.onSurfaceVariant,
-                        size: 11,
-                        weight: FontWeight.w500,
+                    if (showInlineFavorite)
+                      _CompactIconButton(
+                        icon: isFavorite
+                            ? Icons.bookmark_rounded
+                            : Icons.bookmark_border_rounded,
+                        onTap: onFavorite,
+                        active: isFavorite,
                       ),
+                    _CompactIconButton(
+                      icon: isLiked
+                          ? Icons.favorite_rounded
+                          : Icons.favorite_border_rounded,
+                      onTap: onLiked,
+                      active: isLiked,
+                    ),
+                    _CompactIconButton(
+                      icon: Icons.more_horiz_rounded,
+                      onTap: onMore,
                     ),
                   ],
-                ),
-              ),
-              _CompactIconButton(
-                icon: isFavorite
-                    ? Icons.bookmark_rounded
-                    : Icons.bookmark_border_rounded,
-                onTap: onFavorite,
-                active: isFavorite,
-              ),
-              _CompactIconButton(
-                icon: isLiked
-                    ? Icons.favorite_rounded
-                    : Icons.favorite_border_rounded,
-                onTap: onLiked,
-                active: isLiked,
-              ),
-              _CompactIconButton(icon: Icons.more_horiz_rounded, onTap: onMore),
-            ],
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -1139,12 +1159,16 @@ class _CompactIconButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(buttonRadius),
         onTap: onTap,
         child: SizedBox(
-          width: 34,
-          height: 34,
-          child: Icon(
-            icon,
-            size: 20,
-            color: active ? colorScheme.primary : colorScheme.onSurfaceVariant,
+          width: 48,
+          height: 48,
+          child: Center(
+            child: Icon(
+              icon,
+              size: 20,
+              color: active
+                  ? colorScheme.primary
+                  : colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
       ),

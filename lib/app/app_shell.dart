@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +10,7 @@ import 'package:music/core/i18n/localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/config/build_env.dart';
+import '../core/router/app_router.dart';
 import '../core/storage/library_preferences_repository.dart';
 import '../core/widgets/studio_chrome.dart';
 import '../core/widgets/top_snackbar.dart';
@@ -15,13 +18,41 @@ import '../features/player/application/player_controller.dart';
 import '../features/player/presentation/widgets/mini_player.dart';
 import '../features/settings/application/app_settings_controller.dart';
 
-class MusicAppShell extends ConsumerWidget {
+class MusicAppShell extends ConsumerStatefulWidget {
   const MusicAppShell({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MusicAppShell> createState() => _MusicAppShellState();
+}
+
+class _MusicAppShellState extends ConsumerState<MusicAppShell> {
+  StreamSubscription<bool>? _notificationClicks;
+
+  @override
+  void initState() {
+    super.initState();
+    _notificationClicks = AudioService.notificationClicked.listen((clicked) {
+      if (!clicked || !mounted || !ref.read(playerControllerProvider).hasTrack) {
+        return;
+      }
+      final router = ref.read(appRouterProvider);
+      if (router.routeInformationProvider.value.uri.path != '/player') {
+        router.push('/player');
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _notificationClicks?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final navigationShell = widget.navigationShell;
     final preferences =
         ref.watch(appSettingsControllerProvider).valueOrNull ??
         const LibraryPreferences();
@@ -215,8 +246,8 @@ class _StudioNavigationRail extends StatelessWidget {
                     label: Text(l10n.collectionTabLabel),
                   ),
                   NavigationRailDestination(
-                    icon: const Icon(Icons.search_rounded),
-                    selectedIcon: const Icon(Icons.search_rounded),
+                    icon: const Icon(Icons.folder_open_rounded),
+                    selectedIcon: const Icon(Icons.folder_open_rounded),
                     label: Text(l10n.browserTitle),
                   ),
                   if (debugModeEnabled)
@@ -275,8 +306,8 @@ class _StudioNavigationBar extends StatelessWidget {
       ),
       _NavDestination(
         label: l10n.browserTitle,
-        icon: Icons.search_rounded,
-        selectedIcon: Icons.search_rounded,
+        icon: Icons.folder_open_rounded,
+        selectedIcon: Icons.folder_open_rounded,
         selected: navigationShell.currentIndex == 2,
         onTap: () => _goBranch(2),
       ),

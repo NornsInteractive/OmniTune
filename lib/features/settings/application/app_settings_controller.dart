@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/app_preferences.dart';
 import '../../../core/models/custom_theme_colors.dart';
+import '../../../core/models/library_album.dart';
 import '../../../core/storage/library_preferences_repository.dart';
 import '../../../core/utils/debug_logger.dart';
 
@@ -39,6 +40,12 @@ class AppSettingsController extends AsyncNotifier<LibraryPreferences> {
 
   Future<void> setAlbumViewGrid(bool value) async {
     await _save((preferences) => preferences.copyWith(albumViewGrid: value));
+  }
+
+  Future<void> setAlbumGroupingMode(LibraryAlbumGroupingMode value) async {
+    await _save(
+      (preferences) => preferences.copyWith(albumGroupingMode: value),
+    );
   }
 
   Future<void> setDebugMode(bool value) async {
@@ -128,11 +135,9 @@ class AppSettingsController extends AsyncNotifier<LibraryPreferences> {
     LibraryPreferences Function(LibraryPreferences preferences) transform,
   ) async {
     final repository = ref.read(libraryPreferencesRepositoryProvider);
-    final current = state.valueOrNull ?? await repository.load();
-    final next = transform(current);
+    final next = await repository.update(transform);
     state = AsyncData(next);
     DebugLogger.setDebugEnabled(next.enableDebugMode);
-    await repository.save(next);
   }
 
   String _normalizeServiceUrl(String? value) {

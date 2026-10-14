@@ -7,7 +7,12 @@ import 'webdav_remote_client.dart';
 
 class _UnsupportedWebDavPlaybackCache implements WebDavPlaybackCache {
   @override
+  int get retainedMemoryBytes => 0;
+  @override
   void applySettings(PlaybackCacheSettings settings) {}
+
+  @override
+  void setActivePlaybackTrack(String? trackId) {}
 
   @override
   Stream<PlaybackCacheSnapshot> get snapshotStream =>
@@ -78,4 +83,5 @@ class _UnsupportedWebDavPlaybackCache implements WebDavPlaybackCache {
 
 WebDavPlaybackCache createWebDavPlaybackCache({
   required PlaybackCacheSettings initialSettings,
+  int maxMemoryBytes = 64 * 1024 * 1024,
 }) => _UnsupportedWebDavPlaybackCache();

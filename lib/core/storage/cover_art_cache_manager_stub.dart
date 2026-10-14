@@ -13,6 +13,8 @@ class CoverArtCacheManager {
   static final CoverArtCacheManager _instance =
       CoverArtCacheManager._internal();
 
+  Future<bool> isUsableLocalPath(String path) async => false;
+
   Future<String?> downloadAndCache(String coverUrl) async {
     DebugLogger.info('CoverArtCache', '当前平台跳过本地封面缓存: $coverUrl');
     return null;

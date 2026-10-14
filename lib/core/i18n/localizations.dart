@@ -2446,6 +2446,156 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copy logs'**
   String get copyLogsAction;
+
+  /// No description provided for @playbackModeRepeatAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat all'**
+  String get playbackModeRepeatAll;
+
+  /// No description provided for @librarySearchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Search library'**
+  String get librarySearchTitle;
+
+  /// No description provided for @librarySearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Song, artist or album'**
+  String get librarySearchHint;
+
+  /// No description provided for @allSourcesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'All sources'**
+  String get allSourcesLabel;
+
+  /// No description provided for @sortTitleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get sortTitleLabel;
+
+  /// No description provided for @sortArtistLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Artist'**
+  String get sortArtistLabel;
+
+  /// No description provided for @sortAlbumLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Album'**
+  String get sortAlbumLabel;
+
+  /// No description provided for @searchNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching songs'**
+  String get searchNoResults;
+
+  /// No description provided for @scanCancelledLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan cancelled. Saved songs are kept.'**
+  String get scanCancelledLabel;
+
+  /// No description provided for @cancelScanAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel scan'**
+  String get cancelScanAction;
+
+  /// No description provided for @retryFailedScanAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry failed sources'**
+  String get retryFailedScanAction;
+
+  /// No description provided for @scanFailedSourcesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed sources'**
+  String get scanFailedSourcesLabel;
+
+  /// No description provided for @playbackSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback & cache'**
+  String get playbackSettingsTitle;
+
+  /// No description provided for @advancedSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced'**
+  String get advancedSettingsTitle;
+
+  /// No description provided for @resumeLyricsFollow.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow current line'**
+  String get resumeLyricsFollow;
+
+  /// No description provided for @playbackBufferingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Buffering'**
+  String get playbackBufferingLabel;
+
+  /// No description provided for @playbackPausedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get playbackPausedLabel;
+
+  /// No description provided for @playbackLoadingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading audio'**
+  String get playbackLoadingLabel;
+
+  /// No description provided for @playbackPlayingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Playing'**
+  String get playbackPlayingLabel;
+
+  /// No description provided for @playbackCacheNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback cache may be evicted automatically. It is not an offline download.'**
+  String get playbackCacheNotice;
+
+  /// No description provided for @clearSourceCacheAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear this source cache'**
+  String get clearSourceCacheAction;
+
+  /// No description provided for @cachedBytesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cached'**
+  String get cachedBytesLabel;
+
+  /// No description provided for @memoryCacheUsageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Memory cache'**
+  String get memoryCacheUsageLabel;
+
+  /// No description provided for @systemPlaybackChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Music playback'**
+  String get systemPlaybackChannel;
+
+  /// No description provided for @showCoverAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Show cover'**
+  String get showCoverAction;
 }
 
 class _AppLocalizationsDelegate

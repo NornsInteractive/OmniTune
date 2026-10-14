@@ -41,12 +41,14 @@ flutter build linux --release
 ```
 
 分发完整 `build/linux/x64/release/bundle/`，不能只分发可执行文件。本次构建环境为 Debian 12 x86_64 / glibc 2.36，其他发行版需检查 ABI 与系统库兼容。
-原生音频回归测试需要 Linux/libmpv 和音频输出；无声卡的 CI 可使用临时 ALSA null 配置运行测试，不修改应用的实际输出设置。
+原生音频回归测试需要 Linux/libmpv 和音频输出；无声卡的 CI 可使用临时 ALSA null 配置，或以 `SDL_AUDIODRIVER=dummy flutter test --no-pub` 使用 SDL 虚拟输出，不修改应用的实际输出设置。虚拟输出能验证解码、播放进度、暂停和跳转，不能验证真实扬声器出声。
 
 ## UI 工作流
 
-读取 AGENTS.md 和项目进度中的会话 ID。通过 `agy --conversation <ID>` 恢复 **OmniTune**，使用 design-taste-frontend skill，以 Flutter Material 实现视觉和动画。
+读取 AGENTS.md 和项目进度中的会话 ID。通过 `agy --conversation <ID> --model gemini-3.8-flash-high` 恢复 **OmniTune**，确认账号前缀为 `mel`，使用 design-taste-frontend skill，以 Flutter Material 实现视觉和动画。遇到 CLI 残留的历史额度错误，重启本项目进程并检查本轮回复、日志和实际变更。
 Codex 可审查和定位，但全部 UI 实现和回归修复交回同一会话。
+
+所有测试代码、回归用例、ADB 自动化与性能测试脚本的新增或修改交给 OpenCode 免费模型；调用前确认模型费用为 0，不自动回退到收费模型。Codex 可审查、运行测试并记录证据。此规则也适用于 UI 测试；产品 UI 代码继续由固定 OmniTune agy 会话实现。
 
 ## 平台与性能
 
@@ -54,6 +56,37 @@ Codex 可审查和定位，但全部 UI 实现和回归修复交回同一会话�
 TV 必须可用方向键/确认/返回控制，文字按 18sp 最低要求检查。
 性能报告区分脚本基准、Widget 重建/懒加载检查与真机 profile 帧耗时，禁止用测试耗时宣称全平台 FPS。
 原生缓存序列化在后台 isolate 执行；Web 编码和歌曲对象恢复按 128 首分批让出事件循环。Web 的原始 JSON 解码及 SharedPreferences 写入仍需浏览器 profile 验证。
+
+流式播放缓存使用可扩容缓冲区，下载进度限频 250ms，完成或终止时通知最终状态；保留乱序覆盖和缓存空洞语义。原生播放会话编解码通过 compute 执行，保存与清除串行，旧 `player_session_v1` 字段不变。
+
+OpenCode 免费模型实现的 Android 测试工具：
+
+```bash
+python3 scripts/test_android_playback.py --self-test
+python3 scripts/test_android_playback.py --capture-only --serial <设备ID> --sample-seconds 30 --output-dir build/validation/android-playback
+python3 scripts/measure_android_playback.py --self-test
+python3 scripts/measure_android_playback.py --serial <设备ID> --seconds 1800 --output-dir build/validation/long-playback
+```
+
+长时采样工具按应用记录 PSS/RSS、系统媒体状态和播放位置。使用原签名的 profile 包并转发 Dart VM Service 后，可通过 `--vm-service-url` 提供本机地址，采集 `Frame` 和 `GPURasterizer::Draw` 的耗时分布；地址不会写入报告。指标来自轮询取得的事件，不代表完整呈现帧率。`logcat.fatal` 仅统计当前 PID 的 Java `FATAL EXCEPTION` 日志差值，不覆盖所有原生崩溃。缺失设备、帧事件、可靠 ANR 或应用网络数据时报告 `not measured`，不可解释为零卡顿、零 ANR 或零网络流量。
+
+实际音乐播放后执行 capture-only，不生成测试音源或修改账号配置。必要时使用 --serve-only 提供临时 WebDAV/WAV 音源，测试文件位于忽略目录。证据包含包 PID 日志、gfxinfo 和实际 SurfaceFlinger 图层记录；不能直接把 gfxinfo 百分比当成 Flutter FPS。
+
+## 系统播放器与缓存边界
+
+媒体操作统一回到 PlayerController，AudioPlayer 仅由 player_service.dart 操作。进度同步最多每秒一次，播放状态、切歌、收藏、模式和主动跳转立即同步；系统队列按播放列表版本更新并每 64 项让出事件循环。封面异步解析后核对当前媒体标识，原生系统只接收缓存文件 URI，缺失时使用现有品牌图。
+
+原生音频缓存按实际保留的缓冲区容量限制为 64 MiB；先回收非活动歌曲，当前歌曲超限后继续转发网络音频而停止追加内存缓存。这不是整个进程的内存上限，也不限制用户配置的磁盘缓存。扫描取消在当前网络请求返回后生效，失败/取消保留旧歌曲及本次已发现歌曲；只有完整成功扫描的音源才删除失效记录。
+
+| 平台 | 当前系统接管范围 | 尚有限制 |
+|---|---|---|
+| Android / TV | 媒体元数据、封面、播放/暂停、上下首、跳转、收藏/模式动作 | 系统版本决定按钮布局；真实 TV/实体机待验收 |
+| iOS / macOS | audio_service 元数据与传输控制；补齐本地网络/客户端权限 | 需 Apple 构建环境与设备验收；系统不保证展示自定义按钮 |
+| Linux | MPRIS 元数据、播放/暂停、上下首、绝对位置跳转 | 0.2.1 插件不转发 Stop/相对 Seek；不提供模式和队列交互 |
+| Windows | SMTC 元数据、封面、播放/暂停、上下首、停止 | 0.0.3 插件未实现时间轴跳转、队列和模式；需 Windows 构建验收 |
+| Web | 浏览器 MediaSession 元数据与支持的媒体动作 | 由浏览器支持情况决定；带查询参数的封面 URL 使用默认图，避免暴露签名凭证 |
+
+不包含 Android Auto、CarPlay 或进程被杀后的冷启动恢复服务。
 
 ## 文档维护
 

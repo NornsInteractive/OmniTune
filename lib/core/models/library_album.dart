@@ -1,5 +1,7 @@
 import 'library_song.dart';
 
+enum LibraryAlbumGroupingMode { folder, metadata }
+
 class LibraryAlbum {
   const LibraryAlbum({
     required this.id,

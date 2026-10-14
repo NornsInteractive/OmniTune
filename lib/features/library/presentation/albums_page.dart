@@ -1,3 +1,4 @@
+import 'library_scan_status.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -33,6 +34,8 @@ class _AlbumsPageState extends ConsumerState<AlbumsPage> {
   LibraryAlbumGroupingMode _groupingMode = LibraryAlbumGroupingMode.folder;
   int _pageIndex = 0;
   bool _hydratedViewMode = false;
+  bool _hydratedGroupingMode = false;
+  int _groupingChangeId = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +52,11 @@ class _AlbumsPageState extends ConsumerState<AlbumsPage> {
       _hydratedViewMode = true;
     }
 
+    if (!_hydratedGroupingMode && preferences != null) {
+      _groupingMode = preferences.albumGroupingMode;
+      _hydratedGroupingMode = true;
+    }
+
     void handleViewModeChanged(_AlbumViewMode value) {
       setState(() {
         _viewMode = value;
@@ -58,6 +66,37 @@ class _AlbumsPageState extends ConsumerState<AlbumsPage> {
           .read(appSettingsControllerProvider.notifier)
           .setAlbumViewGrid(value == _AlbumViewMode.grid);
     }
+
+    Future<void> handleGroupingModeChanged(
+      LibraryAlbumGroupingMode value,
+    ) async {
+      if (_groupingMode == value || !_hydratedGroupingMode) return;
+      final previous = _groupingMode;
+      final changeId = ++_groupingChangeId;
+      setState(() {
+        _groupingMode = value;
+        _pageIndex = 0;
+      });
+      try {
+        await ref
+            .read(appSettingsControllerProvider.notifier)
+            .setAlbumGroupingMode(value);
+      } catch (error) {
+        if (mounted && context.mounted && _groupingChangeId == changeId) {
+          final latestPreferences = ref
+              .read(appSettingsControllerProvider)
+              .valueOrNull;
+          setState(() {
+            _groupingMode = latestPreferences?.albumGroupingMode ?? previous;
+          });
+          showTopSnackBar(context, error.toString());
+        }
+      }
+    }
+
+    final groupingCallback = _hydratedGroupingMode
+        ? handleGroupingModeChanged
+        : null;
 
     return _GlacierScreen(
       child: browserAsync.when(
@@ -95,12 +134,7 @@ class _AlbumsPageState extends ConsumerState<AlbumsPage> {
               groupingMode: groupingMode,
               pageIndex: _pageIndex,
               onViewModeChanged: handleViewModeChanged,
-              onGroupingModeChanged: (value) {
-                setState(() {
-                  _groupingMode = value;
-                  _pageIndex = 0;
-                });
-              },
+              onGroupingModeChanged: groupingCallback,
               onPageChanged: (value) {
                 setState(() => _pageIndex = value);
               },
@@ -129,12 +163,7 @@ class _AlbumsPageState extends ConsumerState<AlbumsPage> {
                 groupingMode: groupingMode,
                 pageIndex: _pageIndex,
                 onViewModeChanged: handleViewModeChanged,
-                onGroupingModeChanged: (value) {
-                  setState(() {
-                    _groupingMode = value;
-                    _pageIndex = 0;
-                  });
-                },
+                onGroupingModeChanged: groupingCallback,
                 onPageChanged: (value) {
                   setState(() => _pageIndex = value);
                 },
@@ -171,7 +200,7 @@ class _AlbumsContent extends ConsumerWidget {
     required this.groupingMode,
     required this.pageIndex,
     required this.onViewModeChanged,
-    required this.onGroupingModeChanged,
+    this.onGroupingModeChanged,
     required this.onPageChanged,
     this.catalog,
     this.albums = const [],
@@ -185,7 +214,7 @@ class _AlbumsContent extends ConsumerWidget {
   final LibraryAlbumGroupingMode groupingMode;
   final int pageIndex;
   final ValueChanged<_AlbumViewMode> onViewModeChanged;
-  final ValueChanged<LibraryAlbumGroupingMode> onGroupingModeChanged;
+  final ValueChanged<LibraryAlbumGroupingMode>? onGroupingModeChanged;
   final ValueChanged<int> onPageChanged;
   final LibraryCatalogState? catalog;
   final List<LibraryAlbum> albums;
@@ -252,6 +281,11 @@ class _AlbumsContent extends ConsumerWidget {
                           height: 1.05,
                         ),
                       ),
+                    ),
+                    IconButton(
+                      tooltip: l10n.librarySearchTitle,
+                      icon: const Icon(Icons.search_rounded),
+                      onPressed: () => context.push('/search'),
                     ),
                     _TopIconButton(
                       icon: Icons.radar_rounded,
@@ -325,11 +359,13 @@ class _AlbumsContent extends ConsumerWidget {
                             ),
                           ],
                           selected: {groupingMode},
-                          onSelectionChanged: (selection) {
-                            if (selection.isNotEmpty) {
-                              onGroupingModeChanged(selection.first);
-                            }
-                          },
+                          onSelectionChanged: onGroupingModeChanged == null
+                              ? null
+                              : (selection) {
+                                  if (selection.isNotEmpty) {
+                                    onGroupingModeChanged!(selection.first);
+                                  }
+                                },
                         ),
                       ),
                     ),
@@ -350,19 +386,7 @@ class _AlbumsContent extends ConsumerWidget {
                     ),
                   ],
                 ),
-                if (catalog?.isScanning == true) ...[
-                  const SizedBox(height: 18),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(999),
-                    child: LinearProgressIndicator(
-                      minHeight: 4,
-                      backgroundColor: colorScheme.surfaceContainerHigh,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                ],
+                const LibraryScanStatus(),
                 const SizedBox(height: 22),
               ],
             ),

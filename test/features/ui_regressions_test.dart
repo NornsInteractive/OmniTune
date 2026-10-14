@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -5,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_fonts/src/google_fonts_base.dart' as google_fonts_base;
+import 'package:google_fonts/src/google_fonts_variant.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:music/app/app.dart';
 import 'package:music/app/app_shell.dart';
@@ -21,6 +26,7 @@ import 'package:music/features/library/application/library_catalog_controller.da
 import 'package:music/features/library/presentation/albums_page.dart';
 import 'package:music/features/library/presentation/folder_artwork_provider.dart';
 import 'package:music/features/library/presentation/library_page.dart';
+import 'package:music/features/library/presentation/library_search_page.dart';
 import 'package:music/features/player/application/player_controller.dart';
 import 'package:music/features/player/presentation/widgets/mini_player.dart';
 import 'package:music/features/player/presentation/widgets/now_playing_panel.dart';
@@ -35,6 +41,7 @@ class _FakePlayerController extends PlayerController {
 
   PlayerViewState _initialState;
   int playPauseCallCount = 0;
+  int playCallCount = 0;
 
   @override
   PlayerViewState build() => _initialState;
@@ -42,6 +49,11 @@ class _FakePlayerController extends PlayerController {
   @override
   Future<void> togglePlayPause() async {
     playPauseCallCount++;
+  }
+
+  @override
+  Future<void> play() async {
+    playCallCount++;
   }
 
   void emitState(PlayerViewState newState) {
@@ -72,16 +84,26 @@ class _FakeSourceProfileRepository implements SourceProfileRepository {
 class _FakeLibraryPreferencesRepository
     implements LibraryPreferencesRepository {
   _FakeLibraryPreferencesRepository([
-    this._initialPreferences = const LibraryPreferences(),
-  ]);
+    LibraryPreferences initialPreferences = const LibraryPreferences(),
+  ]) : _preferences = initialPreferences;
 
-  final LibraryPreferences _initialPreferences;
-
-  @override
-  Future<LibraryPreferences> load() async => _initialPreferences;
+  LibraryPreferences _preferences;
 
   @override
-  Future<void> save(LibraryPreferences preferences) async {}
+  Future<LibraryPreferences> load() async => _preferences;
+
+  @override
+  Future<void> save(LibraryPreferences preferences) async {
+    _preferences = preferences;
+  }
+
+  @override
+  Future<LibraryPreferences> update(
+    LibraryPreferences Function(LibraryPreferences preferences) transform,
+  ) async {
+    _preferences = transform(_preferences);
+    return _preferences;
+  }
 }
 
 class _SyncAppSettingsController extends AppSettingsController {
@@ -161,6 +183,80 @@ class _SyncCatalogController extends LibraryCatalogController {
   @override
   Future<LibraryCatalogState> build() {
     return SynchronousFuture<LibraryCatalogState>(_catalog);
+  }
+}
+
+class _FakeGoogleAssetManifest implements AssetManifest {
+  _FakeGoogleAssetManifest(this.assets);
+
+  final List<String> assets;
+
+  @override
+  List<String> listAssets() => assets;
+
+  @override
+  List<AssetMetadata>? getAssetVariants(String key) => null;
+}
+
+class _FailingLibraryPreferencesRepository
+    implements LibraryPreferencesRepository {
+  final void Function(bool) onSaveFail;
+  bool shouldFailSave;
+  LibraryPreferences _current;
+
+  _FailingLibraryPreferencesRepository(
+    LibraryPreferences initialPreferences,
+    this.onSaveFail,
+    this.shouldFailSave,
+  ) : _current = initialPreferences;
+
+  @override
+  Future<LibraryPreferences> load() async => _current;
+
+  @override
+  Future<void> save(LibraryPreferences preferences) async {
+    if (shouldFailSave) {
+      onSaveFail(true);
+      throw Exception('Simulated save failure');
+    }
+    onSaveFail(false);
+    _current = preferences;
+  }
+
+  @override
+  Future<LibraryPreferences> update(
+    LibraryPreferences Function(LibraryPreferences) transform,
+  ) async {
+    if (shouldFailSave) {
+      onSaveFail(true);
+      throw Exception('Simulated save failure');
+    }
+    onSaveFail(false);
+    _current = transform(_current);
+    return _current;
+  }
+}
+
+class _DelayedLoadRepository implements LibraryPreferencesRepository {
+  final Completer<LibraryPreferences> _completer;
+  LibraryPreferences _saved;
+
+  _DelayedLoadRepository(this._completer, this._saved);
+
+  @override
+  Future<LibraryPreferences> load() => _completer.future;
+
+  @override
+  Future<void> save(LibraryPreferences preferences) async {
+    _saved = preferences;
+  }
+
+  @override
+  Future<LibraryPreferences> update(
+    LibraryPreferences Function(LibraryPreferences) transform,
+  ) async {
+    _saved = transform(_saved);
+    return _saved;
   }
 }
 
@@ -603,6 +699,15 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.byType(SettingsPage), findsOneWidget);
+        final sourceGroup = find.text(l10n.sourceManagementSettingTitle);
+        await tester.scrollUntilVisible(
+          sourceGroup,
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(sourceGroup.first);
+        await tester.pumpAndSettle();
         final addSourceBtn = find.text(l10n.addSourceAction);
         await tester.scrollUntilVisible(
           addSourceBtn,
@@ -1161,6 +1266,1020 @@ void main() {
         // Modal sheet is dismissed, AlbumsPage is restored
         expect(find.text(l10n.sourceTypeSelectionTitle), findsNothing);
         expect(find.byType(AlbumsPage), findsOneWidget);
+      },
+    );
+
+    testWidgets('settings grouped root shows five groups and back navigation', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(412, 915);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.reset());
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sourceProfileRepositoryProvider.overrideWithValue(
+              _FakeSourceProfileRepository(),
+            ),
+            libraryPreferencesRepositoryProvider.overrideWithValue(
+              _FakeLibraryPreferencesRepository(),
+            ),
+            appSettingsControllerProvider.overrideWith(
+              () => _SyncAppSettingsController(LibraryPreferences()),
+            ),
+          ],
+          child: const MusicApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final context = tester.element(find.byType(Navigator).first);
+      GoRouter.of(context).go('/settings');
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.chevron_right_rounded), findsAtLeastNWidgets(5));
+      await tester.tap(find.byIcon(Icons.chevron_right_rounded).first);
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.arrow_back_rounded), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.arrow_back_rounded).first);
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.chevron_right_rounded), findsAtLeastNWidgets(5));
+    });
+
+    testWidgets('search page filters by query and clears input', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(412, 915);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.reset());
+
+      final song = _createSampleLibrarySong(1);
+      final catalog = LibraryCatalogState(tracks: [song]);
+      final fakeController = _FakePlayerController(
+        _createSampleState(track: _createSampleTrack(id: song.id)),
+      );
+
+      // Deterministic Google Fonts fixture (no network, no suppressed exceptions).
+      GoogleFonts.config.allowRuntimeFetching = false;
+      google_fonts_base.clearCache();
+      final ahemBytes = File('test/fixtures/Ahem.ttf').readAsBytesSync();
+      final ahemByteData = ByteData.sublistView(Uint8List.fromList(ahemBytes));
+      final fontAssets = <String>{};
+      for (final family in const <String>['Inter', 'NotoSans']) {
+        for (final weight in FontWeight.values) {
+          for (final italic in const <bool>[false, true]) {
+            final variant = GoogleFontsVariant(
+              fontWeight: weight,
+              fontStyle: italic ? FontStyle.italic : FontStyle.normal,
+            );
+            fontAssets.add(
+              'google_fonts/$family-${variant.toApiFilenamePart()}.ttf',
+            );
+          }
+        }
+      }
+      final fontAssetList = fontAssets.toList(growable: false);
+      google_fonts_base.assetManifest = _FakeGoogleAssetManifest(fontAssetList);
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMessageHandler('flutter/assets', (message) {
+        final key = Uri.decodeFull(utf8.decode(message!.buffer.asUint8List()));
+        if (fontAssetList.contains(key)) {
+          return Future<ByteData?>.value(ahemByteData);
+        }
+        return Future<ByteData?>.value(null);
+      });
+      addTearDown(() {
+        messenger.setMockMessageHandler('flutter/assets', null);
+        google_fonts_base.assetManifest = null;
+        google_fonts_base.clearCache();
+      });
+
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              sourceProfileRepositoryProvider.overrideWithValue(
+                _FakeSourceProfileRepository(),
+              ),
+              libraryPreferencesRepositoryProvider.overrideWithValue(
+                _FakeLibraryPreferencesRepository(),
+              ),
+              appSettingsControllerProvider.overrideWith(
+                () => _SyncAppSettingsController(const LibraryPreferences()),
+              ),
+              libraryCatalogControllerProvider.overrideWith(
+                () => _SyncCatalogController(catalog),
+              ),
+              playerControllerProvider.overrideWith(() => fakeController),
+              folderArtworkProvider.overrideWith((ref, request) async => null),
+            ],
+            child: const MusicApp(),
+          ),
+        );
+        await tester.pump();
+        for (var i = 0; i < 100; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+          await tester.pump();
+          if (find.byType(CircularProgressIndicator).evaluate().isEmpty) {
+            break;
+          }
+        }
+
+        final context = tester.element(find.byType(Navigator).first);
+
+        // Navigate to search page
+        GoRouter.of(context).go('/search');
+        await tester.pump();
+
+        // Wait for initial spinner to disappear (bounded loop, max 100 iterations)
+        for (var i = 0; i < 100; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+          await tester.pump();
+          if (find.byType(CircularProgressIndicator).evaluate().isEmpty) break;
+        }
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+
+        // Verify initial result: ListTile with correct title and selected state
+        // Use descendant finder to avoid MiniPlayer's Song1
+        final listTileFinder = find.descendant(
+          of: find.byType(LibrarySearchPage),
+          matching: find.byType(ListTile),
+        );
+        expect(listTileFinder, findsOneWidget);
+        final tile = tester.widget<ListTile>(listTileFinder);
+        expect(tile.title, isA<Text>().having((t) => t.data, 'data', 'Song 1'));
+        expect(tile.selected, isTrue);
+
+        // Type non-matching query - debounce and compute need pump inside runAsync
+        await tester.enterText(find.byType(TextField), 'not-a-match');
+        await tester.pump(const Duration(milliseconds: 250));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        await tester.pump();
+
+        // Wait for spinner to disappear after filtering
+        for (var i = 0; i < 100; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+          await tester.pump();
+          if (find.byType(CircularProgressIndicator).evaluate().isEmpty) break;
+        }
+
+        // Assert no results for non-match - localized no-results text appears
+        final l10n = AppLocalizations.of(
+          tester.element(find.byType(LibrarySearchPage)),
+        )!;
+        expect(find.byType(ListTile), findsNothing);
+        expect(find.text(l10n.searchNoResults), findsOneWidget);
+
+        // Clear restores query and results
+        await tester.tap(find.byIcon(Icons.close_rounded));
+        await tester.pump(const Duration(milliseconds: 50));
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+        await tester.pump();
+
+        // Wait for results to restore
+        for (var i = 0; i < 100; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+          await tester.pump();
+          if (find.byType(ListTile).evaluate().isNotEmpty) break;
+        }
+
+        // Verify results restored
+        final restoredTileFinder = find.descendant(
+          of: find.byType(LibrarySearchPage),
+          matching: find.byType(ListTile),
+        );
+        expect(restoredTileFinder, findsOneWidget);
+        expect(
+          find.descendant(
+            of: restoredTileFinder,
+            matching: find.text('Song 1'),
+          ),
+          findsOneWidget,
+        );
+        final field = tester.widget<TextField>(find.byType(TextField));
+        expect(field.controller!.text, isEmpty);
+      });
+    });
+
+    testWidgets(
+      'player portrait narrow reduced-motion layout presents NowPlayingPanel',
+      (tester) async {
+        tester.view.physicalSize = const Size(360, 640);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() => tester.view.reset());
+
+        final sampleTrack = _createSampleTrack();
+        final fakeController = _FakePlayerController(
+          _createSampleState(track: sampleTrack, isPlaying: true),
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              sourceProfileRepositoryProvider.overrideWithValue(
+                _FakeSourceProfileRepository(),
+              ),
+              libraryPreferencesRepositoryProvider.overrideWithValue(
+                _FakeLibraryPreferencesRepository(),
+              ),
+              playerControllerProvider.overrideWith(() => fakeController),
+              folderArtworkProvider.overrideWith((ref, request) async => null),
+            ],
+            child: MediaQuery(
+              data: const MediaQueryData(disableAnimations: true),
+              child: const MusicApp(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byIcon(Icons.expand_less_rounded));
+        await tester.pump();
+        expect(find.byType(NowPlayingPanel), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'player wide layout with reduced animations presents NowPlayingPanel',
+      (tester) async {
+        tester.view.physicalSize = const Size(900, 500);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() => tester.view.reset());
+
+        final sampleTrack = _createSampleTrack();
+        final fakeController = _FakePlayerController(
+          _createSampleState(track: sampleTrack, isPlaying: true),
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              sourceProfileRepositoryProvider.overrideWithValue(
+                _FakeSourceProfileRepository(),
+              ),
+              libraryPreferencesRepositoryProvider.overrideWithValue(
+                _FakeLibraryPreferencesRepository(),
+              ),
+              playerControllerProvider.overrideWith(() => fakeController),
+              folderArtworkProvider.overrideWith((ref, request) async => null),
+            ],
+            child: MediaQuery(
+              data: const MediaQueryData(disableAnimations: true),
+              child: const MusicApp(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byIcon(Icons.expand_less_rounded));
+        await tester.pump();
+        expect(find.byType(NowPlayingPanel), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      '12. NowPlayingPage SafeArea card bottom padding 8dp on regular and narrow screens',
+      (tester) async {
+        addTearDown(() => tester.view.reset());
+        tester.view.padding = const FakeViewPadding(bottom: 24);
+
+        final sampleTrack = _createSampleTrack();
+        final sampleLyrics = [
+          const LyricLine(time: Duration(seconds: 0), text: 'Line 1'),
+          const LyricLine(time: Duration(seconds: 10), text: 'Line 2'),
+        ];
+
+        for (final size in [
+          const Size(360, 760),
+          const Size(412, 915),
+          const Size(900, 500),
+          const Size(320, 568),
+          const Size(800, 400),
+        ]) {
+          tester.view.physicalSize = size;
+          tester.view.devicePixelRatio = 1.0;
+
+          final fakeController = _FakePlayerController(
+            _createSampleState(
+              track: sampleTrack,
+              lyrics: sampleLyrics,
+              isPlaying: true,
+            ),
+          );
+
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [
+                sourceProfileRepositoryProvider.overrideWithValue(
+                  _FakeSourceProfileRepository(),
+                ),
+                libraryPreferencesRepositoryProvider.overrideWithValue(
+                  _FakeLibraryPreferencesRepository(),
+                ),
+                playerControllerProvider.overrideWith(() => fakeController),
+                folderArtworkProvider.overrideWith(
+                  (ref, request) async => null,
+                ),
+              ],
+              child: MediaQuery(
+                data: MediaQueryData.fromView(
+                  tester.view,
+                ).copyWith(disableAnimations: true),
+                child: const MusicApp(),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          await tester.tap(find.byIcon(Icons.expand_less_rounded));
+          await tester.pump();
+
+          expect(find.byType(NowPlayingPanel), findsOneWidget);
+
+          final panel = tester.widget<NowPlayingPanel>(
+            find.byType(NowPlayingPanel),
+          );
+          expect(panel, isA<NowPlayingPanel>());
+
+          final cardFinder = find
+              .descendant(
+                of: find.byType(NowPlayingPanel),
+                matching: find.byType(ConstrainedBox),
+              )
+              .first;
+          final constrainedBox = tester.widget<ConstrainedBox>(cardFinder);
+          final cardWidget = constrainedBox.child as Material;
+          final container = cardWidget.child as Container;
+          expect(
+            container.padding?.resolve(TextDirection.ltr).bottom ?? 0.0,
+            equals(16.0),
+          );
+
+          final cardBottom = tester.getBottomRight(cardFinder).dy;
+          final viewBottom =
+              tester.view.physicalSize.height / tester.view.devicePixelRatio;
+          final safeBottomInset =
+              tester.view.padding.bottom / tester.view.devicePixelRatio;
+          expect(viewBottom - safeBottomInset - cardBottom, equals(8.0));
+
+          final playButton = find
+              .byWidgetPredicate(
+                (widget) => widget.runtimeType.toString().contains(
+                  'PrimaryPlayerButton',
+                ),
+              )
+              .first;
+          expect(playButton, findsOneWidget);
+          final playButtonRect = tester.getRect(playButton);
+          expect(playButtonRect.bottom, lessThan(viewBottom));
+          expect(playButtonRect.height, greaterThanOrEqualTo(48.0));
+
+          await tester.pumpWidget(const SizedBox.shrink());
+          await tester.pump();
+        }
+      },
+    );
+
+    testWidgets(
+      '13. NowPlayingPage text scaler 1.3 and 2.0 no overflow play button visible and hittable',
+      (tester) async {
+        addTearDown(() => tester.view.reset());
+
+        final sampleTrack = _createSampleTrack();
+        final sampleLyrics = [
+          const LyricLine(
+            time: Duration(seconds: 0),
+            text:
+                'Very long line that should test text scaling and wrapping behavior',
+          ),
+          const LyricLine(
+            time: Duration(seconds: 10),
+            text: 'Another long lyric line for testing',
+          ),
+        ];
+
+        const scaleCases = [
+          (size: Size(412, 915), scale: 1.3),
+          (size: Size(412, 915), scale: 2.0),
+          (size: Size(320, 480), scale: 2.0),
+        ];
+
+        for (final scaleCase in scaleCases) {
+          tester.view.physicalSize = scaleCase.size;
+          tester.view.devicePixelRatio = 1.0;
+
+          final fakeController = _FakePlayerController(
+            _createSampleState(
+              track: sampleTrack,
+              lyrics: sampleLyrics,
+              isPlaying: true,
+            ),
+          );
+
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [
+                sourceProfileRepositoryProvider.overrideWithValue(
+                  _FakeSourceProfileRepository(),
+                ),
+                libraryPreferencesRepositoryProvider.overrideWithValue(
+                  _FakeLibraryPreferencesRepository(
+                    LibraryPreferences(fontScaleFactor: scaleCase.scale),
+                  ),
+                ),
+                playerControllerProvider.overrideWith(() => fakeController),
+                folderArtworkProvider.overrideWith(
+                  (ref, request) async => null,
+                ),
+              ],
+              child: MediaQuery(
+                data: MediaQueryData(
+                  disableAnimations: true,
+                  textScaler: TextScaler.linear(scaleCase.scale),
+                ),
+                child: const MusicApp(),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          await tester.tap(find.byIcon(Icons.expand_less_rounded));
+          await tester.pump();
+
+          expect(find.byType(NowPlayingPanel), findsOneWidget);
+          expect(tester.takeException(), isNull);
+
+          final panelContext = tester.element(find.byType(NowPlayingPanel));
+          final actualScale = MediaQuery.textScalerOf(panelContext).scale(1.0);
+          expect(
+            actualScale,
+            moreOrLessEquals(scaleCase.scale, epsilon: 0.01),
+            reason: 'NowPlayingPanel text scale for case $scaleCase',
+          );
+
+          final playButton = find
+              .byWidgetPredicate(
+                (widget) => widget.runtimeType.toString().contains(
+                  'PrimaryPlayerButton',
+                ),
+              )
+              .first;
+          expect(playButton, findsOneWidget);
+          final playButtonSize = tester.getSize(playButton);
+          expect(
+            playButtonSize.width,
+            greaterThanOrEqualTo(48.0),
+            reason: 'play button width for case $scaleCase',
+          );
+          expect(
+            playButtonSize.height,
+            greaterThanOrEqualTo(48.0),
+            reason: 'play button height for case $scaleCase',
+          );
+
+          final playButtonRect = tester.getRect(playButton);
+          final viewBottom =
+              tester.view.physicalSize.height / tester.view.devicePixelRatio;
+          expect(playButtonRect.bottom, lessThan(viewBottom));
+
+          final callsBefore = fakeController.playPauseCallCount;
+          expect(
+            playButton.hitTestable(),
+            findsOneWidget,
+            reason: 'play button hittable for case $scaleCase',
+          );
+          await tester.tap(playButton);
+          await tester.pump();
+          expect(
+            fakeController.playPauseCallCount,
+            callsBefore + 1,
+            reason:
+                'play button tap increments playPauseCallCount for case $scaleCase',
+          );
+
+          await tester.pumpWidget(const SizedBox.shrink());
+          await tester.pump();
+        }
+      },
+    );
+
+    testWidgets(
+      '14. NowPlayingPage lyrics toggle reduce motion and cover/error retry non-blank',
+      (tester) async {
+        tester.view.physicalSize = const Size(412, 915);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() => tester.view.reset());
+
+        final sampleTrack = _createSampleTrack();
+        final sampleLyrics = [
+          const LyricLine(time: Duration(seconds: 0), text: 'First lyric line'),
+          const LyricLine(
+            time: Duration(seconds: 10),
+            text: 'Second lyric line',
+          ),
+        ];
+
+        final fakeController = _FakePlayerController(
+          _createSampleState(
+            track: sampleTrack,
+            lyrics: sampleLyrics,
+            isPlaying: true,
+          ),
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              sourceProfileRepositoryProvider.overrideWithValue(
+                _FakeSourceProfileRepository(),
+              ),
+              libraryPreferencesRepositoryProvider.overrideWithValue(
+                _FakeLibraryPreferencesRepository(),
+              ),
+              playerControllerProvider.overrideWith(() => fakeController),
+              folderArtworkProvider.overrideWith((ref, request) async => null),
+            ],
+            child: MediaQuery(
+              data: const MediaQueryData(disableAnimations: true),
+              child: const MusicApp(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byIcon(Icons.expand_less_rounded));
+        await tester.pump();
+
+        expect(find.byType(NowPlayingPanel), findsOneWidget);
+
+        final coverFinder = find.byType(TrackCoverThumbnail);
+        expect(coverFinder, findsOneWidget);
+        final coverWidget = tester.widget<TrackCoverThumbnail>(
+          coverFinder.first,
+        );
+        expect(coverWidget.title, isNotEmpty);
+        expect(coverWidget.subtitle, isNotEmpty);
+
+        final artworkStage = find
+            .byWidgetPredicate(
+              (widget) =>
+                  widget.runtimeType.toString().contains('ArtworkStage'),
+            )
+            .first;
+        await tester.tap(artworkStage);
+        await tester.pump();
+
+        expect(
+          find.byWidgetPredicate(
+            (widget) => widget.runtimeType.toString().contains('LyricsPanel'),
+          ),
+          findsOneWidget,
+        );
+
+        fakeController.emitState(
+          _createSampleState(
+            track: sampleTrack,
+            lyrics: sampleLyrics,
+            position: const Duration(seconds: 12),
+            isPlaying: true,
+          ),
+        );
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+
+        fakeController.emitState(
+          PlayerViewState(
+            currentTrack: _createSampleState(
+              track: sampleTrack,
+              lyrics: [],
+              position: Duration.zero,
+              isPlaying: false,
+              duration: const Duration(minutes: 3),
+            ).currentTrack,
+            isPlaying: false,
+            processingState: ProcessingState.ready,
+            position: Duration.zero,
+            bufferedPosition: const Duration(seconds: 45),
+            duration: const Duration(minutes: 3),
+            playlist: const [],
+            currentIndex: -1,
+            playbackMode: PlayerPlaybackMode.list,
+            lyrics: [],
+            lyricsSource: PlayerLyricsSource.none,
+            cacheSegments: const [],
+            errorMessage: 'Playback failed',
+            canRetry: true,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final l10n = AppLocalizations.of(
+          tester.element(find.byType(NowPlayingPanel)),
+        )!;
+        final retryButton = find.ancestor(
+          of: find.text(l10n.retryAction),
+          matching: find.byType(FilledButton),
+        );
+        expect(retryButton, findsOneWidget);
+        final retryRect = tester.getRect(retryButton);
+        expect(retryRect.width, greaterThanOrEqualTo(48.0));
+        expect(retryRect.height, greaterThanOrEqualTo(48.0));
+
+        await tester.tap(retryButton);
+        await tester.pump();
+        expect(fakeController.playCallCount, greaterThan(0));
+      },
+    );
+
+    testWidgets(
+      '15. Song lists (all/favorites/liked) padding, cover size, tap targets, narrow screen more menu, font scaling',
+      (tester) async {
+        addTearDown(() => tester.view.reset());
+
+        final songs = List.generate(
+          50,
+          (i) => LibrarySong(
+            id: 'song-$i',
+            sourceId: 'src-1',
+            sourceName: 'WebDAV',
+            title: 'Song Title $i with a very long name to test overflow',
+            fileName: 'song-$i.flac',
+            remotePath: '/music/song-$i.flac',
+            albumTitle: 'Album $i',
+            artistName: 'Artist $i',
+            directoryPath: '/music',
+            folderAlbumTitle: 'Album $i',
+            folderArtistName: 'Artist $i',
+          ),
+        );
+        final catalog = LibraryCatalogState(
+          tracks: songs,
+          favoriteTrackIds: {'song-0', 'song-1'},
+          likedTrackIds: {'song-2', 'song-3'},
+        );
+
+        for (final section in [
+          LibraryCollectionSection.allSongs,
+          LibraryCollectionSection.favorites,
+          LibraryCollectionSection.liked,
+        ]) {
+          for (final size in [
+            const Size(360, 760),
+            const Size(412, 915),
+            const Size(900, 600),
+            const Size(320, 568),
+          ]) {
+            tester.view.physicalSize = size;
+            tester.view.devicePixelRatio = 1.0;
+
+            final container = ProviderContainer(
+              overrides: [
+                libraryCatalogControllerProvider.overrideWith(
+                  () => _SyncCatalogController(catalog),
+                ),
+                folderArtworkProvider.overrideWith(
+                  (ref, request) async => null,
+                ),
+                playerControllerProvider.overrideWith(
+                  () => _FakePlayerController(_createSampleState()),
+                ),
+              ],
+            );
+
+            await tester.pumpWidget(
+              UncontrolledProviderScope(
+                container: container,
+                child: MaterialApp(
+                  localizationsDelegates:
+                      AppLocalizations.localizationsDelegates,
+                  supportedLocales: AppLocalizations.supportedLocales,
+                  home: Scaffold(body: LibrarySongsPage(section: section)),
+                ),
+              ),
+            );
+            await tester.pumpAndSettle();
+
+            final cardFinders = find.byWidgetPredicate(
+              (widget) => widget.runtimeType.toString().contains('SongCard'),
+            );
+            expect(cardFinders.evaluate().isNotEmpty, isTrue);
+
+            final cardCount = cardFinders.evaluate().length;
+            for (var index = 0; index < cardCount && index < 3; index++) {
+              final cardFinder = cardFinders.at(index);
+
+              final thumbnailFinder = find.descendant(
+                of: cardFinder,
+                matching: find.byType(TrackCoverThumbnail),
+              );
+              final thumbnailWidget = tester.widget<TrackCoverThumbnail>(
+                thumbnailFinder,
+              );
+              expect(thumbnailWidget.size, greaterThanOrEqualTo(48.0));
+
+              final cardRect = tester.getRect(cardFinder);
+              expect(cardRect.height, greaterThanOrEqualTo(72.0 - 1e-6));
+              expect(
+                tester.getRect(thumbnailFinder).left - cardRect.left,
+                equals(12.0),
+              );
+
+              for (final actionIcon in const [
+                Icons.more_horiz_rounded,
+                Icons.bookmark_rounded,
+                Icons.bookmark_border_rounded,
+                Icons.favorite_rounded,
+                Icons.favorite_border_rounded,
+              ]) {
+                final actionIconFinder = find.descendant(
+                  of: cardFinder,
+                  matching: find.byIcon(actionIcon),
+                );
+                if (actionIconFinder.evaluate().isEmpty) {
+                  continue;
+                }
+                final actionRect = tester.getRect(
+                  find
+                      .ancestor(
+                        of: actionIconFinder.first,
+                        matching: find.byType(InkWell),
+                      )
+                      .first,
+                );
+                expect(actionRect.width, greaterThanOrEqualTo(48.0 - 1e-6));
+                expect(actionRect.height, greaterThanOrEqualTo(48.0 - 1e-6));
+              }
+            }
+
+            if (size.width < 340) {
+              final songCard = cardFinders.evaluate().first.widget;
+              expect(songCard.key, isNotNull);
+            }
+
+            await tester.pumpWidget(const SizedBox.shrink());
+            await tester.pump(const Duration(milliseconds: 50));
+            container.dispose();
+          }
+
+          for (final textScale in [1.3, 2.0]) {
+            tester.view.physicalSize = const Size(412, 915);
+            tester.view.devicePixelRatio = 1.0;
+
+            final container = ProviderContainer(
+              overrides: [
+                libraryCatalogControllerProvider.overrideWith(
+                  () => _SyncCatalogController(catalog),
+                ),
+                folderArtworkProvider.overrideWith(
+                  (ref, request) async => null,
+                ),
+                playerControllerProvider.overrideWith(
+                  () => _FakePlayerController(_createSampleState()),
+                ),
+              ],
+            );
+
+            await tester.pumpWidget(
+              UncontrolledProviderScope(
+                container: container,
+                child: MediaQuery(
+                  data: MediaQueryData(
+                    textScaler: TextScaler.linear(textScale),
+                  ),
+                  child: MaterialApp(
+                    localizationsDelegates:
+                        AppLocalizations.localizationsDelegates,
+                    supportedLocales: AppLocalizations.supportedLocales,
+                    home: Scaffold(body: LibrarySongsPage(section: section)),
+                  ),
+                ),
+              ),
+            );
+            await tester.pumpAndSettle();
+
+            expect(tester.takeException(), isNull);
+            final cardFinders = find.byWidgetPredicate(
+              (widget) => widget.runtimeType.toString().contains('SongCard'),
+            );
+            expect(cardFinders.evaluate().isNotEmpty, isTrue);
+
+            await tester.pumpWidget(const SizedBox.shrink());
+            await tester.pump(const Duration(milliseconds: 50));
+            container.dispose();
+          }
+        }
+      },
+    );
+
+    testWidgets(
+      '16. AlbumsPage grouping mode persists across rebuild and survives loading preference race',
+      (tester) async {
+        tester.view.physicalSize = const Size(412, 915);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() => tester.view.reset());
+
+        final sampleSource = const SourceProfile(
+          id: 'src-1',
+          name: 'Test Source',
+          protocol: SourceProtocol.webdav,
+          baseUrl: 'http://example.com',
+          username: 'user',
+          password: 'pwd',
+          rootPath: '/',
+        );
+        final sampleAlbums = List.generate(
+          5,
+          (i) => LibraryAlbum(
+            id: 'album-$i',
+            sourceId: 'src-1',
+            sourceName: 'Test Source',
+            title: 'Album $i',
+            artistName: 'Artist $i',
+            tracks: [_createSampleLibrarySong(i)],
+          ),
+        );
+        final catalog = LibraryCatalogState(
+          tracks: List.generate(5, _createSampleLibrarySong),
+          folderAlbums: sampleAlbums,
+          folderAlbumsBySource: {'src-1': sampleAlbums},
+        );
+
+        final prefsWithMetadata = LibraryPreferences(
+          albumGroupingMode: LibraryAlbumGroupingMode.metadata,
+        );
+
+        final repo = _FailingLibraryPreferencesRepository(
+          prefsWithMetadata,
+          (failed) {},
+          false,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              sourceProfileRepositoryProvider.overrideWithValue(
+                _FakeSourceProfileRepository([sampleSource]),
+              ),
+              libraryPreferencesRepositoryProvider.overrideWithValue(repo),
+              libraryCatalogControllerProvider.overrideWith(
+                () => _SyncCatalogController(catalog),
+              ),
+              folderArtworkProvider.overrideWith((ref, request) async => null),
+            ],
+            child: const MusicApp(),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AlbumsPage), findsOneWidget);
+
+        final groupingButtonFinder = find.byType(
+          SegmentedButton<LibraryAlbumGroupingMode>,
+        );
+        expect(groupingButtonFinder, findsOneWidget);
+
+        final l10n = AppLocalizations.of(
+          tester.element(find.byType(AlbumsPage)),
+        )!;
+        await tester.tap(find.text(l10n.folderAlbumsModeLabel));
+        await tester.pumpAndSettle();
+
+        var updatedPrefs = await repo.load();
+        expect(updatedPrefs.albumGroupingMode, LibraryAlbumGroupingMode.folder);
+
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump();
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              sourceProfileRepositoryProvider.overrideWithValue(
+                _FakeSourceProfileRepository([sampleSource]),
+              ),
+              libraryPreferencesRepositoryProvider.overrideWithValue(repo),
+              libraryCatalogControllerProvider.overrideWith(
+                () => _SyncCatalogController(catalog),
+              ),
+              folderArtworkProvider.overrideWith((ref, request) async => null),
+            ],
+            child: const MusicApp(),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        updatedPrefs = await repo.load();
+        expect(updatedPrefs.albumGroupingMode, LibraryAlbumGroupingMode.folder);
+
+        final groupingSegment = tester
+            .widget<SegmentedButton<LibraryAlbumGroupingMode>>(
+              groupingButtonFinder,
+            );
+        expect(groupingSegment.selected, {LibraryAlbumGroupingMode.folder});
+
+        repo.shouldFailSave = true;
+        await tester.tap(find.text(l10n.scrapedAlbumsModeLabel));
+        await tester.pumpAndSettle();
+
+        final snackBarFinder = find.byType(SnackBar);
+        expect(snackBarFinder, findsOneWidget);
+
+        final snackBar = tester.widget<SnackBar>(snackBarFinder);
+        expect(snackBar.content, isA<Text>());
+        expect(
+          (snackBar.content as Text).data,
+          contains('Simulated save failure'),
+        );
+
+        await tester.pump(const Duration(seconds: 1));
+        await tester.pumpAndSettle();
+
+        updatedPrefs = await repo.load();
+        expect(updatedPrefs.albumGroupingMode, LibraryAlbumGroupingMode.folder);
+
+        final recheckedGrouping = tester
+            .widget<SegmentedButton<LibraryAlbumGroupingMode>>(
+              find.byType(SegmentedButton<LibraryAlbumGroupingMode>),
+            );
+        expect(recheckedGrouping.selected, {LibraryAlbumGroupingMode.folder});
+      },
+    );
+
+    testWidgets(
+      '17. AlbumsPage grouping mode loading preference does not override saved value during async init',
+      (tester) async {
+        tester.view.physicalSize = const Size(412, 915);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() => tester.view.reset());
+
+        final sampleSource = const SourceProfile(
+          id: 'src-1',
+          name: 'Test Source',
+          protocol: SourceProtocol.webdav,
+          baseUrl: 'http://example.com',
+          username: 'user',
+          password: 'pwd',
+          rootPath: '/',
+        );
+        final sampleAlbums = List.generate(
+          5,
+          (i) => LibraryAlbum(
+            id: 'album-$i',
+            sourceId: 'src-1',
+            sourceName: 'Test Source',
+            title: 'Album $i',
+            artistName: 'Artist $i',
+            tracks: [_createSampleLibrarySong(i)],
+          ),
+        );
+        final catalog = LibraryCatalogState(
+          tracks: List.generate(5, _createSampleLibrarySong),
+          folderAlbums: sampleAlbums,
+          folderAlbumsBySource: {'src-1': sampleAlbums},
+        );
+
+        final savedPrefs = LibraryPreferences(
+          albumGroupingMode: LibraryAlbumGroupingMode.metadata,
+        );
+        var loadCompleter = Completer<LibraryPreferences>();
+
+        final repo = _DelayedLoadRepository(loadCompleter, savedPrefs);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              sourceProfileRepositoryProvider.overrideWithValue(
+                _FakeSourceProfileRepository([sampleSource]),
+              ),
+              libraryPreferencesRepositoryProvider.overrideWithValue(repo),
+              libraryCatalogControllerProvider.overrideWith(
+                () => _SyncCatalogController(catalog),
+              ),
+              folderArtworkProvider.overrideWith((ref, request) async => null),
+            ],
+            child: const MusicApp(),
+          ),
+        );
+
+        await tester.pump();
+
+        expect(find.byType(AlbumsPage), findsOneWidget);
+
+        final groupingButtonFinder = find.byType(
+          SegmentedButton<LibraryAlbumGroupingMode>,
+        );
+        expect(groupingButtonFinder, findsOneWidget);
+        var groupingSegment = tester
+            .widget<SegmentedButton<LibraryAlbumGroupingMode>>(
+              groupingButtonFinder,
+            );
+        expect(groupingSegment.onSelectionChanged, isNull);
+
+        loadCompleter.complete(savedPrefs);
+        await tester.pumpAndSettle();
+
+        groupingSegment = tester
+            .widget<SegmentedButton<LibraryAlbumGroupingMode>>(
+              groupingButtonFinder,
+            );
+        expect(groupingSegment.onSelectionChanged, isNotNull);
+        expect(groupingSegment.selected, {LibraryAlbumGroupingMode.metadata});
       },
     );
   });

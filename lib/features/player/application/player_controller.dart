@@ -2,6 +2,10 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter/widgets.dart';
+import '../../../core/i18n/localizations.dart';
+import '../../../core/audio/system_artwork.dart';
+import '../../library/presentation/folder_artwork_provider.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as p;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -51,7 +55,7 @@ class CacheProgressSegment {
   final double endFraction;
 }
 
-enum PlayerPlaybackMode { list, repeatOne, shuffle }
+enum PlayerPlaybackMode { list, repeatOne, shuffle, repeatAll }
 
 enum PlayerLyricsSource { none, sidecarFile, embeddedTag, scraped }
 
@@ -120,6 +124,11 @@ class PlayerViewState {
     this.lyricsSource = PlayerLyricsSource.none,
     this.cacheSegments = const [],
     this.errorMessage,
+    this.requestedTitle,
+    this.requestedArtist,
+    this.requestedSourceName,
+    this.canRetry = false,
+    this.isResolvingTrack = false,
   });
 
   final PlayableTrack? currentTrack;
@@ -135,12 +144,19 @@ class PlayerViewState {
   final PlayerLyricsSource lyricsSource;
   final List<CacheProgressSegment> cacheSegments;
   final String? errorMessage;
+  final String? requestedTitle;
+  final String? requestedArtist;
+  final String? requestedSourceName;
+  final bool canRetry;
+  final bool isResolvingTrack;
 
   bool get hasTrack => currentTrack != null;
 
   bool get isBusy =>
-      processingState == ProcessingState.loading ||
-      processingState == ProcessingState.buffering;
+      errorMessage == null &&
+      (isResolvingTrack ||
+          processingState == ProcessingState.loading ||
+          processingState == ProcessingState.buffering);
 
   bool get hasPlaylist => playlist.isNotEmpty;
 
@@ -152,7 +168,8 @@ class PlayerViewState {
     }
     return switch (playbackMode) {
       PlayerPlaybackMode.list => currentIndex > 0,
-      PlayerPlaybackMode.repeatOne => currentIndex >= 0,
+      PlayerPlaybackMode.repeatOne ||
+      PlayerPlaybackMode.repeatAll => currentIndex >= 0,
       PlayerPlaybackMode.shuffle => playlist.length > 1,
     };
   }
@@ -163,7 +180,8 @@ class PlayerViewState {
     }
     return switch (playbackMode) {
       PlayerPlaybackMode.list => currentIndex < playlist.length - 1,
-      PlayerPlaybackMode.repeatOne => currentIndex >= 0,
+      PlayerPlaybackMode.repeatOne ||
+      PlayerPlaybackMode.repeatAll => currentIndex >= 0,
       PlayerPlaybackMode.shuffle => playlist.length > 1,
     };
   }
@@ -196,6 +214,11 @@ class PlayerViewState {
     PlayerPlaybackMode playbackMode = PlayerPlaybackMode.list,
     PlayerLyricsSource lyricsSource = PlayerLyricsSource.none,
     String? errorMessage,
+    String? requestedTitle,
+    String? requestedArtist,
+    String? requestedSourceName,
+    bool canRetry = false,
+    bool isResolvingTrack = false,
   }) {
     return PlayerViewState(
       currentTrack: service.currentTrack,
@@ -211,6 +234,11 @@ class PlayerViewState {
       lyricsSource: lyricsSource,
       cacheSegments: cacheSegments,
       errorMessage: errorMessage,
+      requestedTitle: requestedTitle,
+      requestedArtist: requestedArtist,
+      requestedSourceName: requestedSourceName,
+      canRetry: canRetry,
+      isResolvingTrack: isResolvingTrack,
     );
   }
 
@@ -256,8 +284,17 @@ class PlayerController extends _$PlayerController {
   DateTime _lastProgressStateSyncedAt = DateTime.fromMillisecondsSinceEpoch(0);
   Timer? _progressSyncTimer;
   int _playRequestSerial = 0;
+  int _pauseSerial = 0;
   int _playlistRevision = 0;
   String? _lastSystemQueueKey;
+  String? _systemArtworkKey;
+  bool _disposed = false;
+  String? _playbackError;
+  LibrarySong? _requestedSong;
+  SourceProfile? _requestedProfile;
+  RemoteEntry? _requestedEntry;
+  bool _isResolvingTrack = false;
+  Duration _targetPosition = Duration.zero;
   String? _lastSystemCurrentItemKey = '__uninitialized__';
   final Set<String> _inFlightAutoScrapeSongIds = <String>{};
 
@@ -275,6 +312,19 @@ class PlayerController extends _$PlayerController {
     });
     if (isSystemAudioHandlerInitialized) {
       systemAudioHandler.bindCallbacks(
+        onSetRepeatMode: (mode) async => setPlaybackMode(switch (mode) {
+          AudioServiceRepeatMode.one => PlayerPlaybackMode.repeatOne,
+          AudioServiceRepeatMode.all ||
+          AudioServiceRepeatMode.group => PlayerPlaybackMode.repeatAll,
+          _ => PlayerPlaybackMode.list,
+        }),
+        onSetShuffleMode: (mode) async => setPlaybackMode(
+          mode == AudioServiceShuffleMode.none
+              ? PlayerPlaybackMode.list
+              : PlayerPlaybackMode.shuffle,
+        ),
+        onSetFavorite: _setSystemFavorite,
+        onCyclePlaybackMode: () async => cyclePlaybackMode(),
         onPlay: play,
         onPause: pause,
         onStop: stop,
@@ -286,7 +336,20 @@ class PlayerController extends _$PlayerController {
     }
     _bindStreams();
     _restorePersistedSession();
-    ref.onDispose(_disposeSubscriptions);
+    ref.listen(
+      libraryCatalogControllerProvider.select(
+        (value) => value.valueOrNull?.favoriteTrackIds,
+      ),
+      (_, _) {
+        _syncSystemAudioState(state, force: true);
+      },
+    );
+    ref.onDispose(() {
+      _disposed = true;
+      ++_playRequestSerial;
+      _playbackCache.setActivePlaybackTrack(null);
+      _disposeSubscriptions();
+    });
     return PlayerViewState.fromService(
       _service,
       playlist: _playlist,
@@ -300,18 +363,22 @@ class PlayerController extends _$PlayerController {
     required SourceProfile profile,
     required RemoteEntry entry,
   }) async {
+    final requestSerial = _beginPlaybackRequest(profile: profile, entry: entry);
+    _replacePlaylist(const [], currentIndex: -1);
     try {
-      _replacePlaylist(const [], currentIndex: -1);
       unawaited(_sessionRepository.clear());
-      _scheduleAutoScrapeForEntry(entry);
+      final stopped = _service.stop();
+      _syncState();
+      await stopped;
+      if (!_isCurrentRequest(requestSerial)) return;
       await _playRemoteEntry(
         profile: profile,
         entry: entry,
+        requestSerial: requestSerial,
         onTrackStarted: () => _scheduleAutoScrapeForEntry(entry),
       );
     } catch (error) {
-      _syncState(errorMessage: error.toString());
-      rethrow;
+      _recordPlaybackFailure(requestSerial, error);
     }
   }
 
@@ -319,16 +386,10 @@ class PlayerController extends _$PlayerController {
     LibrarySong song, {
     List<LibrarySong>? playlist,
   }) async {
-    try {
-      final nextPlaylist = _playlistForSong(song, playlist);
-      final nextIndex = nextPlaylist.indexWhere((item) => item.id == song.id);
-      _replacePlaylist(nextPlaylist, currentIndex: nextIndex);
-      _scheduleAutoScrapeForSong(song);
-      await _playQueueIndex(nextIndex);
-    } catch (error) {
-      _syncState(errorMessage: error.toString());
-      rethrow;
-    }
+    final nextPlaylist = _playlistForSong(song, playlist);
+    final nextIndex = nextPlaylist.indexWhere((item) => item.id == song.id);
+    _replacePlaylist(nextPlaylist, currentIndex: nextIndex);
+    await _playQueueIndex(nextIndex);
   }
 
   Future<void> addToPlayNext(LibrarySong song) async {
@@ -368,10 +429,20 @@ class PlayerController extends _$PlayerController {
     final nextPlaylist = List<LibrarySong>.of(_playlist)..removeAt(index);
 
     if (nextPlaylist.isEmpty) {
+      final requestSerial = ++_playRequestSerial;
+      _isResolvingTrack = false;
+      _playbackError = null;
+      _requestedSong = null;
+      _requestedProfile = null;
+      _requestedEntry = null;
+      _playbackCache.setActivePlaybackTrack(null);
       _clearLyrics();
       _replacePlaylist(const [], currentIndex: -1);
-      await _service.stop();
-      await _sessionRepository.clear();
+      final stopped = _service.stop();
+      final cleared = _sessionRepository.clear();
+      await stopped;
+      await cleared;
+      if (!_isCurrentRequest(requestSerial)) return;
       _syncState();
       return;
     }
@@ -441,7 +512,8 @@ class PlayerController extends _$PlayerController {
     _playbackMode = switch (_playbackMode) {
       PlayerPlaybackMode.list => PlayerPlaybackMode.shuffle,
       PlayerPlaybackMode.shuffle => PlayerPlaybackMode.repeatOne,
-      PlayerPlaybackMode.repeatOne => PlayerPlaybackMode.list,
+      PlayerPlaybackMode.repeatOne => PlayerPlaybackMode.repeatAll,
+      PlayerPlaybackMode.repeatAll => PlayerPlaybackMode.list,
     };
     _syncState();
     unawaited(_persistSession());
@@ -454,55 +526,110 @@ class PlayerController extends _$PlayerController {
   }
 
   Future<void> togglePlayPause() async {
-    await _service.togglePlayPause();
-    if (_service.isPlaying) {
-      _scheduleAutoScrapeForCurrentTrack();
+    if (_playbackError != null) {
+      await play();
+    } else if (_service.isPlaying || _isResolvingTrack) {
+      await pause();
+    } else {
+      await play();
     }
-    _syncState();
-    unawaited(_persistSession());
   }
 
   Future<void> play() async {
-    if (_service.currentTrack == null || _service.isPlaying) {
+    if (_isResolvingTrack) return;
+    final retry = _playbackError != null;
+    if (_service.currentTrack == null || retry) {
+      final profile = _requestedProfile;
+      final entry = _requestedEntry;
+      if (_requestedSong == null && profile != null && entry != null) {
+        await playEntry(profile: profile, entry: entry);
+        return;
+      }
+      if (_currentIndex >= 0 && _currentIndex < _playlist.length) {
+        await _playQueueIndex(_currentIndex);
+      }
       return;
     }
-    await _service.play();
-    _scheduleAutoScrapeForCurrentTrack();
-    _syncState();
-    unawaited(_persistSession());
+    if (_service.isPlaying) return;
+    final requestSerial = _playRequestSerial;
+    try {
+      await _service.play();
+      if (!_isCurrentRequest(requestSerial)) return;
+      _scheduleAutoScrapeForCurrentTrack();
+      _syncState();
+      unawaited(_persistSession());
+    } catch (error) {
+      _recordPlaybackFailure(requestSerial, error);
+    }
   }
 
   Future<void> pause() async {
+    ++_pauseSerial;
+    if (_isResolvingTrack) {
+      await stop();
+      return;
+    }
     if (!_service.isPlaying) {
       return;
     }
-    await _service.pause();
-    _syncState();
-    unawaited(_persistSession());
+    final requestSerial = _playRequestSerial;
+    try {
+      await _service.pause();
+      if (!_isCurrentRequest(requestSerial)) return;
+      _syncState();
+      unawaited(_persistSession());
+    } catch (error) {
+      _recordPlaybackFailure(requestSerial, error);
+    }
   }
 
   Future<void> seek(Duration position) async {
-    await _service.seek(position);
-    _syncState();
-    unawaited(_persistSession(positionOverride: position));
+    final requestSerial = _playRequestSerial;
+    try {
+      await _service.seek(position);
+      if (!_isCurrentRequest(requestSerial)) return;
+      _syncState(forceSystem: true);
+      unawaited(_persistSession(positionOverride: position));
+    } catch (error) {
+      _recordPlaybackFailure(requestSerial, error);
+    }
   }
 
   Future<void> seekAndPlay(Duration position) async {
-    await _service.seek(position);
-    if (!_service.isPlaying) {
-      await _service.togglePlayPause();
-    }
-    if (_service.isPlaying) {
+    final requestSerial = _playRequestSerial;
+    final pauseSerial = _pauseSerial;
+    try {
+      await _service.seek(position);
+      if (!_isCurrentRequest(requestSerial) || pauseSerial != _pauseSerial) {
+        return;
+      }
+      if (!_service.isPlaying) await _service.play();
+      if (!_isCurrentRequest(requestSerial)) return;
       _scheduleAutoScrapeForCurrentTrack();
+      _syncState(forceSystem: true);
+      unawaited(_persistSession(positionOverride: position));
+    } catch (error) {
+      _recordPlaybackFailure(requestSerial, error);
     }
-    _syncState();
-    unawaited(_persistSession(positionOverride: position));
   }
 
   Future<void> stop() async {
-    await _service.stop();
-    _syncState();
-    unawaited(_persistSession());
+    final requestSerial = ++_playRequestSerial;
+    if (_service.currentTrack != null) _targetPosition = _service.position;
+    _isResolvingTrack = false;
+    _playbackError = null;
+    _playbackCache.setActivePlaybackTrack(null);
+    _clearLyrics();
+    try {
+      final stopped = _service.stop();
+      _syncState();
+      await stopped;
+      if (!_isCurrentRequest(requestSerial)) return;
+      _syncState();
+      unawaited(_persistSession());
+    } catch (error) {
+      _recordPlaybackFailure(requestSerial, error);
+    }
   }
 
   void _bindStreams() {
@@ -529,7 +656,8 @@ class PlayerController extends _$PlayerController {
       _syncState();
     });
     _errorSubscription ??= _service.errorStream.listen((error) {
-      _syncState(errorMessage: error.message);
+      if (_service.currentTrack == null) return;
+      _recordPlaybackFailure(_playRequestSerial, error);
     });
     _cacheSubscription ??= _playbackCache.snapshotStream.listen((snapshot) {
       final currentTrack = _service.currentTrack;
@@ -539,7 +667,14 @@ class PlayerController extends _$PlayerController {
     });
   }
 
-  void _syncState({String? errorMessage}) {
+  void _syncState({String? errorMessage, bool forceSystem = false}) {
+    if (_disposed) return;
+    if (!_isResolvingTrack &&
+        _service.currentTrack != null &&
+        _service.currentTrack?.id == _requestedEntry?.uniqueId) {
+      _targetPosition = _service.position;
+    }
+    _playbackError = errorMessage ?? _playbackError;
     _progressSyncTimer?.cancel();
     _progressSyncTimer = null;
     _lastProgressStateSyncedAt = DateTime.now();
@@ -551,10 +686,18 @@ class PlayerController extends _$PlayerController {
       playlist: _playlist,
       currentIndex: _currentIndex,
       playbackMode: _playbackMode,
-      errorMessage: errorMessage,
+      errorMessage: _playbackError,
+      requestedTitle: _requestedSong?.displayTitle ?? _requestedEntry?.title,
+      requestedArtist: _requestedSong?.displayArtist,
+      requestedSourceName:
+          _requestedSong?.sourceName ?? _requestedProfile?.name,
+      canRetry:
+          _playbackError != null &&
+          (_requestedSong != null || _requestedEntry != null),
+      isResolvingTrack: _isResolvingTrack,
     );
     state = nextState;
-    _syncSystemAudioState(nextState);
+    _syncSystemAudioState(nextState, force: forceSystem);
   }
 
   void _syncProgressStateThrottled() {
@@ -610,25 +753,49 @@ class PlayerController extends _$PlayerController {
     }
   }
 
+  int _beginPlaybackRequest({
+    LibrarySong? song,
+    SourceProfile? profile,
+    required RemoteEntry entry,
+  }) {
+    final requestSerial = ++_playRequestSerial;
+    _requestedSong = song;
+    _requestedProfile = profile;
+    _requestedEntry = entry;
+    _isResolvingTrack = true;
+    _targetPosition = Duration.zero;
+    _playbackError = null;
+    _handlingCompletion = false;
+    _clearLyrics();
+    _playbackCache.setActivePlaybackTrack(song?.id ?? entry.uniqueId);
+    return requestSerial;
+  }
+
+  bool _isCurrentRequest(int requestSerial) =>
+      !_disposed && requestSerial == _playRequestSerial;
+
+  void _recordPlaybackFailure(int requestSerial, Object error) {
+    if (!_isCurrentRequest(requestSerial)) return;
+    _isResolvingTrack = false;
+    _syncState(errorMessage: error.toString());
+  }
+
   Future<void> _playRemoteEntry({
     required SourceProfile profile,
     required RemoteEntry entry,
+    required int requestSerial,
     void Function()? onTrackStarted,
   }) async {
-    final requestSerial = ++_playRequestSerial;
-    _clearLyrics();
+    if (!_isCurrentRequest(requestSerial)) return;
     _syncState();
 
     final source = await ref
         .read(musicSourceSessionManagerProvider)
         .get(profile);
-    await _service.stop();
-    _syncState();
+    if (!_isCurrentRequest(requestSerial)) return;
 
     final builtTrack = await source.buildPlayableTrack(entry);
-    if (requestSerial != _playRequestSerial) {
-      return;
-    }
+    if (!_isCurrentRequest(requestSerial)) return;
     final track = _enhanceTrackWithCachedScraping(
       builtTrack,
       metadataId: entry.uniqueId,
@@ -644,29 +811,16 @@ class PlayerController extends _$PlayerController {
       );
     }
 
-    // 立即播放，不等待歌词加载；playTrack 会先同步写入 currentTrack。
     final playFuture = _service.playTrack(track);
+    _syncState();
     onTrackStarted?.call();
     await playFuture;
+    if (!_isCurrentRequest(requestSerial)) return;
+    _isResolvingTrack = false;
     _syncState();
-    unawaited(_persistSession(positionOverride: Duration.zero));
+    unawaited(_persistSession());
 
-    final lyrics = await _loadLyrics(source, entry.path);
-    if (requestSerial == _playRequestSerial &&
-        _service.currentTrack?.id == track.id) {
-      if (lyrics.isNotEmpty) {
-        _setLyrics(lyrics, PlayerLyricsSource.sidecarFile);
-      } else if (_lyrics.isEmpty && scrapedLyrics.isNotEmpty) {
-        _setLyrics(
-          scrapedLyrics,
-          _resolveStoredLyricsSource(
-            entry.uniqueId,
-            rawLyrics: track.displayLyrics,
-          ),
-        );
-      }
-      _syncState();
-    }
+    unawaited(_loadSidecarLyrics(source, entry.path, track.id, requestSerial));
   }
 
   Future<void> _playQueueIndex(int index) async {
@@ -674,35 +828,62 @@ class PlayerController extends _$PlayerController {
       return;
     }
 
-    _currentIndex = index;
-    _syncState();
-
     final song = _playlist[index];
-    final profile = await _profileForSong(song);
-    _scheduleAutoScrapeForSong(song);
-    await _playRemoteEntry(
-      profile: profile,
-      entry: song.toRemoteEntry(),
-      onTrackStarted: () => _scheduleAutoScrapeForSong(song),
-    );
+    final entry = song.toRemoteEntry();
+    final requestSerial = _beginPlaybackRequest(song: song, entry: entry);
+    _currentIndex = index;
+    try {
+      final stopped = _service.stop();
+      _syncState();
+      await stopped;
+      if (!_isCurrentRequest(requestSerial)) return;
+      final profile = await _profileForSong(song);
+      if (!_isCurrentRequest(requestSerial)) return;
+      _requestedProfile = profile;
+      await _playRemoteEntry(
+        profile: profile,
+        entry: entry,
+        requestSerial: requestSerial,
+        onTrackStarted: () => _scheduleAutoScrapeForSong(song),
+      );
+    } catch (error) {
+      _recordPlaybackFailure(requestSerial, error);
+    }
   }
 
   Future<void> _loadQueueIndex(
     int index, {
     Duration initialPosition = Duration.zero,
   }) async {
-    if (index < 0 || index >= _playlist.length) {
-      return;
-    }
-
-    final requestSerial = ++_playRequestSerial;
-    _currentIndex = index;
-    _clearLyrics();
-    _syncState();
-    await _service.stop();
-    _syncState();
-
+    if (index < 0 || index >= _playlist.length) return;
     final song = _playlist[index];
+    final requestSerial = _beginPlaybackRequest(
+      song: song,
+      entry: song.toRemoteEntry(),
+    );
+    _targetPosition = initialPosition;
+    _currentIndex = index;
+    try {
+      await _loadQueueSong(
+        song,
+        requestSerial,
+        initialPosition: initialPosition,
+      );
+    } catch (error) {
+      _recordPlaybackFailure(requestSerial, error);
+    }
+  }
+
+  Future<void> _loadQueueSong(
+    LibrarySong song,
+    int requestSerial, {
+    Duration initialPosition = Duration.zero,
+  }) async {
+    final stopped = _service.stop();
+    _syncState();
+    await stopped;
+    if (!_isCurrentRequest(requestSerial)) return;
+    _syncState();
 
     // 尝试从数据库加载已刮削的元数据
     var displaySong = song;
@@ -765,13 +946,14 @@ class PlayerController extends _$PlayerController {
     }
 
     final profile = await _profileForSong(song);
+    if (!_isCurrentRequest(requestSerial)) return;
+    _requestedProfile = profile;
     final source = await ref
         .read(musicSourceSessionManagerProvider)
         .get(profile);
+    if (!_isCurrentRequest(requestSerial)) return;
     final track = await source.buildPlayableTrack(song.toRemoteEntry());
-    if (requestSerial != _playRequestSerial) {
-      return;
-    }
+    if (!_isCurrentRequest(requestSerial)) return;
 
     // 应用已刮削的元数据到播放轨道
     final enhancedTrack = PlayableTrack(
@@ -810,25 +992,19 @@ class PlayerController extends _$PlayerController {
       );
     }
     await _service.loadTrack(enhancedTrack, initialPosition: initialPosition);
+    if (!_isCurrentRequest(requestSerial)) return;
+    _isResolvingTrack = false;
     _syncState();
     unawaited(_persistSession(positionOverride: initialPosition));
 
-    final lyrics = await _loadLyrics(source, song.remotePath);
-    if (requestSerial == _playRequestSerial &&
-        _service.currentTrack?.id == enhancedTrack.id) {
-      if (lyrics.isNotEmpty) {
-        _setLyrics(lyrics, PlayerLyricsSource.sidecarFile);
-      } else if (_lyrics.isEmpty && scrapedLyrics.isNotEmpty) {
-        _setLyrics(
-          scrapedLyrics,
-          _resolveStoredLyricsSource(
-            song.id,
-            rawLyrics: enhancedTrack.displayLyrics,
-          ),
-        );
-      }
-      _syncState();
-    }
+    unawaited(
+      _loadSidecarLyrics(
+        source,
+        song.remotePath,
+        enhancedTrack.id,
+        requestSerial,
+      ),
+    );
   }
 
   Future<SourceProfile> _profileForSong(LibrarySong song) async {
@@ -845,21 +1021,23 @@ class PlayerController extends _$PlayerController {
   }
 
   Future<void> _loadPersistedSession() async {
+    final restoreSerial = _playRequestSerial;
     try {
       final snapshot = await _sessionRepository.load();
       if (snapshot == null ||
           !snapshot.hasCurrentSong ||
+          !_isCurrentRequest(restoreSerial) ||
           _playlist.isNotEmpty) {
         return;
       }
 
-      final restoreSerial = _playRequestSerial;
       _playlist = List<LibrarySong>.unmodifiable(snapshot.playlist);
+      _playlistRevision++;
       _currentIndex = snapshot.currentIndex;
       _playbackMode = _playbackModeFromStorage(snapshot.playbackMode);
       _syncState();
 
-      if (restoreSerial != _playRequestSerial) {
+      if (!_isCurrentRequest(restoreSerial)) {
         return;
       }
       await _loadQueueIndex(
@@ -867,19 +1045,23 @@ class PlayerController extends _$PlayerController {
         initialPosition: snapshot.position,
       );
     } catch (error) {
-      _syncState(errorMessage: error.toString());
+      _recordPlaybackFailure(restoreSerial, error);
     }
   }
 
   Future<void> _handleTrackCompleted() async {
-    if (_handlingCompletion) {
+    if (_handlingCompletion ||
+        _isResolvingTrack ||
+        _service.currentTrack == null) {
       return;
     }
 
     _handlingCompletion = true;
+    final requestSerial = _playRequestSerial;
     try {
       if (_playbackMode == PlayerPlaybackMode.repeatOne && _playlist.isEmpty) {
         await _service.replayCurrent();
+        if (!_isCurrentRequest(requestSerial)) return;
         _syncState();
         return;
       }
@@ -892,7 +1074,7 @@ class PlayerController extends _$PlayerController {
 
       await _playQueueIndex(nextIndex);
     } catch (error) {
-      _syncState(errorMessage: error.toString());
+      _recordPlaybackFailure(requestSerial, error);
     }
   }
 
@@ -925,22 +1107,31 @@ class PlayerController extends _$PlayerController {
     _syncState();
   }
 
-  void _syncSystemAudioState(PlayerViewState nextState) {
+  void _syncSystemAudioState(PlayerViewState nextState, {bool force = false}) {
     if (!isSystemAudioHandlerInitialized) {
       return;
     }
+    final retryEntry = nextState.canRetry && nextState.currentTrack == null
+        ? _requestedEntry
+        : null;
     final currentSong =
-        nextState.hasPlaylist &&
+        nextState.currentTrack != null &&
+            nextState.hasPlaylist &&
             nextState.currentIndex >= 0 &&
-            nextState.currentIndex < nextState.playlistCount
+            nextState.currentIndex < nextState.playlistCount &&
+            nextState.playlist[nextState.currentIndex].id ==
+                nextState.currentTrack?.id
         ? nextState.playlist[nextState.currentIndex]
+        : retryEntry != null
+        ? _requestedSong
         : null;
     final currentTrack = nextState.currentTrack;
-    final currentItemId = currentSong?.id ?? currentTrack?.id;
+    final currentItemId =
+        currentSong?.id ?? currentTrack?.id ?? retryEntry?.uniqueId;
     final currentItemTitle = _firstNonEmpty(
       currentSong?.displayTitle,
       currentTrack?.displayTitle,
-      currentTrack?.title,
+      currentTrack?.title ?? retryEntry?.title,
     );
     final currentItemArtist = _firstNonEmpty(
       currentSong?.displayArtist,
@@ -958,12 +1149,9 @@ class PlayerController extends _$PlayerController {
       currentSong?.displayCoverUrl,
       currentTrack?.autoScrapedCoverUrl,
     );
-    final currentItemDurationMs = nextState.duration?.inMilliseconds;
-    final queueKey = [
-      _playlistRevision,
-      nextState.currentIndex,
-      currentItemDurationMs,
-    ].join('|');
+    final currentDuration = currentTrack == null ? null : nextState.duration;
+    final currentItemDurationMs = currentDuration?.inMilliseconds;
+    final queueKey = _playlistRevision.toString();
     final currentItemKey = currentItemId == null
         ? null
         : [
@@ -978,20 +1166,10 @@ class PlayerController extends _$PlayerController {
           ].join('|');
     if (_lastSystemQueueKey != queueKey) {
       _lastSystemQueueKey = queueKey;
-      final queueItems = <MediaItem>[];
-      for (var index = 0; index < nextState.playlist.length; index++) {
-        queueItems.add(
-          _mediaItemForSong(
-            nextState.playlist[index],
-            duration: index == nextState.currentIndex
-                ? nextState.duration
-                : null,
-          ),
-        );
-      }
-      systemAudioHandler.updateQueue(queueItems);
+      unawaited(_publishSystemQueue(nextState, queueKey));
     }
     if (_lastSystemCurrentItemKey != currentItemKey) {
+      force = true;
       _lastSystemCurrentItemKey = currentItemKey;
       final mediaItem = currentItemId == null
           ? null
@@ -999,24 +1177,94 @@ class PlayerController extends _$PlayerController {
               id: currentItemId,
               song: currentSong,
               track: currentTrack,
-              duration: nextState.duration,
+              duration: currentDuration,
+              entry: retryEntry,
+              profile: retryEntry == null ? null : _requestedProfile,
             );
       systemAudioHandler.updateCurrentItem(mediaItem);
+      _systemArtworkKey = currentItemKey;
+      if (mediaItem != null) {
+        unawaited(
+          _resolveSystemArtwork(
+            currentItemKey!,
+            mediaItem,
+            currentSong,
+            currentTrack,
+          ),
+        );
+      }
     }
 
+    final locale =
+        AppDisplayPreferences.localeFor(_localePreference) ??
+        WidgetsBinding.instance.platformDispatcher.locale;
+    final l10n = lookupAppLocalizations(
+      Locale(locale.languageCode == 'zh' ? 'zh' : 'en'),
+    );
+    final favorite =
+        ref
+            .read(libraryCatalogControllerProvider)
+            .valueOrNull
+            ?.favoriteTrackIds
+            .contains(currentItemId) ??
+        false;
     systemAudioHandler.updateState(
+      favoriteLabel: favorite
+          ? l10n.removeFromFavoritesAction
+          : l10n.addToFavoritesAction,
+      playbackModeLabel: switch (nextState.playbackMode) {
+        PlayerPlaybackMode.list => l10n.playbackModeList,
+        PlayerPlaybackMode.repeatOne => l10n.playbackModeRepeatOne,
+        PlayerPlaybackMode.repeatAll => l10n.playbackModeRepeatAll,
+        PlayerPlaybackMode.shuffle => l10n.playbackModeShuffle,
+      },
+      force: force,
+      repeatMode: switch (nextState.playbackMode) {
+        PlayerPlaybackMode.repeatOne => AudioServiceRepeatMode.one,
+        PlayerPlaybackMode.repeatAll => AudioServiceRepeatMode.all,
+        _ => AudioServiceRepeatMode.none,
+      },
+      shuffleMode: nextState.playbackMode == PlayerPlaybackMode.shuffle
+          ? AudioServiceShuffleMode.all
+          : AudioServiceShuffleMode.none,
+      isFavorite:
+          ref
+              .read(libraryCatalogControllerProvider)
+              .valueOrNull
+              ?.favoriteTrackIds
+              .contains(currentItemId) ??
+          false,
+      errorMessage: nextState.errorMessage,
       playing: nextState.isPlaying,
       processingState: _audioProcessingState(nextState.processingState),
-      position: nextState.position,
-      bufferedPosition: nextState.bufferedPosition,
+      position: currentTrack == null ? _targetPosition : nextState.position,
+      bufferedPosition: currentTrack == null
+          ? Duration.zero
+          : nextState.bufferedPosition,
       speed: 1.0,
       queueIndex: nextState.currentIndex >= 0 ? nextState.currentIndex : null,
       canSkipToPrevious: nextState.canPlayPrevious,
       canSkipToNext: nextState.canPlayNext,
-      canSeek:
-          nextState.duration != null && nextState.duration! > Duration.zero,
-      hasQueue: nextState.playlist.isNotEmpty,
+      canSeek: currentDuration != null && currentDuration > Duration.zero,
+      hasQueue: currentItemId != null,
     );
+  }
+
+  Future<void> _publishSystemQueue(PlayerViewState snapshot, String key) async {
+    final items = <MediaItem>[];
+    for (var index = 0; index < snapshot.playlist.length; index++) {
+      if (_disposed || _lastSystemQueueKey != key) return;
+      items.add(
+        _mediaItemForSong(
+          snapshot.playlist[index],
+          duration: index == snapshot.currentIndex ? snapshot.duration : null,
+        ),
+      );
+      if (index % 64 == 63) await Future<void>.delayed(Duration.zero);
+    }
+    if (!_disposed && _lastSystemQueueKey == key) {
+      await systemAudioHandler.updateQueue(items);
+    }
   }
 
   MediaItem _mediaItemForSong(LibrarySong song, {Duration? duration}) {
@@ -1052,14 +1300,28 @@ class PlayerController extends _$PlayerController {
     required LibrarySong? song,
     required PlayableTrack? track,
     required Duration? duration,
+    RemoteEntry? entry,
+    SourceProfile? profile,
   }) {
     final title =
-        _firstNonEmpty(song?.displayTitle, track?.displayTitle, track?.title) ??
+        _firstNonEmpty(
+          song?.displayTitle,
+          track?.displayTitle,
+          track?.title ?? entry?.title,
+        ) ??
         '';
     final artist = _firstNonEmpty(song?.displayArtist, track?.displayArtist);
     final album = _firstNonEmpty(song?.displayAlbum, track?.displayAlbum);
-    final sourceName = _firstNonEmpty(song?.sourceName, track?.sourceName);
-    final remotePath = _firstNonEmpty(song?.remotePath, track?.remotePath);
+    final sourceName = _firstNonEmpty(
+      song?.sourceName,
+      track?.sourceName,
+      profile?.name,
+    );
+    final remotePath = _firstNonEmpty(
+      song?.remotePath,
+      track?.remotePath,
+      entry?.path,
+    );
     final localCoverPath = _firstNonEmpty(
       song?.displayLocalCoverPath,
       track?.localCoverPath,
@@ -1068,7 +1330,7 @@ class PlayerController extends _$PlayerController {
       song?.displayCoverUrl,
       track?.autoScrapedCoverUrl,
     );
-    final artUri = _artUriForState(song, track);
+    const Uri? artUri = null;
     return MediaItem(
       id: id,
       title: title,
@@ -1080,11 +1342,15 @@ class PlayerController extends _$PlayerController {
       displaySubtitle: _mediaSubtitle(artist: artist, album: album),
       displayDescription: sourceName,
       extras: _mediaExtras(
-        sourceId: _firstNonEmpty(song?.sourceId, track?.sourceId),
+        sourceId: _firstNonEmpty(
+          song?.sourceId,
+          track?.sourceId,
+          entry?.sourceId,
+        ),
         sourceName: sourceName,
         remotePath: remotePath,
-        fileName: song?.fileName,
-        sizeBytes: song?.size ?? track?.sourceSizeBytes,
+        fileName: song?.fileName ?? entry?.name,
+        sizeBytes: song?.size ?? track?.sourceSizeBytes ?? entry?.size,
         localCoverPath: localCoverPath,
         coverUrl: coverUrl,
         artUri: artUri,
@@ -1111,11 +1377,6 @@ class PlayerController extends _$PlayerController {
 
     addText('sourceId', sourceId);
     addText('sourceName', sourceName);
-    addText('remotePath', remotePath);
-    addText('fileName', fileName);
-    addText('localCoverPath', localCoverPath);
-    addText('coverUrl', coverUrl);
-    addText('artUri', artUri?.toString());
     if (sizeBytes != null && sizeBytes > 0) {
       extras['sizeBytes'] = sizeBytes;
     }
@@ -1147,23 +1408,71 @@ class PlayerController extends _$PlayerController {
     };
   }
 
-  Uri? _artUriForState(LibrarySong? song, PlayableTrack? track) {
-    final localPath = _firstNonEmpty(
-      song?.displayLocalCoverPath,
-      track?.localCoverPath,
-    );
-    if (_hasText(localPath)) {
-      return Uri.file(localPath!);
+  Future<void> _setSystemFavorite(bool favorite) async {
+    final song = _currentIndex >= 0 && _currentIndex < _playlist.length
+        ? _playlist[_currentIndex]
+        : null;
+    if (song == null) return;
+    final catalog = ref.read(libraryCatalogControllerProvider).valueOrNull;
+    if (catalog != null &&
+        catalog.favoriteTrackIds.contains(song.id) != favorite) {
+      await ref
+          .read(libraryCatalogControllerProvider.notifier)
+          .toggleFavorite(song.id);
     }
+  }
 
-    final remoteUrl = _firstNonEmpty(
-      song?.displayCoverUrl,
-      track?.autoScrapedCoverUrl,
-    );
-    if (_hasText(remoteUrl)) {
-      return Uri.tryParse(remoteUrl!);
+  Future<void> _resolveSystemArtwork(
+    String key,
+    MediaItem item,
+    LibrarySong? song,
+    PlayableTrack? track,
+  ) async {
+    final requestSerial = _playRequestSerial;
+    Uri? artwork;
+    try {
+      artwork = await resolveSystemArtwork(
+        localPath: _firstNonEmpty(
+          song?.displayLocalCoverPath,
+          track?.localCoverPath,
+        ),
+        remoteUrl: _firstNonEmpty(
+          song?.displayCoverUrl,
+          track?.autoScrapedCoverUrl,
+        ),
+      );
+      if (!_isCurrentRequest(requestSerial) ||
+          _systemArtworkKey != key ||
+          systemAudioHandler.mediaItem.value?.id != item.id) {
+        return;
+      }
+      if (artwork == null &&
+          !_disposed &&
+          ref
+                  .read(appSettingsControllerProvider)
+                  .valueOrNull
+                  ?.enableFolderArtworkForSongs ==
+              true &&
+          song != null) {
+        final folder = await resolveFolderArtwork(
+          ref,
+          FolderArtworkRequest(
+            sourceId: song.sourceId,
+            directoryPath: song.directoryPath,
+          ),
+        );
+        artwork = await resolveSystemArtwork(localPath: folder?.localPath);
+      }
+    } catch (_) {
+      // Network artwork failure must not interrupt playback.
     }
-    return null;
+    artwork ??= await defaultSystemArtwork();
+    if (_isCurrentRequest(requestSerial) &&
+        _systemArtworkKey == key &&
+        systemAudioHandler.mediaItem.value?.id == item.id &&
+        artwork != null) {
+      systemAudioHandler.updateCurrentItem(item.copyWith(artUri: artwork));
+    }
   }
 
   Uri? _artUriForSong(LibrarySong song) {
@@ -1172,10 +1481,6 @@ class PlayerController extends _$PlayerController {
       return Uri.file(localPath!);
     }
 
-    final remoteUrl = _firstNonEmpty(song.displayCoverUrl);
-    if (_hasText(remoteUrl)) {
-      return Uri.tryParse(remoteUrl!);
-    }
     return null;
   }
 
@@ -1189,6 +1494,7 @@ class PlayerController extends _$PlayerController {
     return switch (_playbackMode) {
       PlayerPlaybackMode.repeatOne => _currentIndex >= 0 ? _currentIndex : 0,
       PlayerPlaybackMode.shuffle => _randomQueueIndex(),
+      PlayerPlaybackMode.repeatAll => (_currentIndex + 1) % _playlist.length,
       PlayerPlaybackMode.list =>
         _currentIndex < 0
             ? 0
@@ -1206,6 +1512,8 @@ class PlayerController extends _$PlayerController {
     return switch (_playbackMode) {
       PlayerPlaybackMode.repeatOne => _currentIndex >= 0 ? _currentIndex : 0,
       PlayerPlaybackMode.shuffle => _randomQueueIndex(),
+      PlayerPlaybackMode.repeatAll =>
+        (_currentIndex - 1 + _playlist.length) % _playlist.length,
       PlayerPlaybackMode.list => _currentIndex > 0 ? _currentIndex - 1 : null,
     };
   }
@@ -1249,7 +1557,11 @@ class PlayerController extends _$PlayerController {
         playlist: _playlist,
         currentIndex: _currentIndex,
         playbackMode: _playbackMode.name,
-        position: positionOverride ?? _service.position,
+        position:
+            positionOverride ??
+            (_service.currentTrack?.id == _playlist[_currentIndex].id
+                ? _service.position
+                : _targetPosition),
       ),
     );
   }
@@ -1261,6 +1573,22 @@ class PlayerController extends _$PlayerController {
       }
     }
     return PlayerPlaybackMode.list;
+  }
+
+  Future<void> _loadSidecarLyrics(
+    MusicSource source,
+    String remotePath,
+    String trackId,
+    int requestSerial,
+  ) async {
+    final lyrics = await _loadLyrics(source, remotePath);
+    if (!_isCurrentRequest(requestSerial) ||
+        _service.currentTrack?.id != trackId ||
+        lyrics.isEmpty) {
+      return;
+    }
+    _setLyrics(lyrics, PlayerLyricsSource.sidecarFile);
+    _syncState();
   }
 
   Future<List<LyricLine>> _loadLyrics(
@@ -1623,7 +1951,7 @@ class PlayerController extends _$PlayerController {
     _applyScrapingMetadataToCurrentTrack(songId, metadata, syncState: false);
 
     final scrapedLyrics = _parseLyrics(updatedSong.displayLyrics);
-    if (scrapedLyrics.isNotEmpty) {
+    if (_service.currentTrack?.id == songId && scrapedLyrics.isNotEmpty) {
       _setLyrics(
         scrapedLyrics,
         _resolveLyricsSourceFromMetadata(
@@ -1692,7 +2020,11 @@ class PlayerController extends _$PlayerController {
         return;
       }
 
-      final localMetadata = await _hydrateLocalMetadataForSong(song);
+      final localMetadata = await _hydrateLocalMetadataForSong(
+        song,
+        requestSerial,
+      );
+      if (!_isCurrentRequest(requestSerial)) return;
 
       // 2. 执行刮削
       final extracted = TrackMetadataExtractor.extractFromFilename(
@@ -1717,6 +2049,7 @@ class PlayerController extends _$PlayerController {
             album: queryAlbum,
             onUpdate: (metadata) async {
               await _persistAutoScrapeUpdateForSong(
+                requestSerial: requestSerial,
                 song: song,
                 scrapedMetadata: metadata,
                 status: ScrapingStatus.scraping,
@@ -1747,6 +2080,7 @@ class PlayerController extends _$PlayerController {
         status: ScrapingStatus.completed,
       );
       await IsarManager.saveMetadata(metadata);
+      if (!_isCurrentRequest(requestSerial)) return;
       _applyScrapingMetadataToCurrentSong(song.id, metadata);
       _applyScrapingMetadataToCurrentTrack(song.id, metadata);
       _refreshLibrarySongMetadata(song.id);
@@ -1809,7 +2143,11 @@ class PlayerController extends _$PlayerController {
         return;
       }
 
-      final localMetadata = await _hydrateLocalMetadataForEntry(entry);
+      final localMetadata = await _hydrateLocalMetadataForEntry(
+        entry,
+        requestSerial,
+      );
+      if (!_isCurrentRequest(requestSerial)) return;
       final extracted = TrackMetadataExtractor.extractFromFilename(entry.name);
       final scrapedMetadata = await ref
           .read(scraping.musicBrainzScraperProvider)
@@ -1821,6 +2159,7 @@ class PlayerController extends _$PlayerController {
             album: localMetadata?.album,
             onUpdate: (metadata) async {
               await _persistAutoScrapeUpdateForEntry(
+                requestSerial: requestSerial,
                 entry: entry,
                 scrapedMetadata: metadata,
                 status: ScrapingStatus.scraping,
@@ -1846,6 +2185,7 @@ class PlayerController extends _$PlayerController {
         status: ScrapingStatus.completed,
       );
       await IsarManager.saveMetadata(metadata);
+      if (!_isCurrentRequest(requestSerial)) return;
       _applyScrapingMetadataToCurrentTrack(entry.uniqueId, metadata);
 
       DebugLogger.success(
@@ -1896,7 +2236,9 @@ class PlayerController extends _$PlayerController {
   }
 
   Future<void> _scrapeSongWhenCurrent(LibrarySong song) async {
+    final requestSerial = _playRequestSerial;
     for (var attempt = 0; attempt < 24; attempt++) {
+      if (!_isCurrentRequest(requestSerial)) return;
       if (_service.currentTrack?.id == song.id) {
         if (_shouldRetryAutoScrape(song.id)) {
           await _scrapeCurrentSongAsync(song);
@@ -1912,7 +2254,9 @@ class PlayerController extends _$PlayerController {
   }
 
   Future<void> _scrapeEntryWhenCurrent(RemoteEntry entry) async {
+    final requestSerial = _playRequestSerial;
     for (var attempt = 0; attempt < 24; attempt++) {
+      if (!_isCurrentRequest(requestSerial)) return;
       if (_service.currentTrack?.id == entry.uniqueId) {
         if (_shouldRetryAutoScrape(entry.uniqueId)) {
           await _scrapeCurrentEntryAsync(entry);
@@ -1982,6 +2326,7 @@ class PlayerController extends _$PlayerController {
   }
 
   Future<void> _persistAutoScrapeUpdateForSong({
+    required int requestSerial,
     required LibrarySong song,
     required ScrapedMetadata scrapedMetadata,
     required ScrapingStatus status,
@@ -1996,12 +2341,14 @@ class PlayerController extends _$PlayerController {
       status: status,
     );
     await IsarManager.saveMetadata(metadata);
+    if (!_isCurrentRequest(requestSerial)) return;
     _applyScrapingMetadataToCurrentSong(song.id, metadata);
     _applyScrapingMetadataToCurrentTrack(song.id, metadata);
     _refreshLibrarySongMetadata(song.id);
   }
 
   Future<void> _persistAutoScrapeUpdateForEntry({
+    required int requestSerial,
     required RemoteEntry entry,
     required ScrapedMetadata scrapedMetadata,
     required ScrapingStatus status,
@@ -2012,6 +2359,7 @@ class PlayerController extends _$PlayerController {
       status: status,
     );
     await IsarManager.saveMetadata(metadata);
+    if (!_isCurrentRequest(requestSerial)) return;
     _applyScrapingMetadataToCurrentTrack(entry.uniqueId, metadata);
   }
 
@@ -2081,6 +2429,7 @@ class PlayerController extends _$PlayerController {
 
   Future<EmbeddedAudioMetadata?> _hydrateLocalMetadataForSong(
     LibrarySong song,
+    int requestSerial,
   ) async {
     try {
       final metadata = await _readEmbeddedMetadata(song.toRemoteEntry());
@@ -2088,6 +2437,7 @@ class PlayerController extends _$PlayerController {
         return null;
       }
       await _persistLocalMetadata(
+        requestSerial: requestSerial,
         id: song.id,
         sourceId: song.sourceId,
         remotePath: song.remotePath,
@@ -2109,6 +2459,7 @@ class PlayerController extends _$PlayerController {
 
   Future<EmbeddedAudioMetadata?> _hydrateLocalMetadataForEntry(
     RemoteEntry entry,
+    int requestSerial,
   ) async {
     try {
       final metadata = await _readEmbeddedMetadata(entry);
@@ -2116,6 +2467,7 @@ class PlayerController extends _$PlayerController {
         return null;
       }
       await _persistLocalMetadata(
+        requestSerial: requestSerial,
         id: entry.uniqueId,
         sourceId: entry.sourceId,
         remotePath: entry.path,
@@ -2161,6 +2513,7 @@ class PlayerController extends _$PlayerController {
   }
 
   Future<void> _persistLocalMetadata({
+    required int requestSerial,
     required String id,
     required String sourceId,
     required String remotePath,
@@ -2281,6 +2634,7 @@ class PlayerController extends _$PlayerController {
       existing.status = ScrapingStatus.completed;
     }
     await IsarManager.saveMetadata(existing);
+    if (!_isCurrentRequest(requestSerial)) return;
     _applyEmbeddedMetadataToCurrentPlayback(id, metadata);
     _applyScrapingMetadataToCurrentSong(id, existing);
     _applyScrapingMetadataToCurrentTrack(id, existing);
@@ -2334,6 +2688,7 @@ class PlayerController extends _$PlayerController {
       final nextPlaylist = List<LibrarySong>.of(_playlist);
       nextPlaylist[songIndex] = updatedSong;
       _playlist = List<LibrarySong>.unmodifiable(nextPlaylist);
+      _playlistRevision++;
     }
 
     final currentTrack = _service.currentTrack;

@@ -11,12 +11,21 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/models/playback_cache_settings.dart';
 import '../../../../core/models/remote_entry.dart';
+import '../../../../core/utils/debug_logger.dart';
 import 'webdav_playback_cache_base.dart';
 import 'webdav_remote_client.dart';
 
 class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
-  _IoWebDavPlaybackCache({required PlaybackCacheSettings initialSettings})
-    : _settings = initialSettings.normalized;
+  _IoWebDavPlaybackCache({
+    required PlaybackCacheSettings initialSettings,
+    required this.maxMemoryBytes,
+  }) : _settings = initialSettings.normalized;
+
+  final int maxMemoryBytes;
+
+  @override
+  int get retainedMemoryBytes =>
+      _trackCache.values.fold(0, (sum, state) => sum + state.allocatedBytes);
 
   static const _cacheDirectoryName = 'flux_music_player/webdav_cache';
   static const _maxConcurrentPrefetches = 1;
@@ -28,7 +37,14 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
   final Map<String, int> _activeCaptureCounts = <String, int>{};
   final Queue<_PrefetchRequest> _prefetchQueue = Queue<_PrefetchRequest>();
   final Set<String> _queuedPrefetchTrackIds = <String>{};
-  final Set<String> _activePrefetchTrackIds = <String>{};
+  final Map<String, _PrefetchRequest> _activePrefetches = {};
+  final Map<String, Future<File?>> _pendingDiskWrites = {};
+  final Map<String, int> _trackDeletionVersions = {};
+  final Map<String, int> _deletingTrackCounts = {};
+  int _clearingDiskCount = 0;
+  String? _activePlaybackTrackId;
+  int _playbackTargetVersion = 0;
+  bool _prefetchBlockedForCurrentTarget = false;
   final Map<String, DateTime> _lastSnapshotEmittedAt = <String, DateTime>{};
   final Map<String, Timer> _snapshotThrottleTimers = <String, Timer>{};
   final Set<String> _pendingSnapshotTrackIds = <String>{};
@@ -55,9 +71,73 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
     _settings = settings.normalized;
     if (!previousSettings.enablePersistentCache &&
         _settings.enablePersistentCache) {
-      unawaited(_persistCompletedTracksToDisk());
+      unawaited(
+        _persistCompletedTracksToDisk().catchError(_reportCacheFailure),
+      );
+    }
+    if (!_settings.enablePersistentCache) {
+      if (previousSettings.enablePersistentCache) _cacheMutationVersion++;
+      _cancelPrefetches();
     }
     _trimMemoryCache();
+  }
+
+  @override
+  void setActivePlaybackTrack(String? trackId) {
+    _playbackTargetVersion++;
+    _activePlaybackTrackId = trackId;
+    _prefetchBlockedForCurrentTarget = false;
+    _cancelPrefetches();
+  }
+
+  bool _canPrefetch(String trackId) =>
+      _canPersist(trackId) &&
+      !_prefetchBlockedForCurrentTarget &&
+      _activePlaybackTrackId == trackId;
+
+  bool _canPersist(String trackId) =>
+      !_disposed &&
+      _settings.enablePersistentCache &&
+      _clearingDiskCount == 0 &&
+      !_deletingTrackCounts.containsKey(trackId) &&
+      !(_prefetchBlockedForCurrentTarget && _activePlaybackTrackId == trackId);
+
+  Future<void> _finishDiskWrites([Set<String>? trackIds]) async {
+    final writes = _pendingDiskWrites.entries
+        .where((entry) => trackIds == null || trackIds.contains(entry.key))
+        .map((entry) => entry.value)
+        .toList(growable: false);
+    await Future.wait(
+      writes.map((write) => write.catchError((Object _) => null)),
+    );
+  }
+
+  void _cancelPrefetches([Set<String>? trackIds]) {
+    _prefetchQueue.removeWhere((request) {
+      if (trackIds != null && !trackIds.contains(request.trackId)) return false;
+      _queuedPrefetchTrackIds.remove(request.trackId);
+      unawaited(request.cancel());
+      return true;
+    });
+    for (final request in _activePrefetches.values) {
+      if (trackIds == null || trackIds.contains(request.trackId)) {
+        unawaited(request.cancel());
+      }
+    }
+  }
+
+  Future<void> _finishCancelledPrefetches([Set<String>? trackIds]) async {
+    final requests = _activePrefetches.values
+        .where(
+          (request) => trackIds == null || trackIds.contains(request.trackId),
+        )
+        .toList(growable: false);
+    _cancelPrefetches(trackIds);
+    await Future.wait(requests.map((request) => request.finished.future));
+  }
+
+  void _reportCacheFailure(Object error, StackTrace stackTrace) {
+    DebugLogger.warning('PlaybackCache', 'Optional audio caching failed');
   }
 
   @override
@@ -135,14 +215,16 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
     }
 
     if (_settings.enablePersistentCache &&
-        !_activePrefetchTrackIds.contains(entry.uniqueId)) {
+        !_activePrefetches.containsKey(entry.uniqueId)) {
       try {
         final persistedFile = await _persistCompleteBytesToDisk(
           entry: entry,
           completeBytes: completeBytes,
           updatedAt: DateTime.now(),
         );
-        return AudioSource.uri(Uri.file(persistedFile.path));
+        if (persistedFile != null) {
+          return AudioSource.uri(Uri.file(persistedFile.path));
+        }
       } catch (_) {
         existingState?.updatedAt = DateTime.now();
         _emitInventory();
@@ -162,13 +244,19 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
     required RemoteEntry entry,
     required WebDavRemoteClient client,
   }) async {
-    if (_disposed) {
+    final targetVersion = _playbackTargetVersion;
+    final mutationVersion = _cacheMutationVersion;
+    bool isCurrent() =>
+        _canPrefetch(entry.uniqueId) &&
+        targetVersion == _playbackTargetVersion &&
+        mutationVersion == _cacheMutationVersion;
+    if (!isCurrent()) {
       return;
     }
 
     try {
       await _ensurePersistedTrackCacheLoaded();
-      if (_disposed) {
+      if (!isCurrent()) {
         return;
       }
 
@@ -177,7 +265,8 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
           (_settings.enablePersistentCache &&
               _persistedTrackCache.containsKey(trackId)) ||
           _queuedPrefetchTrackIds.contains(trackId) ||
-          _activePrefetchTrackIds.contains(trackId)) {
+          _pendingDiskWrites.containsKey(trackId) ||
+          (_activePrefetches[trackId]?.isCancelled == false)) {
         return;
       }
 
@@ -192,6 +281,8 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
         }
         return;
       }
+
+      if (!isCurrent()) return;
 
       _queuedPrefetchTrackIds.add(trackId);
       _prefetchQueue.add(_PrefetchRequest(entry: entry, client: client));
@@ -253,6 +344,12 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
     required int? requestedEnd,
     required int? expectedLength,
   }) async* {
+    final mutationVersion = _cacheMutationVersion;
+    final deletionVersion = _trackDeletionVersions[entry.uniqueId];
+    bool isCurrent() =>
+        !_disposed &&
+        mutationVersion == _cacheMutationVersion &&
+        deletionVersion == _trackDeletionVersions[entry.uniqueId];
     _activeCaptureCounts.update(
       entry.uniqueId,
       (count) => count + 1,
@@ -263,19 +360,30 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
     try {
       await for (final chunk in stream) {
         if (chunk.isNotEmpty) {
-          _storeChunk(
-            entry: entry,
-            offset: currentOffset,
-            bytes: Uint8List.fromList(chunk),
-            expectedLength: expectedLength,
-          );
+          if (isCurrent()) {
+            _storeChunk(
+              entry: entry,
+              offset: currentOffset,
+              bytes: Uint8List.fromList(chunk),
+              expectedLength: expectedLength,
+              throttleProgress: true,
+            );
+          }
           currentOffset += chunk.length;
         }
         yield chunk;
       }
 
-      await _persistIfComplete(entry);
+      try {
+        if (isCurrent()) await _persistIfComplete(entry);
+      } catch (error, stackTrace) {
+        _reportCacheFailure(error, stackTrace);
+      }
     } finally {
+      if (isCurrent()) {
+        _emitSnapshot(entry.uniqueId);
+        _emitInventory();
+      }
       final nextCount = (_activeCaptureCounts[entry.uniqueId] ?? 1) - 1;
       if (nextCount <= 0) {
         _activeCaptureCounts.remove(entry.uniqueId);
@@ -288,33 +396,38 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
 
   @override
   Future<void> clearAllCachedData() async {
+    _clearingDiskCount++;
+    _prefetchBlockedForCurrentTarget = true;
     _cacheMutationVersion++;
-    _prefetchQueue.clear();
-    _queuedPrefetchTrackIds.clear();
-    _clearProgressEmitTimers();
-    final trackIds = _trackCache.keys.toList(growable: false);
-    _trackCache.clear();
-    _activeCaptureCounts.clear();
-    _persistedTrackCache.clear();
+    try {
+      await _finishCancelledPrefetches();
+      await _finishDiskWrites();
+      _clearProgressEmitTimers();
+      final trackIds = _trackCache.keys.toList(growable: false);
+      _trackCache.clear();
+      _persistedTrackCache.clear();
 
-    for (final trackId in trackIds) {
-      if (!_snapshotController.isClosed) {
-        _snapshotController.add(
-          PlaybackCacheSnapshot(
-            trackId: trackId,
-            totalLength: null,
-            segments: const [],
-          ),
-        );
+      for (final trackId in trackIds) {
+        if (!_snapshotController.isClosed) {
+          _snapshotController.add(
+            PlaybackCacheSnapshot(
+              trackId: trackId,
+              totalLength: null,
+              segments: const [],
+            ),
+          );
+        }
       }
-    }
 
-    final directory = await _cacheDirectory();
-    if (await directory.exists()) {
-      await directory.delete(recursive: true);
+      final directory = await _cacheDirectory();
+      if (await directory.exists()) {
+        await directory.delete(recursive: true);
+      }
+      _resolvedCacheDirectory = null;
+      _emitInventory();
+    } finally {
+      _clearingDiskCount--;
     }
-    _resolvedCacheDirectory = null;
-    _emitInventory();
   }
 
   @override
@@ -363,45 +476,63 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
       return;
     }
 
-    _cacheMutationVersion++;
-    _prefetchQueue.removeWhere((request) {
-      final shouldRemove = trackIds.contains(request.trackId);
-      if (shouldRemove) {
-        _queuedPrefetchTrackIds.remove(request.trackId);
-      }
-      return shouldRemove;
-    });
-
-    await _ensurePersistedTrackCacheLoaded();
-    final directory = await _cacheDirectory();
-
+    if (trackIds.contains(_activePlaybackTrackId)) {
+      _prefetchBlockedForCurrentTarget = true;
+    }
     for (final trackId in trackIds) {
-      _clearProgressEmitTimer(trackId);
-      _trackCache.remove(trackId);
-      _activeCaptureCounts.remove(trackId);
-      _persistedTrackCache.remove(trackId);
-      await _deletePersistedTrackFiles(directory, trackId);
-      if (!_snapshotController.isClosed) {
-        _snapshotController.add(
-          PlaybackCacheSnapshot(
-            trackId: trackId,
-            totalLength: null,
-            segments: const [],
-          ),
-        );
+      _trackDeletionVersions.update(
+        trackId,
+        (value) => value + 1,
+        ifAbsent: () => 1,
+      );
+      _deletingTrackCounts.update(
+        trackId,
+        (value) => value + 1,
+        ifAbsent: () => 1,
+      );
+    }
+    try {
+      await _finishCancelledPrefetches(trackIds);
+      await _finishDiskWrites(trackIds);
+
+      await _ensurePersistedTrackCacheLoaded();
+      final directory = await _cacheDirectory();
+
+      for (final trackId in trackIds) {
+        _clearProgressEmitTimer(trackId);
+        _trackCache.remove(trackId);
+        _persistedTrackCache.remove(trackId);
+        await _deletePersistedTrackFiles(directory, trackId);
+        if (!_snapshotController.isClosed) {
+          _snapshotController.add(
+            PlaybackCacheSnapshot(
+              trackId: trackId,
+              totalLength: null,
+              segments: const [],
+            ),
+          );
+        }
+      }
+
+      _emitInventory();
+    } finally {
+      for (final trackId in trackIds) {
+        final remaining = _deletingTrackCounts[trackId]! - 1;
+        if (remaining == 0) {
+          _deletingTrackCounts.remove(trackId);
+        } else {
+          _deletingTrackCounts[trackId] = remaining;
+        }
       }
     }
-
-    _emitInventory();
   }
 
   @override
   Future<void> dispose() async {
     _disposed = true;
     _cacheMutationVersion++;
-    _prefetchQueue.clear();
-    _queuedPrefetchTrackIds.clear();
-    _activePrefetchTrackIds.clear();
+    await _finishCancelledPrefetches();
+    await _finishDiskWrites();
     _clearProgressEmitTimers();
     _trackCache.clear();
     _activeCaptureCounts.clear();
@@ -415,21 +546,27 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
       return;
     }
 
-    while (_activePrefetchTrackIds.length < _maxConcurrentPrefetches &&
+    while (_activePrefetches.length < _maxConcurrentPrefetches &&
         _prefetchQueue.isNotEmpty) {
       final request = _prefetchQueue.removeFirst();
       _queuedPrefetchTrackIds.remove(request.trackId);
-      if (_activePrefetchTrackIds.contains(request.trackId)) {
+      if (_activePrefetches.containsKey(request.trackId)) {
         continue;
       }
 
-      _activePrefetchTrackIds.add(request.trackId);
+      if (!_canPrefetch(request.trackId) ||
+          request.isCancelled ||
+          _pendingDiskWrites.containsKey(request.trackId)) {
+        continue;
+      }
+      _activePrefetches[request.trackId] = request;
       unawaited(
         _runPrefetch(
           request,
           mutationVersion: _cacheMutationVersion,
-        ).catchError((_) {}).whenComplete(() {
-          _activePrefetchTrackIds.remove(request.trackId);
+        ).catchError(_reportCacheFailure).whenComplete(() {
+          _activePrefetches.remove(request.trackId);
+          request.finished.complete();
           _drainPrefetchQueue();
         }),
       );
@@ -440,17 +577,22 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
     _PrefetchRequest request, {
     required int mutationVersion,
   }) async {
-    if (_disposed) {
+    bool isCurrent() =>
+        !request.isCancelled &&
+        _canPrefetch(request.trackId) &&
+        mutationVersion == _cacheMutationVersion;
+    if (!isCurrent()) {
       return;
     }
 
     final entry = request.entry;
     await _ensurePersistedTrackCacheLoaded();
-    if (_disposed || mutationVersion != _cacheMutationVersion) {
+    if (!isCurrent()) {
       return;
     }
 
     final targetFile = await _targetFileFor(entry);
+    if (!isCurrent()) return;
     if (await _isCompletePersistentFile(targetFile, entry)) {
       if (_settings.enablePersistentCache) {
         await _markPersistentFileReady(
@@ -463,6 +605,7 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
     }
 
     if (await targetFile.exists()) {
+      if (!isCurrent()) return;
       await targetFile.delete();
     }
 
@@ -480,36 +623,60 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
           tempFile: tempFile,
           targetFile: targetFile,
           mutationVersion: mutationVersion,
-          markPersistent: _settings.enablePersistentCache,
+          request: request,
         );
         return;
       }
     }
 
-    final result = await request.client.openRead(entry.path, start: offset);
-    final totalLength =
-        result.sourceLength ??
-        entry.size ??
-        (result.contentLength > 0
-            ? result.offset + result.contentLength
-            : null);
+    if (!isCurrent()) return;
+    final result = await Future.any<WebDavReadResult?>([
+      request.client.openRead(entry.path, start: offset).then((result) async {
+        if (!isCurrent()) {
+          await result.stream.listen(null).cancel();
+          return null;
+        }
+        return result;
+      }),
+      request.cancelled.future.then((_) => null),
+    ]);
+    if (result == null) return;
+    if (!isCurrent() || result.offset != offset) {
+      await result.stream.listen(null).cancel();
+      if (isCurrent()) {
+        throw StateError('Prefetch response offset does not match the cache');
+      }
+      return;
+    }
+    final totalLength = result.resolveSourceLength(entry.size);
     final writeMode = offset > 0 ? FileMode.append : FileMode.write;
     final sink = tempFile.openWrite(mode: writeMode);
+    // Observe asynchronous sink errors before flush/close, keeping them out of playback.
+    unawaited(sink.done.catchError((Object _) {}));
+    final reader = StreamIterator(result.stream);
+    request.reader = reader;
     var writtenBytes = offset;
 
     try {
       final state = _touchOrCreateTrackState(entry.uniqueId);
-      state.totalLength = totalLength ?? state.totalLength ?? entry.size;
+      state.updateTotalLength(
+        totalLength,
+        observedEnd: result.offset + result.contentLength,
+      );
       state.updatedAt = DateTime.now();
       _emitSnapshot(entry.uniqueId);
       _emitInventory();
 
-      await for (final chunk in result.stream) {
-        if (_disposed || mutationVersion != _cacheMutationVersion) {
+      while (await reader.moveNext()) {
+        if (!isCurrent()) {
           return;
         }
+        final chunk = reader.current;
         if (chunk.isEmpty) {
           continue;
+        }
+        if (totalLength != null && writtenBytes + chunk.length > totalLength) {
+          throw StateError('Prefetch response exceeds the expected file size');
         }
         sink.add(chunk);
         _markPrefetchProgress(
@@ -522,15 +689,20 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
 
       await sink.flush();
     } finally {
-      await sink.close();
+      request.reader = null;
+      try {
+        await reader.cancel();
+      } finally {
+        await sink.close();
+      }
     }
 
-    if (_disposed || mutationVersion != _cacheMutationVersion) {
+    if (!isCurrent()) {
       return;
     }
 
-    final resolvedTotalLength = totalLength ?? writtenBytes;
-    if (writtenBytes < resolvedTotalLength) {
+    // A response may be only one range; EOF alone does not prove file completeness.
+    if (totalLength == null || writtenBytes != totalLength) {
       return;
     }
 
@@ -539,7 +711,7 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
       tempFile: tempFile,
       targetFile: targetFile,
       mutationVersion: mutationVersion,
-      markPersistent: _settings.enablePersistentCache,
+      request: request,
     );
   }
 
@@ -548,36 +720,29 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
     required File tempFile,
     required File targetFile,
     required int mutationVersion,
-    required bool markPersistent,
+    required _PrefetchRequest request,
   }) async {
-    if (_disposed ||
-        mutationVersion != _cacheMutationVersion ||
-        !await tempFile.exists()) {
+    bool isCurrent() =>
+        !request.isCancelled &&
+        _canPrefetch(request.trackId) &&
+        mutationVersion == _cacheMutationVersion;
+    if (!isCurrent() || !await tempFile.exists()) {
       return;
     }
 
     await _validateFile(tempFile, extension: _normalizedExtension(entry.name));
+    if (!isCurrent()) return;
     if (await targetFile.exists()) {
+      if (!isCurrent()) return;
       await targetFile.delete();
     }
+    if (!isCurrent()) return;
     final persistedFile = await tempFile.rename(targetFile.path);
-    if (markPersistent) {
-      await _markPersistentFileReady(
-        entry: entry,
-        file: persistedFile,
-        updatedAt: DateTime.now(),
-      );
-      return;
-    }
-
-    final length = await persistedFile.length();
-    _markPrefetchProgress(
+    await _markPersistentFileReady(
       entry: entry,
-      totalLength: entry.size ?? length,
-      cachedBytes: length,
+      file: persistedFile,
+      updatedAt: DateTime.now(),
     );
-    _emitSnapshot(entry.uniqueId);
-    _emitInventory();
   }
 
   Future<bool> _isCompletePersistentFile(File file, RemoteEntry entry) async {
@@ -701,7 +866,7 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
     required int cachedBytes,
   }) {
     final state = _touchOrCreateTrackState(entry.uniqueId);
-    state.totalLength = totalLength ?? state.totalLength ?? entry.size;
+    state.updateTotalLength(totalLength, observedEnd: cachedBytes);
     state.updatedAt = DateTime.now();
     state.updateDiskCachedBytes(cachedBytes);
     _emitSnapshotThrottled(entry.uniqueId);
@@ -716,9 +881,32 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
     bool throttleProgress = false,
   }) {
     final state = _touchOrCreateTrackState(entry.uniqueId);
-    state.totalLength = expectedLength ?? state.totalLength ?? entry.size;
+    state.updateTotalLength(expectedLength, observedEnd: offset + bytes.length);
     state.updatedAt = DateTime.now();
-    state.insertChunk(offset, bytes);
+    if (!state.memoryLimitReached) {
+      final projected = state.allocationAfterInsert(offset, bytes.length);
+      while (retainedMemoryBytes - state.allocatedBytes + projected >
+          maxMemoryBytes) {
+        final victims = _trackCache.entries.where(
+          (item) =>
+              item.key != entry.uniqueId &&
+              item.value.allocatedBytes > 0 &&
+              !_activeCaptureCounts.containsKey(item.key) &&
+              !_activePrefetches.containsKey(item.key),
+        );
+        if (victims.isEmpty) break;
+        final victim = victims.first;
+        victim.value.clearInMemoryBytes();
+        _emitSnapshot(victim.key);
+      }
+      if (retainedMemoryBytes - state.allocatedBytes + projected <=
+          maxMemoryBytes) {
+        state.insertChunk(offset, bytes);
+      } else {
+        // Keep the cached prefix; forward all network bytes without retaining more.
+        state.memoryLimitReached = true;
+      }
+    }
     if (throttleProgress) {
       _emitSnapshotThrottled(entry.uniqueId);
       _emitInventoryThrottled();
@@ -733,7 +921,7 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
     if (!_settings.enablePersistentCache) {
       return;
     }
-    if (_activePrefetchTrackIds.contains(entry.uniqueId)) {
+    if (_activePrefetches.containsKey(entry.uniqueId)) {
       return;
     }
 
@@ -1088,7 +1276,7 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
         continue;
       }
       if (_activeCaptureCounts.containsKey(entry.key) ||
-          _activePrefetchTrackIds.contains(entry.key)) {
+          _activePrefetches.containsKey(entry.key)) {
         activeFallback ??= entry;
         continue;
       }
@@ -1117,9 +1305,15 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
   }
 
   Future<void> _persistCompletedTracksToDisk() async {
+    final mutationVersion = _cacheMutationVersion;
     await _ensurePersistedTrackCacheLoaded();
 
     for (final entry in _trackCache.entries.toList(growable: false)) {
+      if (_disposed || mutationVersion != _cacheMutationVersion) return;
+      if (!_canPersist(entry.key) ||
+          !identical(_trackCache[entry.key], entry.value)) {
+        continue;
+      }
       final completeBytes = entry.value.completeBytes;
       if (completeBytes == null) {
         continue;
@@ -1146,14 +1340,52 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
     }
   }
 
-  Future<File> _persistCompleteBytesToDisk({
+  Future<File?> _persistCompleteBytesToDisk({
     required RemoteEntry entry,
     required Uint8List completeBytes,
     required DateTime updatedAt,
+  }) {
+    final trackId = entry.uniqueId;
+    if (!_canPersist(trackId) || _activePrefetches.containsKey(trackId)) {
+      return Future.value();
+    }
+    final pending = _pendingDiskWrites[trackId];
+    if (pending != null) return pending;
+
+    final mutationVersion = _cacheMutationVersion;
+    final deletionVersion = _trackDeletionVersions[trackId];
+    bool isCurrent() =>
+        _canPersist(trackId) &&
+        mutationVersion == _cacheMutationVersion &&
+        deletionVersion == _trackDeletionVersions[trackId];
+
+    late final Future<File?> write;
+    write =
+        _writeCompleteBytesToDisk(
+          entry: entry,
+          completeBytes: completeBytes,
+          updatedAt: updatedAt,
+          isCurrent: isCurrent,
+        ).whenComplete(() {
+          if (identical(_pendingDiskWrites[trackId], write)) {
+            _pendingDiskWrites.remove(trackId);
+          }
+        });
+    _pendingDiskWrites[trackId] = write;
+    return write;
+  }
+
+  Future<File?> _writeCompleteBytesToDisk({
+    required RemoteEntry entry,
+    required Uint8List completeBytes,
+    required DateTime updatedAt,
+    required bool Function() isCurrent,
   }) async {
     final targetFile = await _targetFileFor(entry);
+    if (!isCurrent()) return null;
     if (await targetFile.exists()) {
       final currentLength = await targetFile.length();
+      if (!isCurrent()) return null;
       if (currentLength == completeBytes.length) {
         final persistedState = _touchOrCreateTrackState(entry.uniqueId);
         persistedState.hasPersistedCopy = true;
@@ -1170,14 +1402,20 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
       await targetFile.delete();
     }
 
+    if (!isCurrent()) return null;
     final tempFile = File('${targetFile.path}.part');
     if (await tempFile.exists()) {
+      if (!isCurrent()) return null;
       await tempFile.delete();
     }
 
+    if (!isCurrent()) return null;
     await tempFile.writeAsBytes(completeBytes, flush: true);
+    if (!isCurrent()) return null;
     await _validateFile(tempFile, extension: _normalizedExtension(entry.name));
+    if (!isCurrent()) return null;
     await tempFile.rename(targetFile.path);
+    if (!isCurrent()) return null;
 
     final persistedState = _touchOrCreateTrackState(entry.uniqueId);
     persistedState.hasPersistedCopy = true;
@@ -1193,7 +1431,10 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
   }
 
   String? _trackIdForCacheFile(String path) {
-    final cacheKey = p.basenameWithoutExtension(path);
+    final audioPath = path.endsWith('.part')
+        ? path.substring(0, path.length - '.part'.length)
+        : path;
+    final cacheKey = p.basenameWithoutExtension(audioPath);
     if (cacheKey.isEmpty) {
       return null;
     }
@@ -1272,11 +1513,47 @@ class _IoWebDavPlaybackCache implements WebDavPlaybackCache {
 }
 
 class _TrackCacheState {
+  bool memoryLimitReached = false;
+  int get allocatedBytes =>
+      _segments.fold(0, (sum, segment) => sum + segment.capacity);
+
+  int allocationAfterInsert(int start, int length) {
+    var first = start;
+    var end = start + length;
+    final overlap = <_ByteSegment>[];
+    for (final segment in _segments) {
+      if (segment.endExclusive < first || segment.start > end) continue;
+      overlap.add(segment);
+      first = math.min(first, segment.start);
+      end = math.max(end, segment.endExclusive);
+    }
+    final reused = overlap.isNotEmpty && overlap.first.start == first
+        ? overlap.first.capacity
+        : 0;
+    final capacity = end - first <= reused
+        ? reused
+        : math.max(end - first, reused * 2);
+    return allocatedBytes -
+        overlap.fold<int>(0, (sum, segment) => sum + segment.capacity) +
+        capacity;
+  }
+
   int? totalLength;
   bool hasPersistedCopy = false;
   int diskCachedBytes = 0;
   DateTime updatedAt = DateTime.fromMillisecondsSinceEpoch(0);
   final List<_ByteSegment> _segments = <_ByteSegment>[];
+
+  void updateTotalLength(int? length, {required int observedEnd}) {
+    var minimumLength = math.max(observedEnd, diskCachedBytes);
+    for (final segment in _segments) {
+      minimumLength = math.max(minimumLength, segment.endExclusive);
+    }
+    final candidate = length ?? totalLength;
+    totalLength = candidate != null && candidate >= minimumLength
+        ? candidate
+        : null;
+  }
 
   void insertChunk(int start, Uint8List bytes) {
     if (bytes.isEmpty) {
@@ -1300,21 +1577,28 @@ class _TrackCacheState {
       }
     }
 
-    final mergedBytes = Uint8List(mergedEnd - mergedStart);
+    // Reuse growing storage so adjacent network chunks do not recopy the track.
+    final merged =
+        overlapping.isNotEmpty && overlapping.first.start == mergedStart
+        ? overlapping.first
+        : _ByteSegment(start: mergedStart, bytes: Uint8List(0));
+    merged.ensureLength(mergedEnd - mergedStart);
     for (final segment in overlapping) {
-      mergedBytes.setRange(
-        segment.start - mergedStart,
-        segment.endExclusive - mergedStart,
-        segment.bytes,
-      );
+      if (!identical(segment, merged)) {
+        merged.bytes.setRange(
+          segment.start - mergedStart,
+          segment.endExclusive - mergedStart,
+          segment.bytes,
+        );
+      }
       _segments.remove(segment);
     }
-    mergedBytes.setRange(
+    merged.bytes.setRange(
       start - mergedStart,
       start - mergedStart + bytes.length,
       bytes,
     );
-    _segments.add(_ByteSegment(start: mergedStart, bytes: mergedBytes));
+    _segments.add(merged);
     _segments.sort((left, right) => left.start.compareTo(right.start));
   }
 
@@ -1372,6 +1656,7 @@ class _TrackCacheState {
 
   void clearInMemoryBytes() {
     _segments.clear();
+    memoryLimitReached = false;
   }
 
   void updateDiskCachedBytes(int bytes) {
@@ -1418,21 +1703,52 @@ class _TrackIdentity {
 }
 
 class _PrefetchRequest {
-  const _PrefetchRequest({required this.entry, required this.client});
+  _PrefetchRequest({required this.entry, required this.client});
 
   final RemoteEntry entry;
   final WebDavRemoteClient client;
+  final cancelled = Completer<void>();
+  final finished = Completer<void>();
+  StreamIterator<List<int>>? reader;
+
+  bool get isCancelled => cancelled.isCompleted;
+
+  Future<void> cancel() async {
+    if (isCancelled) return;
+    cancelled.complete();
+    try {
+      await reader?.cancel();
+    } catch (_) {
+      // A failed optional download must not block changing the playback target.
+    }
+  }
 
   String get trackId => entry.uniqueId;
 }
 
 class _ByteSegment {
-  const _ByteSegment({required this.start, required this.bytes});
+  _ByteSegment({required this.start, required Uint8List bytes})
+    : _buffer = bytes,
+      _length = bytes.length;
 
   final int start;
-  final Uint8List bytes;
+  Uint8List _buffer;
+  int _length;
 
-  int get endExclusive => start + bytes.length;
+  int get capacity => _buffer.length;
+
+  Uint8List get bytes => Uint8List.sublistView(_buffer, 0, _length);
+
+  void ensureLength(int length) {
+    if (length > _buffer.length) {
+      final expanded = Uint8List(math.max(length, _buffer.length * 2));
+      expanded.setRange(0, _length, _buffer);
+      _buffer = expanded;
+    }
+    _length = length;
+  }
+
+  int get endExclusive => start + _length;
 }
 
 class _InMemoryAudioSource extends StreamAudioSource {
@@ -1461,4 +1777,8 @@ class _InMemoryAudioSource extends StreamAudioSource {
 
 WebDavPlaybackCache createWebDavPlaybackCache({
   required PlaybackCacheSettings initialSettings,
-}) => _IoWebDavPlaybackCache(initialSettings: initialSettings);
+  int maxMemoryBytes = 64 * 1024 * 1024,
+}) => _IoWebDavPlaybackCache(
+  initialSettings: initialSettings,
+  maxMemoryBytes: maxMemoryBytes,
+);

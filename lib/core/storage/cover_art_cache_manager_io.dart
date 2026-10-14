@@ -53,6 +53,14 @@ class CoverArtCacheManager {
     return '$hash${_normalizeExtension(extension)}';
   }
 
+  Future<bool> isUsableLocalPath(String path) async {
+    try {
+      return await File(path).exists() && await File(path).length() > 0;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<String?> downloadAndCache(String coverUrl) async {
     if (coverUrl.trim().isEmpty) {
       return null;
@@ -65,11 +73,11 @@ class CoverArtCacheManager {
       final file = File(filePath);
 
       if (await file.exists()) {
-        DebugLogger.success('CoverArtCache', '本地缓存命中: $coverUrl');
+        DebugLogger.success('CoverArtCache', '本地缓存命中');
         return filePath;
       }
 
-      DebugLogger.info('CoverArtCache', '下载封面: $coverUrl');
+      DebugLogger.info('CoverArtCache', '下载封面');
       final response = await _dio.get<List<int>>(coverUrl);
       final statusCode = response.statusCode ?? 0;
       final bytes = response.data;
@@ -84,11 +92,11 @@ class CoverArtCacheManager {
 
       DebugLogger.warning(
         'CoverArtCache',
-        '下载失败 (HTTP ${response.statusCode}): $coverUrl',
+        '下载失败 (HTTP ${response.statusCode})',
       );
       return null;
     } catch (e, stack) {
-      DebugLogger.error('CoverArtCache', '缓存异常', e.toString(), stack);
+      DebugLogger.error('CoverArtCache', '缓存异常', e.runtimeType.toString(), stack);
       return null;
     }
   }

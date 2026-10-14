@@ -45,4 +45,27 @@ printf '%s\n' "$@"
     expect(result.exitCode, 0, reason: result.stderr.toString());
     expect(result.stdout.toString().trim(), matches(r'^[a-zA-Z0-9]{32}$'));
   });
+
+  test(
+    'Android release keep.xml references every declared system action icon',
+    () async {
+      const iconNames = <String>[
+        'ic_notification',
+        'ic_favorite',
+        'ic_favorite_border',
+        'ic_playback_mode',
+      ];
+      for (final iconName in iconNames) {
+        final file = File('android/app/src/main/res/drawable/$iconName.xml');
+        expect(await file.exists(), isTrue, reason: '$iconName is missing');
+      }
+
+      final keepXml = await File(
+        'android/app/src/main/res/raw/keep.xml',
+      ).readAsString();
+      for (final iconName in iconNames) {
+        expect(keepXml, contains('@drawable/$iconName'));
+      }
+    },
+  );
 }

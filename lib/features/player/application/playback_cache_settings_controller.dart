@@ -31,9 +31,7 @@ class PlaybackCacheSettingsController
     LibraryPreferences Function(LibraryPreferences preferences) transform,
   ) async {
     final repository = ref.read(libraryPreferencesRepositoryProvider);
-    final current = await repository.load();
-    final next = transform(current);
-    await repository.save(next);
+    final next = await repository.update(transform);
     state = AsyncData(next.playbackCacheSettings);
   }
 }

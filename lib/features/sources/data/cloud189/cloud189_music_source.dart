@@ -273,7 +273,10 @@ class _Cloud189CachedStreamAudioSource extends StreamAudioSource {
     );
 
     if (cachedRange != null) {
-      final cachedSourceLength = entry.size;
+      final cachedSnapshot = playbackCache.snapshotForTrack(entry.uniqueId);
+      final cachedSourceLength = cachedSnapshot != null
+          ? cachedSnapshot.totalLength
+          : entry.size;
       final cachedContentLength = cachedRange.bytes.length;
       final cacheSatisfiesRequest = end != null
           ? cachedRange.endExclusive >= end
@@ -295,14 +298,22 @@ class _Cloud189CachedStreamAudioSource extends StreamAudioSource {
         start: cachedRange.endExclusive,
         end: end,
       );
-      final sourceLength = networkResult.sourceLength ?? entry.size;
+      if (networkResult.offset != cachedRange.endExclusive) {
+        await networkResult.stream.listen(null).cancel();
+        throw StateError(
+          'Playback response does not continue the cached range.',
+        );
+      }
+      final sourceLength = networkResult.sourceLength;
       final resolvedContentLength = _resolvedContentLength(
         requestedStart: requestedStart,
-        requestedEnd: end,
         sourceLength: sourceLength,
         cachedBytesLength: cachedRange.bytes.length,
         networkContentLength: networkResult.contentLength,
       );
+      if (resolvedContentLength == null) {
+        return _wholeResponse(networkResult, requestedEnd: end);
+      }
 
       return StreamAudioResponse(
         sourceLength: sourceLength,
@@ -323,14 +334,16 @@ class _Cloud189CachedStreamAudioSource extends StreamAudioSource {
     }
 
     final result = await client.openRead(entry.path, start: start, end: end);
-    final sourceLength = result.sourceLength ?? entry.size;
+    final sourceLength = result.sourceLength;
     final resolvedContentLength = _resolvedContentLength(
       requestedStart: result.offset,
-      requestedEnd: end,
       sourceLength: sourceLength,
       cachedBytesLength: 0,
       networkContentLength: result.contentLength,
     );
+    if (resolvedContentLength == null) {
+      return _wholeResponse(result, requestedEnd: end);
+    }
 
     return StreamAudioResponse(
       sourceLength: sourceLength,
@@ -347,23 +360,54 @@ class _Cloud189CachedStreamAudioSource extends StreamAudioSource {
     );
   }
 
-  int _resolvedContentLength({
-    required int requestedStart,
+  Future<StreamAudioResponse> _wholeResponse(
+    Cloud189ReadResult result, {
     required int? requestedEnd,
+  }) async {
+    // just_audio requires a known response length for HTTP 206; serve a full 200.
+    if (result.offset != 0 || requestedEnd != null) {
+      await result.stream.listen(null).cancel();
+      result = await client.openRead(entry.path);
+    }
+    if (result.offset != 0) {
+      await result.stream.listen(null).cancel();
+      throw StateError('Whole playback response must begin at byte zero.');
+    }
+    final sourceLength = result.sourceLength;
+    return StreamAudioResponse(
+      rangeRequestsSupported: false,
+      sourceLength: null,
+      contentLength: _resolvedContentLength(
+        requestedStart: 0,
+        sourceLength: sourceLength,
+        cachedBytesLength: 0,
+        networkContentLength: result.contentLength,
+      ),
+      offset: null,
+      stream: playbackCache.wrapPlaybackStream(
+        entry: entry,
+        stream: result.stream,
+        offset: 0,
+        requestedEnd: null,
+        expectedLength: sourceLength,
+      ),
+      contentType: _resolvePlaybackContentType(result.contentType),
+    );
+  }
+
+  int? _resolvedContentLength({
+    required int requestedStart,
     required int? sourceLength,
     required int cachedBytesLength,
     required int networkContentLength,
   }) {
-    if (requestedEnd != null) {
-      return requestedEnd - requestedStart;
-    }
-    if (sourceLength != null) {
-      return sourceLength - requestedStart;
-    }
-    if (cachedBytesLength > 0) {
+    if (networkContentLength > 0) {
       return cachedBytesLength + networkContentLength;
     }
-    return networkContentLength;
+    if (sourceLength == requestedStart + cachedBytesLength) {
+      return cachedBytesLength;
+    }
+    return null;
   }
 
   String _resolvePlaybackContentType(String headerContentType) {
@@ -407,6 +451,7 @@ class _Cloud189PlaybackCacheClientAdapter implements WebDavRemoteClient {
       contentLength: result.contentLength,
       contentType: result.contentType,
       sourceLength: result.sourceLength,
+      sourceLengthIsAuthoritative: true,
     );
   }
 

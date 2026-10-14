@@ -157,6 +157,129 @@ class Cloud189ReadResult {
   final int? sourceLength;
 }
 
+@visibleForTesting
+Cloud189ReadResult cloud189ReadResponse(
+  Response<ResponseBody> response, {
+  required int? start,
+  required int? end,
+  required int? entrySize,
+  required String contentType,
+}) {
+  final body = response.data;
+  if (body == null) {
+    throw StateError('Cloud189 stream response was empty.');
+  }
+  try {
+    final status = response.statusCode;
+    if (status != 200 && status != 206) {
+      throw StateError('Unexpected Cloud189 stream status: $status.');
+    }
+    final requestedStart = start ?? 0;
+    final headerLength = int.tryParse(
+      response.headers.value(Headers.contentLengthHeader) ?? '',
+    );
+    final contentLength = headerLength != null && headerLength >= 0
+        ? headerLength
+        : null;
+    var sourceLength = entrySize != null && entrySize >= 0 ? entrySize : null;
+    var responseOffset = 0;
+    int? available;
+    if (status == 206) {
+      final range = RegExp(
+        r'^bytes\s+(\d+)-(\d+)/(\d+|\*)$',
+        caseSensitive: false,
+      ).firstMatch(response.headers.value('content-range')?.trim() ?? '');
+      if (range == null) {
+        throw StateError('Cloud189 partial response has no valid byte range.');
+      }
+      responseOffset = int.parse(range.group(1)!);
+      final lastByte = int.parse(range.group(2)!);
+      final total = int.tryParse(range.group(3)!);
+      available = lastByte - responseOffset + 1;
+      if (available <= 0 ||
+          (total != null && total <= lastByte) ||
+          (contentLength != null && contentLength != available) ||
+          responseOffset > requestedStart ||
+          lastByte < requestedStart) {
+        throw StateError('Cloud189 returned an inconsistent byte range.');
+      }
+      sourceLength = total ?? sourceLength;
+      if (sourceLength != null && sourceLength <= lastByte) {
+        sourceLength = null;
+      }
+    } else {
+      // A server may ignore Range and send the full file from byte zero.
+      sourceLength = contentLength ?? sourceLength;
+      available = sourceLength;
+    }
+    final skip = requestedStart - responseOffset;
+    if (available != null &&
+        (skip > available ||
+            (skip == available && (start != null || end != null)))) {
+      throw RangeError('Cloud189 byte range starts outside the file.');
+    }
+    final remaining = available == null ? null : available - skip;
+    final requestedLength = end == null ? null : end - requestedStart;
+    final take = remaining == null
+        ? requestedLength
+        : requestedLength == null
+        ? remaining
+        : math.min(remaining, requestedLength);
+    return Cloud189ReadResult(
+      stream: _sliceCloud189ByteStream(
+        body.stream,
+        skip: skip,
+        take: take,
+        requireComplete: available != null,
+      ),
+      offset: requestedStart,
+      // Zero is the existing protocol sentinel for an unknown response length.
+      contentLength: available == null ? 0 : take!,
+      contentType: contentType,
+      sourceLength: sourceLength,
+    );
+  } catch (_) {
+    unawaited(body.stream.listen(null).cancel());
+    rethrow;
+  }
+}
+
+Stream<List<int>> _sliceCloud189ByteStream(
+  Stream<Uint8List> source, {
+  required int skip,
+  required int? take,
+  required bool requireComplete,
+}) async* {
+  var remainingSkip = skip;
+  var remainingTake = take;
+  if (remainingTake == 0) {
+    await source.listen((_) {}).cancel();
+    return;
+  }
+  await for (final chunk in source) {
+    final chunkStart = math.min(remainingSkip, chunk.length);
+    remainingSkip -= chunkStart;
+    final available = chunk.length - chunkStart;
+    if (available == 0) {
+      continue;
+    }
+    final count = remainingTake == null
+        ? available
+        : math.min(available, remainingTake);
+    yield Uint8List.sublistView(chunk, chunkStart, chunkStart + count);
+    if (remainingTake != null) {
+      remainingTake -= count;
+      if (remainingTake == 0) {
+        return;
+      }
+    }
+  }
+  if (remainingSkip > 0 ||
+      (requireComplete && remainingTake != null && remainingTake > 0)) {
+    throw StateError('Cloud189 stream ended before the advertised byte range.');
+  }
+}
+
 typedef Cloud189CaptchaResolver =
     Future<String?> Function(Uint8List captchaImageBytes);
 
@@ -315,43 +438,18 @@ class DioOpenListCloud189RemoteClient implements Cloud189RemoteClient {
       ),
     );
 
-    final body = response.data;
-    if (body == null) {
-      throw StateError('Cloud189 stream response was empty for $path.');
-    }
-
-    final contentTypeHeader =
-        response.headers.value(Headers.contentTypeHeader) ??
-        entry.mimeType ??
-        'application/octet-stream';
-    final contentType = contentTypeHeader.split(';').first;
-    final contentLength =
-        int.tryParse(
-          response.headers.value(Headers.contentLengthHeader) ?? '',
-        ) ??
-        entry.size ??
-        0;
-    final contentRange = response.headers.value('content-range');
-    var resolvedOffset = start ?? 0;
-    int? sourceLength = entry.size;
-
-    final rangeMatch = RegExp(
-      r'bytes\s+(\d+)-(\d+)/(\d+|\*)',
-    ).firstMatch(contentRange ?? '');
-    if (rangeMatch != null) {
-      resolvedOffset = int.parse(rangeMatch.group(1)!);
-      final total = rangeMatch.group(3);
-      if (total != null && total != '*') {
-        sourceLength = int.parse(total);
-      }
-    }
-
-    return Cloud189ReadResult(
-      stream: body.stream.map((chunk) => chunk),
-      offset: resolvedOffset,
-      contentLength: contentLength,
+    final contentType =
+        (response.headers.value(Headers.contentTypeHeader) ??
+                entry.mimeType ??
+                'application/octet-stream')
+            .split(';')
+            .first;
+    return cloud189ReadResponse(
+      response,
+      start: start,
+      end: end,
+      entrySize: entry.size,
       contentType: _resolveContentType(contentType, entry.name),
-      sourceLength: sourceLength,
     );
   }
 
@@ -999,43 +1097,18 @@ class DioCloud189RemoteClient implements Cloud189RemoteClient {
       ),
     );
 
-    final body = response.data;
-    if (body == null) {
-      throw StateError('Cloud189 stream response was empty for $path.');
-    }
-
-    final contentTypeHeader =
-        response.headers.value(Headers.contentTypeHeader) ??
-        entry.mimeType ??
-        'application/octet-stream';
-    final contentType = contentTypeHeader.split(';').first;
-    final contentLength =
-        int.tryParse(
-          response.headers.value(Headers.contentLengthHeader) ?? '',
-        ) ??
-        entry.size ??
-        0;
-    final contentRange = response.headers.value('content-range');
-    var resolvedOffset = start ?? 0;
-    int? sourceLength = entry.size;
-
-    final rangeMatch = RegExp(
-      r'bytes\s+(\d+)-(\d+)/(\d+|\*)',
-    ).firstMatch(contentRange ?? '');
-    if (rangeMatch != null) {
-      resolvedOffset = int.parse(rangeMatch.group(1)!);
-      final total = rangeMatch.group(3);
-      if (total != null && total != '*') {
-        sourceLength = int.parse(total);
-      }
-    }
-
-    return Cloud189ReadResult(
-      stream: body.stream.map((chunk) => chunk),
-      offset: resolvedOffset,
-      contentLength: contentLength,
+    final contentType =
+        (response.headers.value(Headers.contentTypeHeader) ??
+                entry.mimeType ??
+                'application/octet-stream')
+            .split(';')
+            .first;
+    return cloud189ReadResponse(
+      response,
+      start: start,
+      end: end,
+      entrySize: entry.size,
       contentType: _resolveContentType(contentType, entry.name),
-      sourceLength: sourceLength,
     );
   }
 
@@ -1391,11 +1464,6 @@ class DioCloud189RemoteClient implements Cloud189RemoteClient {
 
   String _httpDate() {
     return '${DateFormat('EEE, dd MMM yyyy HH:mm:ss', 'en_US').format(DateTime.now().toUtc())} GMT';
-  }
-
-  String _rangeHeader({int? start, int? end}) {
-    final startValue = start ?? 0;
-    return end == null ? 'bytes=$startValue-' : 'bytes=$startValue-$end';
   }
 
   String? _downloadUrlFromXml(String text) {
@@ -1798,7 +1866,10 @@ String? _downloadUrlFromXml(String text) {
 
 String _rangeHeader({int? start, int? end}) {
   final startValue = start ?? 0;
-  return end == null ? 'bytes=$startValue-' : 'bytes=$startValue-$end';
+  if (startValue < 0 || (end != null && end <= startValue)) {
+    throw RangeError('Invalid Cloud189 byte range: $startValue..$end.');
+  }
+  return end == null ? 'bytes=$startValue-' : 'bytes=$startValue-${end - 1}';
 }
 
 DateTime? _parseCloud189Time(Object? value) {

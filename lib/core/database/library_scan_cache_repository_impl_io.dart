@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
+
+import 'package:flutter/foundation.dart';
 
 import 'package:path_provider/path_provider.dart';
 
@@ -8,321 +9,188 @@ import '../models/library_song.dart';
 import '../utils/debug_logger.dart';
 import 'library_scan_cache_repository_contract.dart';
 
-const _scanCacheDecodeYieldBatchSize = 128;
-
 Map<String, dynamic> _decodeScanCacheJson(String content) {
-  return jsonDecode(content) as Map<String, dynamic>;
+  final data = jsonDecode(content) as Map<String, dynamic>;
+  for (final source in data.values) {
+    for (final song in source as List<dynamic>) {
+      LibrarySong.fromJson(song as Map<String, dynamic>);
+    }
+  }
+  return data;
 }
 
 String _encodeScanCacheJson(Map<String, dynamic> data) {
   return jsonEncode(data);
 }
 
+String _encodeSourceScanCache(
+  (Map<String, dynamic>, String, List<LibrarySong>) input,
+) {
+  final (data, sourceId, songs) = input;
+  data[sourceId] = songs.map((song) => song.toJson()).toList();
+  return _encodeScanCacheJson(data);
+}
+
+String _encodeAllScanCache(Map<String, List<LibrarySong>> results) {
+  return _encodeScanCacheJson({
+    for (final entry in results.entries)
+      entry.key: entry.value.map((song) => song.toJson()).toList(),
+  });
+}
+
+List<LibrarySong> _decodeScanSongs(List<dynamic> source) {
+  return source
+      .map((song) => LibrarySong.fromJson(song as Map<String, dynamic>))
+      .toList();
+}
+
+Map<String, List<LibrarySong>> _decodeAllScanSongs(Map<String, dynamic> data) {
+  return {
+    for (final entry in data.entries)
+      entry.key: _decodeScanSongs(entry.value as List<dynamic>),
+  };
+}
+
 /// 使用 JSON 文件的实现
 class JsonFileScanCacheRepository implements LibraryScanCacheRepository {
-  JsonFileScanCacheRepository(this._cacheDir)
-    : _fileName = 'library_scan_cache.json';
+  JsonFileScanCacheRepository(this._cacheDir);
 
   final Directory _cacheDir;
-  final String _fileName;
+  Future<void> _pendingWrite = Future<void>.value();
 
-  File get _cacheFile => File('${_cacheDir.path}/$_fileName');
+  File get _cacheFile => File('${_cacheDir.path}/library_scan_cache.json');
+  File get _backupFile => File('${_cacheFile.path}.bak');
+
+  Future<void> _enqueueWrite(Future<void> Function() write) {
+    final operation = _pendingWrite.then((_) => write());
+    _pendingWrite = operation.then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stack) {},
+    );
+    return operation;
+  }
+
+  Future<({String content, Map<String, dynamic> data})?> _readLatest() async {
+    Object? lastError;
+    for (final file in [_cacheFile, _backupFile]) {
+      try {
+        if (!await file.exists()) {
+          continue;
+        }
+        final content = await file.readAsString();
+        final data = await compute(_decodeScanCacheJson, content);
+        return (content: content, data: data);
+      } catch (error) {
+        lastError = error;
+        DebugLogger.warning(
+          'JsonFileScanCacheRepository',
+          '扫描缓存无法读取，保留文件并尝试备份: $error',
+        );
+      }
+    }
+    if (lastError != null) {
+      throw lastError;
+    }
+    return null;
+  }
+
+  Future<void> _commit(String encoded, String? previous) async {
+    await _cacheDir.create(recursive: true);
+    final temporary = File('${_cacheFile.path}.tmp');
+    final backupTemporary = File('${_backupFile.path}.tmp');
+    // Keep a complete old snapshot until the new snapshot is flushed and renamed.
+    await temporary.writeAsString(encoded, flush: true);
+    await backupTemporary.writeAsString(previous ?? encoded, flush: true);
+    await backupTemporary.rename(_backupFile.path);
+    await temporary.rename(_cacheFile.path);
+  }
 
   @override
   Future<List<LibrarySong>> loadScanResults(String sourceId) async {
+    await _pendingWrite;
     try {
-      final file = _cacheFile;
-      if (!await file.exists()) {
+      final snapshot = await _readLatest();
+      final source = snapshot?.data[sourceId] as List<dynamic>?;
+      if (source == null) {
         return [];
       }
-
-      final content = await file.readAsString();
-      final json = await Isolate.run(() => _decodeScanCacheJson(content));
-      final sourceData = json[sourceId] as List<dynamic>?;
-
-      if (sourceData == null) {
-        return [];
-      }
-
-      final songs = <LibrarySong>[];
-      for (var index = 0; index < sourceData.length; index++) {
-        songs.add(
-          LibrarySong.fromJson(sourceData[index] as Map<String, dynamic>),
-        );
-        if ((index + 1) % _scanCacheDecodeYieldBatchSize == 0) {
-          await Future<void>.delayed(Duration.zero);
-        }
-      }
-      return songs;
-    } catch (e) {
-      // 忽略加载失败，返回空列表
+      return await compute(_decodeScanSongs, source);
+    } catch (error) {
+      DebugLogger.warning(
+        'JsonFileScanCacheRepository.loadScanResults',
+        '扫描缓存加载失败，保留原文件: $error',
+      );
       return [];
     }
   }
 
   @override
-  Future<void> saveScanResults(String sourceId, List<LibrarySong> songs) async {
-    DebugLogger.info(
-      'JsonFileScanCacheRepository.saveScanResults',
-      '开始保存扫描结果: sourceId=$sourceId, 歌曲数=${songs.length}',
-    );
-    try {
-      DebugLogger.info(
-        'JsonFileScanCacheRepository.saveScanResults',
-        '缓存文件路径: ${_cacheFile.path}',
-      );
-
-      final allData = <String, dynamic>{};
-      final file = _cacheFile;
-
-      if (await file.exists()) {
-        DebugLogger.info(
-          'JsonFileScanCacheRepository.saveScanResults',
-          '缓存文件已存在，读取现有数据',
-        );
-        final content = await file.readAsString();
-        allData.addAll(await Isolate.run(() => _decodeScanCacheJson(content)));
-        DebugLogger.info(
-          'JsonFileScanCacheRepository.saveScanResults',
-          '已读取现有数据，现有源数: ${allData.length}',
-        );
-      } else {
-        DebugLogger.info(
-          'JsonFileScanCacheRepository.saveScanResults',
-          '缓存文件不存在，创建新文件',
-        );
-      }
-
-      DebugLogger.info(
-        'JsonFileScanCacheRepository.saveScanResults',
-        '开始序列化 ${songs.length} 首歌曲为 JSON',
-      );
-      final encoded = await Isolate.run(() {
-        allData[sourceId] = songs.map((song) => song.toJson()).toList();
-        return _encodeScanCacheJson(allData);
-      });
-      DebugLogger.info(
-        'JsonFileScanCacheRepository.saveScanResults',
-        '序列化完成，准备写入缓存',
-      );
-
-      DebugLogger.info(
-        'JsonFileScanCacheRepository.saveScanResults',
-        '开始写入文件: ${_cacheFile.path}',
-      );
-      await file.writeAsString(encoded, flush: true);
-      DebugLogger.success(
-        'JsonFileScanCacheRepository.saveScanResults',
-        '✅ 保存成功: sourceId=$sourceId, 歌曲数=${songs.length}',
-      );
-    } catch (e, stack) {
-      DebugLogger.error(
-        'JsonFileScanCacheRepository.saveScanResults',
-        '保存失败: $e',
-        stack.toString(),
-      );
-      rethrow;
-    }
+  Future<void> saveScanResults(String sourceId, List<LibrarySong> songs) {
+    return _enqueueWrite(() async {
+      final snapshot = await _readLatest();
+      final data = snapshot?.data ?? <String, dynamic>{};
+      final encoded = await compute(_encodeSourceScanCache, (
+        data,
+        sourceId,
+        songs,
+      ));
+      await _commit(encoded, snapshot?.content);
+    });
   }
 
   @override
-  Future<void> saveAllResults(Map<String, List<LibrarySong>> results) async {
-    DebugLogger.info(
-      'JsonFileScanCacheRepository.saveAllResults',
-      '开始批量保存扫描结果: 源数=${results.length}',
-    );
-    try {
-      final encoded = await Isolate.run(() {
-        final serialized = <String, dynamic>{
-          for (final entry in results.entries)
-            entry.key: entry.value.map((song) => song.toJson()).toList(),
-        };
-        return _encodeScanCacheJson(serialized);
-      });
-      await _cacheFile.writeAsString(encoded, flush: true);
-      DebugLogger.success(
-        'JsonFileScanCacheRepository.saveAllResults',
-        '✅ 批量保存成功: 源数=${results.length}',
-      );
-    } catch (e, stack) {
-      DebugLogger.error(
-        'JsonFileScanCacheRepository.saveAllResults',
-        '批量保存失败: $e',
-        stack.toString(),
-      );
-      rethrow;
-    }
+  Future<void> saveAllResults(Map<String, List<LibrarySong>> results) {
+    return _enqueueWrite(() async {
+      final snapshot = await _readLatest();
+      final encoded = await compute(_encodeAllScanCache, results);
+      await _commit(encoded, snapshot?.content);
+    });
   }
 
   @override
-  Future<void> deleteScanResults(String sourceId) async {
-    try {
-      final file = _cacheFile;
-      if (!await file.exists()) {
+  Future<void> deleteScanResults(String sourceId) {
+    return _enqueueWrite(() async {
+      final snapshot = await _readLatest();
+      if (snapshot == null || !snapshot.data.containsKey(sourceId)) {
         return;
       }
-
-      final content = await file.readAsString();
-      final allData = await Isolate.run(() => _decodeScanCacheJson(content));
-      allData.remove(sourceId);
-
-      final encoded = await Isolate.run(() => _encodeScanCacheJson(allData));
-      await file.writeAsString(encoded, flush: true);
-    } catch (e) {
-      rethrow;
-    }
+      final data = snapshot.data..remove(sourceId);
+      final encoded = await compute(_encodeScanCacheJson, data);
+      await _commit(encoded, snapshot.content);
+    });
   }
 
   @override
-  Future<void> clearAll() async {
-    try {
-      final file = _cacheFile;
-      if (await file.exists()) {
-        await file.delete();
+  Future<void> clearAll() {
+    return _enqueueWrite(() async {
+      // Delete the fallback first so a successful clear cannot resurrect it.
+      for (final file in [
+        _backupFile,
+        _cacheFile,
+        File('${_backupFile.path}.tmp'),
+        File('${_cacheFile.path}.tmp'),
+      ]) {
+        if (await file.exists()) {
+          await file.delete();
+        }
       }
-    } catch (e) {
-      rethrow;
-    }
+    });
   }
 
   @override
   Future<Map<String, List<LibrarySong>>> loadAllResults() async {
-    DebugLogger.info(
-      'JsonFileScanCacheRepository.loadAllResults',
-      '开始加载所有缓存结果',
-    );
+    await _pendingWrite;
     try {
-      final file = _cacheFile;
-      DebugLogger.info(
-        'JsonFileScanCacheRepository.loadAllResults',
-        '缓存文件路径: ${file.path}',
-      );
-
-      final exists = await file.exists();
-      DebugLogger.info(
-        'JsonFileScanCacheRepository.loadAllResults',
-        '文件是否存在: $exists',
-      );
-
-      if (!exists) {
-        DebugLogger.warning(
-          'JsonFileScanCacheRepository.loadAllResults',
-          '⚠️ 缓存文件不存在，返回空 map',
-        );
+      final snapshot = await _readLatest();
+      if (snapshot == null) {
         return {};
       }
-
-      DebugLogger.info('JsonFileScanCacheRepository.loadAllResults', '读取文件内容');
-      String content;
-      try {
-        content = await file.readAsString();
-      } catch (e) {
-        DebugLogger.error(
-          'JsonFileScanCacheRepository.loadAllResults',
-          '❌ 文件读取异常（可能编码问题）: $e',
-        );
-        DebugLogger.info(
-          'JsonFileScanCacheRepository.loadAllResults',
-          '尝试删除损坏的文件并返回空结果',
-        );
-        try {
-          await file.delete();
-          DebugLogger.success(
-            'JsonFileScanCacheRepository.loadAllResults',
-            '✅ 已删除损坏的缓存文件',
-          );
-        } catch (deleteE) {
-          DebugLogger.error(
-            'JsonFileScanCacheRepository.loadAllResults',
-            '无法删除文件: $deleteE',
-          );
-        }
-        return {};
-      }
-
-      if (content.isEmpty) {
-        DebugLogger.warning(
-          'JsonFileScanCacheRepository.loadAllResults',
-          '⚠️ 文件为空，返回空 map',
-        );
-        return {};
-      }
-
-      DebugLogger.info(
-        'JsonFileScanCacheRepository.loadAllResults',
-        '解析 JSON，文件大小: ${content.length} 字符',
-      );
-      Map<String, dynamic> allData;
-      try {
-        allData = await Isolate.run(() => _decodeScanCacheJson(content));
-      } catch (e) {
-        DebugLogger.error(
-          'JsonFileScanCacheRepository.loadAllResults',
-          '❌ JSON 解析失败: $e',
-        );
-        DebugLogger.info(
-          'JsonFileScanCacheRepository.loadAllResults',
-          '文件内容（前 200 字符）: ${content.substring(0, content.length > 200 ? 200 : content.length)}',
-        );
-        DebugLogger.info(
-          'JsonFileScanCacheRepository.loadAllResults',
-          '尝试删除损坏的文件并返回空结果',
-        );
-        try {
-          await file.delete();
-          DebugLogger.success(
-            'JsonFileScanCacheRepository.loadAllResults',
-            '✅ 已删除包含非法 JSON 的缓存文件',
-          );
-        } catch (deleteE) {
-          DebugLogger.error(
-            'JsonFileScanCacheRepository.loadAllResults',
-            '无法删除文件: $deleteE',
-          );
-        }
-        return {};
-      }
-
-      DebugLogger.info(
-        'JsonFileScanCacheRepository.loadAllResults',
-        '解析完成，找到 ${allData.length} 个源',
-      );
-
-      final result = <String, List<LibrarySong>>{};
-      for (final entry in allData.entries) {
-        try {
-          DebugLogger.info(
-            'JsonFileScanCacheRepository.loadAllResults',
-            '加载源: ${entry.key}, 歌曲数: ${(entry.value as List).length}',
-          );
-          final sourceSongs = entry.value as List<dynamic>;
-          final songs = <LibrarySong>[];
-          for (var index = 0; index < sourceSongs.length; index++) {
-            songs.add(
-              LibrarySong.fromJson(sourceSongs[index] as Map<String, dynamic>),
-            );
-            if ((index + 1) % _scanCacheDecodeYieldBatchSize == 0) {
-              await Future<void>.delayed(Duration.zero);
-            }
-          }
-          result[entry.key] = songs;
-        } catch (e) {
-          DebugLogger.error(
-            'JsonFileScanCacheRepository.loadAllResults',
-            '加载源 ${entry.key} 失败: $e',
-          );
-        }
-      }
-
-      DebugLogger.success(
-        'JsonFileScanCacheRepository.loadAllResults',
-        '✅ 成功加载 ${result.length} 个源的缓存',
-      );
-      return result;
-    } catch (e, stack) {
+      final data = snapshot.data;
+      return await compute(_decodeAllScanSongs, data);
+    } catch (error, stack) {
       DebugLogger.error(
         'JsonFileScanCacheRepository.loadAllResults',
-        '加载缓存失败（未预期异常）: $e',
+        '扫描缓存加载失败，保留原文件: $error',
         stack.toString(),
       );
       return {};

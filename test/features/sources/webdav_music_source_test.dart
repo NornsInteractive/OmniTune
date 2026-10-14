@@ -16,7 +16,13 @@ class _FakePlaybackCache implements WebDavPlaybackCache {
   AudioSource? cachedSource;
 
   @override
+  int get retainedMemoryBytes => 0;
+
+  @override
   void applySettings(PlaybackCacheSettings settings) {}
+
+  @override
+  void setActivePlaybackTrack(String? trackId) {}
 
   @override
   Stream<PlaybackCacheSnapshot> get snapshotStream =>

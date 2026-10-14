@@ -6,4 +6,8 @@ import 'webdav_playback_cache_stub.dart'
 
 WebDavPlaybackCache createWebDavPlaybackCache({
   required PlaybackCacheSettings initialSettings,
-}) => impl.createWebDavPlaybackCache(initialSettings: initialSettings);
+  int maxMemoryBytes = 64 * 1024 * 1024,
+}) => impl.createWebDavPlaybackCache(
+  initialSettings: initialSettings,
+  maxMemoryBytes: maxMemoryBytes,
+);

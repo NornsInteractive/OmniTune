@@ -85,7 +85,13 @@ class _FakeCloud189RemoteClient implements Cloud189RemoteClient {
 
 class _FakePlaybackCache implements WebDavPlaybackCache {
   @override
+  int get retainedMemoryBytes => 0;
+
+  @override
   void applySettings(PlaybackCacheSettings settings) {}
+
+  @override
+  void setActivePlaybackTrack(String? trackId) {}
 
   @override
   Stream<PlaybackCacheSnapshot> get snapshotStream =>

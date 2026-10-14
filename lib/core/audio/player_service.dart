@@ -11,17 +11,33 @@ import '../models/playable_track.dart';
 part 'player_service.g.dart';
 
 class PlayerService {
-  PlayerService() : _player = _createAudioPlayer();
+  PlayerService({AudioPlayer? player})
+    : _player = player ?? _createAudioPlayer() {
+    _errorSubscription = _player.errorStream.listen((error) {
+      // Load errors belong to loadTrack's request; it reports only current errors.
+      if (!_loading && _currentTrack != null) _errors.add(error);
+    });
+  }
 
   static AudioPlayer _createAudioPlayer() {
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.linux) {
-      JustAudioMediaKit.ensureInitialized(linux: true, windows: false);
+    if (!kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.linux ||
+            defaultTargetPlatform == TargetPlatform.windows)) {
+      JustAudioMediaKit.ensureInitialized(
+        linux: defaultTargetPlatform == TargetPlatform.linux,
+        windows: defaultTargetPlatform == TargetPlatform.windows,
+      );
     }
     return AudioPlayer(userAgent: 'OmniTune/1.0');
   }
 
   final AudioPlayer _player;
+  final _errors = StreamController<PlayerException>.broadcast(sync: true);
+  late final StreamSubscription<PlayerException> _errorSubscription;
   PlayableTrack? _currentTrack;
+  int _requestSerial = 0;
+  bool _loading = false;
+  bool _disposed = false;
 
   AudioPlayer get player => _player;
 
@@ -39,7 +55,7 @@ class PlayerService {
 
   Stream<Duration> get bufferedPositionStream => _player.bufferedPositionStream;
 
-  Stream<PlayerException> get errorStream => _player.errorStream;
+  Stream<PlayerException> get errorStream => _errors.stream;
 
   void updateCurrentTrack(PlayableTrack track) {
     if (_currentTrack?.id != track.id) {
@@ -49,32 +65,18 @@ class PlayerService {
   }
 
   Future<void> playTrack(PlayableTrack track) async {
-    _currentTrack = track;
-
-    // 并行执行：设置音频源和播放
-    // 这样可以在音频源设置完成后立即开始播放，而不是等待两个操作都完成
-    final setAudioFuture = _player.setAudioSource(track.audioSource);
-
-    // 不等待 setAudioSource 完全完成就尝试播放
-    // just_audio 会在准备好时自动开始
-    try {
-      await setAudioFuture;
-    } catch (e) {
-      // 如果设置源出错，停止播放
-      await _player.stop();
-      rethrow;
-    }
-
-    // 在设置完成后，如果还没有播放，则开始播放
-    if (!_player.playing) {
-      await _player.play();
-    }
+    final load = loadTrack(track);
+    final requestSerial = _requestSerial;
+    await load;
+    if (!_disposed && requestSerial == _requestSerial) await play();
   }
 
   Future<void> loadTrack(
     PlayableTrack track, {
     Duration initialPosition = Duration.zero,
   }) async {
+    final requestSerial = ++_requestSerial;
+    _loading = true;
     _currentTrack = track;
     try {
       await _player.setAudioSource(
@@ -82,8 +84,11 @@ class PlayerService {
         initialPosition: initialPosition,
       );
     } catch (_) {
-      await _player.stop();
+      if (_disposed || requestSerial != _requestSerial) return;
+      _currentTrack = null;
       rethrow;
+    } finally {
+      if (requestSerial == _requestSerial) _loading = false;
     }
   }
 
@@ -95,24 +100,45 @@ class PlayerService {
     await play();
   }
 
-  Future<void> play() => _player.play();
+  Future<void> play() async {
+    if (_disposed || _currentTrack == null) return;
+    final requestSerial = _requestSerial;
+    // just_audio's play future spans the entire playback lifetime.
+    unawaited(
+      _player.play().catchError((Object error) {
+        if (_disposed || requestSerial != _requestSerial) return;
+        _errors.add(
+          error is PlayerException
+              ? error
+              : PlayerException(-1, error.toString(), null),
+        );
+      }),
+    );
+  }
 
   Future<void> pause() => _player.pause();
 
   Future<void> seek(Duration position) => _player.seek(position);
 
   Future<void> replayCurrent() async {
+    final requestSerial = _requestSerial;
     await _player.seek(Duration.zero);
-    await _player.play();
+    if (!_disposed && requestSerial == _requestSerial) await play();
   }
 
   Future<void> stop() async {
+    ++_requestSerial;
+    _loading = false;
     _currentTrack = null;
     await _player.stop();
   }
 
   Future<void> dispose() async {
+    _disposed = true;
+    ++_requestSerial;
+    await _errorSubscription.cancel();
     await _player.dispose();
+    await _errors.close();
   }
 }
 

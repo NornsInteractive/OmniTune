@@ -25,11 +25,23 @@ class _FakeSourceProfileRepository implements SourceProfileRepository {
 
 class _FakeLibraryPreferencesRepository
     implements LibraryPreferencesRepository {
-  @override
-  Future<LibraryPreferences> load() async => const LibraryPreferences();
+  LibraryPreferences _preferences = const LibraryPreferences();
 
   @override
-  Future<void> save(LibraryPreferences preferences) async {}
+  Future<LibraryPreferences> load() async => _preferences;
+
+  @override
+  Future<void> save(LibraryPreferences preferences) async {
+    _preferences = preferences;
+  }
+
+  @override
+  Future<LibraryPreferences> update(
+    LibraryPreferences Function(LibraryPreferences preferences) transform,
+  ) async {
+    _preferences = transform(_preferences);
+    return _preferences;
+  }
 }
 
 void main() {

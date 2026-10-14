@@ -10,6 +10,7 @@ import '../../features/debug/presentation/debug_logs_page.dart';
 import '../../features/landing/presentation/web_landing_page.dart';
 import '../../features/library/presentation/albums_page.dart';
 import '../../features/library/presentation/library_page.dart';
+import '../../features/library/presentation/library_search_page.dart';
 import '../../features/player/presentation/now_playing_page.dart';
 import '../../features/settings/presentation/add_source_page.dart';
 import '../../features/settings/presentation/settings_page.dart';
@@ -80,6 +81,10 @@ GoRouter appRouter(Ref ref) {
             ],
           ),
         ],
+      ),
+      GoRoute(
+        path: '/search',
+        builder: (context, state) => const LibrarySearchPage(),
       ),
       GoRoute(path: '/home', redirect: (context, state) => '/albums'),
       GoRoute(

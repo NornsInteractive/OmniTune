@@ -24,12 +24,32 @@ import '../../sources/data/webdav/webdav_playback_cache_provider.dart';
 import '../application/app_settings_controller.dart';
 import 'add_source_page.dart';
 
-class SettingsPage extends ConsumerWidget {
+class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
+  @override
+  ConsumerState<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends ConsumerState<SettingsPage> {
+  int? _section;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final sectionTitles = [
+      l10n.sourceManagementSettingTitle,
+      l10n.playbackSettingsTitle,
+      l10n.appearanceSettingsTitle,
+      l10n.scraperPipelineLabel,
+      l10n.advancedSettingsTitle,
+    ];
+    const sectionIcons = [
+      Icons.cloud_outlined,
+      Icons.play_circle_outline_rounded,
+      Icons.palette_outlined,
+      Icons.lyrics_outlined,
+      Icons.tune_rounded,
+    ];
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final preferences =
@@ -204,629 +224,705 @@ class SettingsPage extends ConsumerWidget {
       overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
     );
 
-    return Scaffold(
-      backgroundColor: shellBackground,
-      body: Container(
-        decoration: BoxDecoration(
-          color: shellBackground,
-          gradient: RadialGradient(
-            center: Alignment.topCenter,
-            radius: 1.2,
-            colors: [
-              colorScheme.primary.withValues(alpha: isDark ? 0.14 : 0.08),
-              shellBackground,
-            ],
+    return PopScope(
+      canPop: _section == null,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) setState(() => _section = null);
+      },
+      child: Scaffold(
+        backgroundColor: shellBackground,
+        body: Container(
+          decoration: BoxDecoration(
+            color: shellBackground,
+            gradient: RadialGradient(
+              center: Alignment.topCenter,
+              radius: 1.2,
+              colors: [
+                colorScheme.primary.withValues(alpha: isDark ? 0.14 : 0.08),
+                shellBackground,
+              ],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 960),
-              child: SliderTheme(
-                data: compactSliderTheme,
-                child: ListView(
-                  padding: studioListPaddingOf(
-                    context,
-                    const EdgeInsets.fromLTRB(16, 4, 16, 28),
-                  ),
-                  children: [
-                    SizedBox(
-                      height: 56,
-                      child: Row(
-                        children: [
-                          Material(
-                            color: colorScheme.surfaceContainerHigh.withValues(
-                              alpha: isDark ? 0.8 : 0.92,
-                            ),
-                            borderRadius: BorderRadius.circular(999),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(999),
-                              onTap: () => context.pop(),
-                              child: SizedBox(
-                                width: 40,
-                                height: 40,
-                                child: Icon(
-                                  Icons.arrow_back_rounded,
-                                  color: colorScheme.primary,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              l10n.settingsPageTitle,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                color: colorScheme.primary,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+          child: SafeArea(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 960),
+                child: SliderTheme(
+                  data: compactSliderTheme,
+                  child: ListView(
+                    key: ValueKey(_section),
+                    padding: studioListPaddingOf(
+                      context,
+                      const EdgeInsets.fromLTRB(16, 4, 16, 28),
                     ),
-                    const SizedBox(height: 14),
-                    section(
-                      title: l10n.appearanceSettingsTitle,
-                      children: [
-                        settingRow(
-                          title: l10n.languageSettingTitle,
-                          subtitle: _localeLabel(
-                            l10n,
-                            preferences.localePreference,
-                          ),
-                          trailing: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: colorScheme.surfaceContainerHigh,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: colorScheme.outlineVariant.withValues(
-                                  alpha: isDark ? 0.75 : 0.95,
+                    children: [
+                      SizedBox(
+                        height: 56,
+                        child: Row(
+                          children: [
+                            Material(
+                              color: colorScheme.surfaceContainerHigh
+                                  .withValues(alpha: isDark ? 0.8 : 0.92),
+                              borderRadius: BorderRadius.circular(999),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(999),
+                                onTap: () {
+                                  if (_section != null) {
+                                    setState(() => _section = null);
+                                  } else {
+                                    context.pop();
+                                  }
+                                },
+                                child: SizedBox(
+                                  width: 40,
+                                  height: 40,
+                                  child: Icon(
+                                    Icons.arrow_back_rounded,
+                                    color: colorScheme.primary,
+                                  ),
                                 ),
                               ),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  _localeLabel(
-                                    l10n,
-                                    preferences.localePreference,
-                                  ),
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: colorScheme.onSurface,
-                                    fontWeight: FontWeight.w500,
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _section == null
+                                    ? l10n.settingsPageTitle
+                                    : sectionTitles[_section!],
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.headlineSmall?.copyWith(
+                                  color: colorScheme.primary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_section != null) const SizedBox(height: 8),
+                      if (_section == null)
+                        for (
+                          var index = 0;
+                          index < sectionTitles.length;
+                          index++
+                        )
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
+                              ),
+                              tileColor: colorScheme.surfaceContainerHigh,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                  studioRadiusOf(context, 16),
+                                ),
+                              ),
+                              leading: Icon(
+                                sectionIcons[index],
+                                color: colorScheme.primary,
+                              ),
+                              title: Text(
+                                sectionTitles[index],
+                                style: theme.textTheme.titleMedium,
+                              ),
+                              trailing: const Icon(Icons.chevron_right_rounded),
+                              onTap: () => setState(() => _section = index),
+                            ),
+                          ),
+                      if (_section == 2)
+                        section(
+                          title: l10n.appearanceSettingsTitle,
+                          children: [
+                            settingRow(
+                              title: l10n.languageSettingTitle,
+                              subtitle: _localeLabel(
+                                l10n,
+                                preferences.localePreference,
+                              ),
+                              trailing: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.surfaceContainerHigh,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: colorScheme.outlineVariant
+                                        .withValues(
+                                          alpha: isDark ? 0.75 : 0.95,
+                                        ),
                                   ),
                                 ),
-                                const SizedBox(width: 4),
-                                Icon(
-                                  Icons.keyboard_arrow_down_rounded,
-                                  size: 18,
-                                  color: colorScheme.onSurfaceVariant,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      _localeLabel(
+                                        l10n,
+                                        preferences.localePreference,
+                                      ),
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: colorScheme.onSurface,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Icon(
+                                      Icons.keyboard_arrow_down_rounded,
+                                      size: 18,
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              onTap: () =>
+                                  _showSelectionDialog<AppLocalePreference>(
+                                    context: context,
+                                    title: l10n.languageSettingTitle,
+                                    selectedValue: preferences.localePreference,
+                                    options: [
+                                      _DialogOption(
+                                        value: AppLocalePreference.system,
+                                        label: _localeLabel(
+                                          l10n,
+                                          AppLocalePreference.system,
+                                        ),
+                                        icon: Icons.settings_suggest_rounded,
+                                      ),
+                                      _DialogOption(
+                                        value: AppLocalePreference.chinese,
+                                        label: _localeLabel(
+                                          l10n,
+                                          AppLocalePreference.chinese,
+                                        ),
+                                        icon: Icons.translate_rounded,
+                                      ),
+                                      _DialogOption(
+                                        value: AppLocalePreference.english,
+                                        label: _localeLabel(
+                                          l10n,
+                                          AppLocalePreference.english,
+                                        ),
+                                        icon: Icons.public_rounded,
+                                      ),
+                                    ],
+                                    onSelected: appSettingsController
+                                        .setLocalePreference,
+                                  ),
+                            ),
+                            const SizedBox(height: 12),
+                            divider(),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              alignment: WrapAlignment.spaceBetween,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 12,
+                              runSpacing: 10,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      l10n.themeSettingTitle,
+                                      style: theme.textTheme.titleMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _themeLabel(
+                                        l10n,
+                                        preferences.themePreference,
+                                      ),
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: colorScheme.onSurfaceVariant,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.surfaceContainerHigh,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: colorScheme.outlineVariant
+                                          .withValues(
+                                            alpha: isDark ? 0.75 : 0.95,
+                                          ),
+                                    ),
+                                  ),
+                                  padding: const EdgeInsets.all(4),
+                                  child: Wrap(
+                                    spacing: 4,
+                                    runSpacing: 4,
+                                    children: [
+                                      for (final value
+                                          in AppThemePreference.values)
+                                        Material(
+                                          color:
+                                              preferences.themePreference ==
+                                                  value
+                                              ? colorScheme.primary.withValues(
+                                                  alpha: 0.2,
+                                                )
+                                              : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          child: InkWell(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            onTap: () {
+                                              appSettingsController
+                                                  .setThemePreference(value);
+                                            },
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 7,
+                                                  ),
+                                              child: Text(
+                                                _themeLabel(l10n, value),
+                                                style: theme
+                                                    .textTheme
+                                                    .labelMedium
+                                                    ?.copyWith(
+                                                      color:
+                                                          preferences
+                                                                  .themePreference ==
+                                                              value
+                                                          ? colorScheme.primary
+                                                          : colorScheme
+                                                                .onSurfaceVariant,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
-                          ),
-                          onTap: () =>
-                              _showSelectionDialog<AppLocalePreference>(
-                                context: context,
-                                title: l10n.languageSettingTitle,
-                                selectedValue: preferences.localePreference,
-                                options: [
-                                  _DialogOption(
-                                    value: AppLocalePreference.system,
-                                    label: _localeLabel(
-                                      l10n,
-                                      AppLocalePreference.system,
-                                    ),
-                                    icon: Icons.settings_suggest_rounded,
-                                  ),
-                                  _DialogOption(
-                                    value: AppLocalePreference.chinese,
-                                    label: _localeLabel(
-                                      l10n,
-                                      AppLocalePreference.chinese,
-                                    ),
-                                    icon: Icons.translate_rounded,
-                                  ),
-                                  _DialogOption(
-                                    value: AppLocalePreference.english,
-                                    label: _localeLabel(
-                                      l10n,
-                                      AppLocalePreference.english,
-                                    ),
-                                    icon: Icons.public_rounded,
-                                  ),
-                                ],
-                                onSelected:
-                                    appSettingsController.setLocalePreference,
+                            const SizedBox(height: 12),
+                            divider(),
+                            const SizedBox(height: 12),
+                            Text(
+                              l10n.interfaceSizeSettingTitle,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
                               ),
-                        ),
-                        const SizedBox(height: 12),
-                        divider(),
-                        const SizedBox(height: 12),
-                        Wrap(
-                          alignment: WrapAlignment.spaceBetween,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          spacing: 12,
-                          runSpacing: 10,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              l10n.interfaceSizeDialogDescription,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
                               children: [
+                                Expanded(
+                                  child: Slider(
+                                    value: preferences.interfaceScaleFactor,
+                                    min:
+                                        AppDisplayPreferences.minInterfaceScale,
+                                    max:
+                                        AppDisplayPreferences.maxInterfaceScale,
+                                    divisions: 50,
+                                    onChanged:
+                                        appSettingsController.setInterfaceScale,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
                                 Text(
-                                  l10n.themeSettingTitle,
-                                  style: theme.textTheme.titleMedium?.copyWith(
+                                  l10n.scalePercentLabel(
+                                    _scalePercent(
+                                      preferences.interfaceScaleFactor,
+                                    ),
+                                  ),
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    color: colorScheme.primary,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _themeLabel(
-                                    l10n,
-                                    preferences.themePreference,
+                              ],
+                            ),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: resetButton(
+                                enabled:
+                                    (preferences.interfaceScaleFactor -
+                                            AppDisplayPreferences
+                                                .defaultInterfaceScale)
+                                        .abs() >
+                                    0.0001,
+                                onPressed: () {
+                                  appSettingsController.setInterfaceScale(
+                                    AppDisplayPreferences.defaultInterfaceScale,
+                                  );
+                                },
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            divider(),
+                            if (_section != null) const SizedBox(height: 8),
+                            Text(
+                              l10n.fontSizeSettingTitle,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              l10n.fontSizeDialogDescription,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Slider(
+                                    value: preferences.fontScaleFactor,
+                                    min: AppDisplayPreferences.minFontScale,
+                                    max: AppDisplayPreferences.maxFontScale,
+                                    divisions: 57,
+                                    onChanged:
+                                        appSettingsController.setFontScale,
                                   ),
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  l10n.scalePercentLabel(
+                                    _scalePercent(preferences.fontScaleFactor),
+                                  ),
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    color: colorScheme.primary,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ],
                             ),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: colorScheme.surfaceContainerHigh,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: colorScheme.outlineVariant.withValues(
-                                    alpha: isDark ? 0.75 : 0.95,
-                                  ),
-                                ),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: resetButton(
+                                enabled:
+                                    (preferences.fontScaleFactor -
+                                            AppDisplayPreferences
+                                                .defaultFontScale)
+                                        .abs() >
+                                    0.0001,
+                                onPressed: () {
+                                  appSettingsController.setFontScale(
+                                    AppDisplayPreferences.defaultFontScale,
+                                  );
+                                },
                               ),
-                              padding: const EdgeInsets.all(4),
-                              child: Wrap(
-                                spacing: 4,
-                                runSpacing: 4,
+                            ),
+                            const SizedBox(height: 8),
+                            (() {
+                              final isZh =
+                                  Localizations.localeOf(
+                                    context,
+                                  ).languageCode.toLowerCase() ==
+                                  'zh';
+                              final albumPageTitle = isZh
+                                  ? '专辑每页数量'
+                                  : 'Albums per page';
+                              final albumPageDescription = isZh
+                                  ? '设置专辑列表分页时每页最多显示的专辑数量（默认 9）。'
+                                  : 'Set the maximum number of albums shown on each page (default 9).';
+                              final albumPageValue = isZh
+                                  ? '每页 ${preferences.albumPageSize} 条'
+                                  : '${preferences.albumPageSize} per page';
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  for (final value in AppThemePreference.values)
-                                    Material(
-                                      color:
-                                          preferences.themePreference == value
-                                          ? colorScheme.primary.withValues(
-                                              alpha: 0.2,
-                                            )
-                                          : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: InkWell(
-                                        borderRadius: BorderRadius.circular(8),
-                                        onTap: () {
-                                          appSettingsController
-                                              .setThemePreference(value);
-                                        },
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 7,
-                                          ),
-                                          child: Text(
-                                            _themeLabel(l10n, value),
-                                            style: theme.textTheme.labelMedium
-                                                ?.copyWith(
-                                                  color:
-                                                      preferences
-                                                              .themePreference ==
-                                                          value
-                                                      ? colorScheme.primary
-                                                      : colorScheme
-                                                            .onSurfaceVariant,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                          ),
+                                  Text(
+                                    albumPageTitle,
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(fontWeight: FontWeight.w600),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    albumPageDescription,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Slider(
+                                          value: preferences.albumPageSize
+                                              .toDouble(),
+                                          min: 1,
+                                          max: 60,
+                                          divisions: 59,
+                                          onChanged: (value) {
+                                            appSettingsController
+                                                .setAlbumPageSize(
+                                                  value.round(),
+                                                );
+                                          },
                                         ),
                                       ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        divider(),
-                        const SizedBox(height: 12),
-                        Text(
-                          l10n.interfaceSizeSettingTitle,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          l10n.interfaceSizeDialogDescription,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Slider(
-                                value: preferences.interfaceScaleFactor,
-                                min: AppDisplayPreferences.minInterfaceScale,
-                                max: AppDisplayPreferences.maxInterfaceScale,
-                                divisions: 50,
-                                onChanged:
-                                    appSettingsController.setInterfaceScale,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              l10n.scalePercentLabel(
-                                _scalePercent(preferences.interfaceScaleFactor),
-                              ),
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                color: colorScheme.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: resetButton(
-                            enabled:
-                                (preferences.interfaceScaleFactor -
-                                        AppDisplayPreferences
-                                            .defaultInterfaceScale)
-                                    .abs() >
-                                0.0001,
-                            onPressed: () {
-                              appSettingsController.setInterfaceScale(
-                                AppDisplayPreferences.defaultInterfaceScale,
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        divider(),
-                        const SizedBox(height: 14),
-                        Text(
-                          l10n.fontSizeSettingTitle,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          l10n.fontSizeDialogDescription,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Slider(
-                                value: preferences.fontScaleFactor,
-                                min: AppDisplayPreferences.minFontScale,
-                                max: AppDisplayPreferences.maxFontScale,
-                                divisions: 57,
-                                onChanged: appSettingsController.setFontScale,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              l10n.scalePercentLabel(
-                                _scalePercent(preferences.fontScaleFactor),
-                              ),
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                color: colorScheme.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: resetButton(
-                            enabled:
-                                (preferences.fontScaleFactor -
-                                        AppDisplayPreferences.defaultFontScale)
-                                    .abs() >
-                                0.0001,
-                            onPressed: () {
-                              appSettingsController.setFontScale(
-                                AppDisplayPreferences.defaultFontScale,
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        (() {
-                          final isZh =
-                              Localizations.localeOf(
-                                context,
-                              ).languageCode.toLowerCase() ==
-                              'zh';
-                          final albumPageTitle = isZh
-                              ? '专辑每页数量'
-                              : 'Albums per page';
-                          final albumPageDescription = isZh
-                              ? '设置专辑列表分页时每页最多显示的专辑数量（默认 9）。'
-                              : 'Set the maximum number of albums shown on each page (default 9).';
-                          final albumPageValue = isZh
-                              ? '每页 ${preferences.albumPageSize} 条'
-                              : '${preferences.albumPageSize} per page';
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                albumPageTitle,
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                albumPageDescription,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Slider(
-                                      value: preferences.albumPageSize
-                                          .toDouble(),
-                                      min: 1,
-                                      max: 60,
-                                      divisions: 59,
-                                      onChanged: (value) {
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        albumPageValue,
+                                        style: theme.textTheme.labelMedium
+                                            ?.copyWith(
+                                              color: colorScheme.primary,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: resetButton(
+                                      enabled:
+                                          preferences.albumPageSize !=
+                                          defaultAlbumPageSize,
+                                      onPressed: () {
                                         appSettingsController.setAlbumPageSize(
-                                          value.round(),
+                                          defaultAlbumPageSize,
                                         );
                                       },
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    albumPageValue,
-                                    style: theme.textTheme.labelMedium
-                                        ?.copyWith(
-                                          color: colorScheme.primary,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                  ),
+                                  const SizedBox(height: 8),
                                 ],
+                              );
+                            })(),
+                            divider(),
+                            if (_section != null) const SizedBox(height: 8),
+                            settingRow(
+                              title: l10n.themeAccentColorSettingTitle,
+                              subtitle: accentSummary,
+                              trailing: SizedBox(
+                                width: 248,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    _ThemeAccentSwatchRow(
+                                      label: _themeLabel(
+                                        l10n,
+                                        AppThemePreference.light,
+                                      ),
+                                      currentHex: lightAccentHex,
+                                      presets: lightAccentPresetColors,
+                                      onPresetSelected: (color) async {
+                                        await appSettingsController
+                                            .setCustomThemeColors(
+                                              preferences.customThemeColors
+                                                  .copyWith(
+                                                    lightPrimaryColorSeed:
+                                                        _hexFromColor(color),
+                                                  ),
+                                            );
+                                      },
+                                      onCustomSelected: () async {
+                                        final colorHex =
+                                            await _showColorPickerDialog(
+                                              context: context,
+                                              currentColor:
+                                                  lightAccentHex ?? '',
+                                            );
+                                        if (colorHex == null ||
+                                            colorHex.isEmpty) {
+                                          return;
+                                        }
+                                        await appSettingsController
+                                            .setCustomThemeColors(
+                                              preferences.customThemeColors
+                                                  .copyWith(
+                                                    lightPrimaryColorSeed:
+                                                        colorHex,
+                                                  ),
+                                            );
+                                      },
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _ThemeAccentSwatchRow(
+                                      label: _themeLabel(
+                                        l10n,
+                                        AppThemePreference.dark,
+                                      ),
+                                      currentHex: darkAccentHex,
+                                      presets: darkAccentPresetColors,
+                                      onPresetSelected: (color) async {
+                                        await appSettingsController
+                                            .setCustomThemeColors(
+                                              preferences.customThemeColors
+                                                  .copyWith(
+                                                    darkPrimaryColorSeed:
+                                                        _hexFromColor(color),
+                                                  ),
+                                            );
+                                      },
+                                      onCustomSelected: () async {
+                                        final colorHex =
+                                            await _showColorPickerDialog(
+                                              context: context,
+                                              currentColor: darkAccentHex ?? '',
+                                            );
+                                        if (colorHex == null ||
+                                            colorHex.isEmpty) {
+                                          return;
+                                        }
+                                        await appSettingsController
+                                            .setCustomThemeColors(
+                                              preferences.customThemeColors
+                                                  .copyWith(
+                                                    darkPrimaryColorSeed:
+                                                        colorHex,
+                                                  ),
+                                            );
+                                      },
+                                    ),
+                                  ],
+                                ),
                               ),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: resetButton(
-                                  enabled:
-                                      preferences.albumPageSize !=
-                                      defaultAlbumPageSize,
-                                  onPressed: () {
-                                    appSettingsController.setAlbumPageSize(
-                                      defaultAlbumPageSize,
-                                    );
-                                  },
+                            ),
+                            const SizedBox(height: 12),
+                            divider(),
+                            const SizedBox(height: 12),
+                            settingRow(
+                              title: l10n.themeBorderRadiusSettingTitle,
+                              subtitle:
+                                  '${preferences.customThemeColors.borderRadius.toStringAsFixed(1)}px',
+                              trailing: SizedBox(
+                                width: 190,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Slider(
+                                      value:
+                                          CustomThemeColors.normalizeBorderRadius(
+                                            preferences
+                                                .customThemeColors
+                                                .borderRadius,
+                                          ),
+                                      min: 12,
+                                      max: 32,
+                                      divisions: 40,
+                                      onChanged: (value) {
+                                        appSettingsController.setCustomThemeColors(
+                                          preferences.customThemeColors.copyWith(
+                                            borderRadius:
+                                                CustomThemeColors.normalizeBorderRadius(
+                                                  value,
+                                                ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    resetButton(
+                                      enabled:
+                                          (preferences
+                                                      .customThemeColors
+                                                      .borderRadius -
+                                                  const CustomThemeColors()
+                                                      .borderRadius)
+                                              .abs() >
+                                          0.0001,
+                                      onPressed: () {
+                                        appSettingsController
+                                            .setCustomThemeColors(
+                                              preferences.customThemeColors
+                                                  .copyWith(
+                                                    borderRadius:
+                                                        const CustomThemeColors()
+                                                            .borderRadius,
+                                                  ),
+                                            );
+                                      },
+                                    ),
+                                  ],
                                 ),
                               ),
-                              const SizedBox(height: 8),
-                            ],
-                          );
-                        })(),
-                        divider(),
-                        const SizedBox(height: 14),
-                        settingRow(
-                          title: l10n.themeAccentColorSettingTitle,
-                          subtitle: accentSummary,
-                          trailing: SizedBox(
-                            width: 248,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                _ThemeAccentSwatchRow(
-                                  label: _themeLabel(
-                                    l10n,
-                                    AppThemePreference.light,
-                                  ),
-                                  currentHex: lightAccentHex,
-                                  presets: lightAccentPresetColors,
-                                  onPresetSelected: (color) async {
-                                    await appSettingsController
-                                        .setCustomThemeColors(
-                                          preferences.customThemeColors
-                                              .copyWith(
-                                                lightPrimaryColorSeed:
-                                                    _hexFromColor(color),
-                                              ),
-                                        );
-                                  },
-                                  onCustomSelected: () async {
-                                    final colorHex =
-                                        await _showColorPickerDialog(
-                                          context: context,
-                                          currentColor: lightAccentHex ?? '',
-                                        );
-                                    if (colorHex == null || colorHex.isEmpty) {
-                                      return;
-                                    }
-                                    await appSettingsController
-                                        .setCustomThemeColors(
-                                          preferences.customThemeColors
-                                              .copyWith(
-                                                lightPrimaryColorSeed: colorHex,
-                                              ),
-                                        );
-                                  },
-                                ),
-                                const SizedBox(height: 8),
-                                _ThemeAccentSwatchRow(
-                                  label: _themeLabel(
-                                    l10n,
-                                    AppThemePreference.dark,
-                                  ),
-                                  currentHex: darkAccentHex,
-                                  presets: darkAccentPresetColors,
-                                  onPresetSelected: (color) async {
-                                    await appSettingsController
-                                        .setCustomThemeColors(
-                                          preferences.customThemeColors
-                                              .copyWith(
-                                                darkPrimaryColorSeed:
-                                                    _hexFromColor(color),
-                                              ),
-                                        );
-                                  },
-                                  onCustomSelected: () async {
-                                    final colorHex =
-                                        await _showColorPickerDialog(
-                                          context: context,
-                                          currentColor: darkAccentHex ?? '',
-                                        );
-                                    if (colorHex == null || colorHex.isEmpty) {
-                                      return;
-                                    }
-                                    await appSettingsController
-                                        .setCustomThemeColors(
-                                          preferences.customThemeColors
-                                              .copyWith(
-                                                darkPrimaryColorSeed: colorHex,
-                                              ),
-                                        );
-                                  },
-                                ),
-                              ],
                             ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        divider(),
-                        const SizedBox(height: 12),
-                        settingRow(
-                          title: l10n.themeBorderRadiusSettingTitle,
-                          subtitle:
-                              '${preferences.customThemeColors.borderRadius.toStringAsFixed(1)}px',
-                          trailing: SizedBox(
-                            width: 190,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Slider(
-                                  value:
-                                      CustomThemeColors.normalizeBorderRadius(
-                                        preferences
-                                            .customThemeColors
-                                            .borderRadius,
-                                      ),
-                                  min: 12,
-                                  max: 32,
-                                  divisions: 40,
-                                  onChanged: (value) {
-                                    appSettingsController.setCustomThemeColors(
-                                      preferences.customThemeColors.copyWith(
-                                        borderRadius:
-                                            CustomThemeColors.normalizeBorderRadius(
-                                              value,
-                                            ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                resetButton(
-                                  enabled:
-                                      (preferences
-                                                  .customThemeColors
-                                                  .borderRadius -
-                                              const CustomThemeColors()
-                                                  .borderRadius)
-                                          .abs() >
-                                      0.0001,
-                                  onPressed: () {
-                                    appSettingsController.setCustomThemeColors(
-                                      preferences.customThemeColors.copyWith(
-                                        borderRadius: const CustomThemeColors()
-                                            .borderRadius,
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        divider(),
-                        const SizedBox(height: 12),
-                        settingRow(
-                          title: l10n.themeCompactnessSettingTitle,
-                          subtitle:
-                              '${(preferences.customThemeColors.interfaceCompactness * 100).toStringAsFixed(0)}%',
-                          trailing: SizedBox(
-                            width: 190,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Slider(
-                                  value: CustomThemeColors.normalizeCompactness(
-                                    preferences
-                                        .customThemeColors
-                                        .interfaceCompactness,
-                                  ),
-                                  min: 0.5,
-                                  max: 1.5,
-                                  divisions: 20,
-                                  onChanged: (value) {
-                                    appSettingsController.setCustomThemeColors(
-                                      preferences.customThemeColors.copyWith(
-                                        interfaceCompactness:
-                                            CustomThemeColors.normalizeCompactness(
-                                              value,
-                                            ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                resetButton(
-                                  enabled:
-                                      (preferences
-                                                  .customThemeColors
-                                                  .interfaceCompactness -
-                                              const CustomThemeColors()
-                                                  .interfaceCompactness)
-                                          .abs() >
-                                      0.0001,
-                                  onPressed: () {
-                                    appSettingsController.setCustomThemeColors(
-                                      preferences.customThemeColors.copyWith(
-                                        interfaceCompactness:
-                                            const CustomThemeColors()
+                            const SizedBox(height: 12),
+                            divider(),
+                            const SizedBox(height: 12),
+                            settingRow(
+                              title: l10n.themeCompactnessSettingTitle,
+                              subtitle:
+                                  '${(preferences.customThemeColors.interfaceCompactness * 100).toStringAsFixed(0)}%',
+                              trailing: SizedBox(
+                                width: 190,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Slider(
+                                      value:
+                                          CustomThemeColors.normalizeCompactness(
+                                            preferences
+                                                .customThemeColors
                                                 .interfaceCompactness,
-                                      ),
-                                    );
-                                  },
+                                          ),
+                                      min: 0.5,
+                                      max: 1.5,
+                                      divisions: 20,
+                                      onChanged: (value) {
+                                        appSettingsController.setCustomThemeColors(
+                                          preferences.customThemeColors.copyWith(
+                                            interfaceCompactness:
+                                                CustomThemeColors.normalizeCompactness(
+                                                  value,
+                                                ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    resetButton(
+                                      enabled:
+                                          (preferences
+                                                      .customThemeColors
+                                                      .interfaceCompactness -
+                                                  const CustomThemeColors()
+                                                      .interfaceCompactness)
+                                              .abs() >
+                                          0.0001,
+                                      onPressed: () {
+                                        appSettingsController.setCustomThemeColors(
+                                          preferences.customThemeColors
+                                              .copyWith(
+                                                interfaceCompactness:
+                                                    const CustomThemeColors()
+                                                        .interfaceCompactness,
+                                              ),
+                                        );
+                                      },
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
-                        ),
-                        // OMNITUNE_PRESERVE_COMMENT:
-                        // Background image setting is intentionally disabled.
-                        // Keep this block commented out unless the user
-                        // explicitly asks to restore the feature.
-                        /*
+                            // OMNITUNE_PRESERVE_COMMENT:
+                            // Background image setting is intentionally disabled.
+                            // Keep this block commented out unless the user
+                            // explicitly asks to restore the feature.
+                            /*
                         const SizedBox(height: 12),
                         divider(),
                         const SizedBox(height: 12),
@@ -846,258 +942,267 @@ class SettingsPage extends ConsumerWidget {
                           ),
                         ),
                         */
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    section(
-                      title: l10n.sourceManagementSettingTitle,
-                      trailing: FilledButton.tonalIcon(
-                        onPressed: () => showSourceTypePicker(context),
-                        icon: const Icon(Icons.add_rounded, size: 16),
-                        label: Text(l10n.addSourceAction),
-                      ),
-                      children: [
-                        settingRow(
+                          ],
+                        ),
+                      if (_section != null) const SizedBox(height: 8),
+                      if (_section == 0)
+                        section(
                           title: l10n.sourceManagementSettingTitle,
-                          subtitle: sources.isEmpty
-                              ? l10n.sourceManagementEmptySummary
-                              : l10n.sourceManagementSummary(
-                                  browser?.selectedSource?.name ??
-                                      sources.first.name,
-                                  sources.length,
-                                ),
-                          trailing: Icon(
-                            Icons.chevron_right_rounded,
-                            color: colorScheme.onSurfaceVariant,
+                          trailing: FilledButton.tonalIcon(
+                            onPressed: () => showSourceTypePicker(context),
+                            icon: const Icon(Icons.add_rounded, size: 16),
+                            label: Text(l10n.addSourceAction),
                           ),
-                          onTap: () => _showSourceManagementDialog(
-                            pageContext: context,
-                            ref: ref,
-                            sources: sources,
-                            selectedSource: browser?.selectedSource,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        divider(),
-                        const SizedBox(height: 12),
-                        SwitchListTile.adaptive(
-                          contentPadding: EdgeInsets.zero,
-                          dense: true,
-                          visualDensity: const VisualDensity(
-                            horizontal: -2,
-                            vertical: -2,
-                          ),
-                          title: Text(l10n.songFolderArtworkSettingTitle),
-                          subtitle: Text(
-                            l10n.songFolderArtworkSettingDescription,
-                          ),
-                          value: preferences.enableFolderArtworkForSongs,
-                          onChanged: (value) {
-                            appSettingsController
-                                .setEnableFolderArtworkForSongs(value);
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        divider(),
-                        const SizedBox(height: 12),
-                        SwitchListTile.adaptive(
-                          contentPadding: EdgeInsets.zero,
-                          dense: true,
-                          visualDensity: const VisualDensity(
-                            horizontal: -2,
-                            vertical: -2,
-                          ),
-                          title: Text(l10n.groupAlbumsByArtistSettingTitle),
-                          subtitle: Text(
-                            l10n.groupAlbumsByArtistSettingDescription,
-                          ),
-                          value: preferences.groupMetadataAlbumsByArtist,
-                          onChanged: (value) {
-                            appSettingsController
-                                .setGroupMetadataAlbumsByArtist(value);
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    section(
-                      title: l10n.scraperPipelineLabel,
-                      children: [
-                        settingRow(
-                          title: l10n.lyricsScrapingServiceUrlLabel,
-                          subtitle:
-                              (preferences.lyricsScrapingServiceBaseUrl
-                                      ?.trim()
-                                      .isNotEmpty ??
-                                  false)
-                              ? l10n.lyricsScrapingServiceUrlConfigured
-                              : l10n.lyricsScrapingServiceUrlNotConfigured,
-                          trailing: Icon(
-                            Icons.chevron_right_rounded,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                          onTap: () => _showLyricsServiceUrlDialog(
-                            context: context,
-                            controller: appSettingsController,
-                            preferences: preferences,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        divider(),
-                        const SizedBox(height: 12),
-                        SwitchListTile.adaptive(
-                          contentPadding: EdgeInsets.zero,
-                          dense: true,
-                          visualDensity: const VisualDensity(
-                            horizontal: -2,
-                            vertical: -2,
-                          ),
-                          title: Text(l10n.enableLyricsScrapingLabel),
-                          subtitle: Text(l10n.enableLyricsScrapingDescription),
-                          value: preferences.enableLyricsScraping,
-                          onChanged: (value) {
-                            appSettingsController.setEnableLyricsScraping(
-                              value,
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    section(
-                      title: l10n.playbackCacheTitle,
-                      children: [
-                        settingRow(
-                          title: l10n.persistentPlaybackCacheLabel,
-                          subtitle: l10n.persistentPlaybackCacheDescription,
-                          trailing: Switch.adaptive(
-                            value: cacheSettings.enablePersistentCache,
-                            onChanged: (value) {
-                              ref
-                                  .read(
-                                    playbackCacheSettingsControllerProvider
-                                        .notifier,
-                                  )
-                                  .setPersistentCacheEnabled(value);
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        divider(),
-                        const SizedBox(height: 12),
-                        Text(
-                          l10n.memoryCacheTrackLimitLabel,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          l10n.memoryCacheTrackLimitDescription,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
                           children: [
-                            Expanded(
-                              child: Slider(
-                                min: 1,
-                                max: 12,
-                                divisions: 11,
-                                value: cacheSettings.memoryCacheTrackLimit
-                                    .toDouble()
-                                    .clamp(1, 12),
+                            settingRow(
+                              title: l10n.sourceManagementSettingTitle,
+                              subtitle: sources.isEmpty
+                                  ? l10n.sourceManagementEmptySummary
+                                  : l10n.sourceManagementSummary(
+                                      browser?.selectedSource?.name ??
+                                          sources.first.name,
+                                      sources.length,
+                                    ),
+                              trailing: Icon(
+                                Icons.chevron_right_rounded,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                              onTap: () => _showSourceManagementDialog(
+                                pageContext: context,
+                                ref: ref,
+                                sources: sources,
+                                selectedSource: browser?.selectedSource,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            divider(),
+                            const SizedBox(height: 12),
+                            SwitchListTile.adaptive(
+                              contentPadding: EdgeInsets.zero,
+                              dense: true,
+                              visualDensity: const VisualDensity(
+                                horizontal: -2,
+                                vertical: -2,
+                              ),
+                              title: Text(l10n.songFolderArtworkSettingTitle),
+                              subtitle: Text(
+                                l10n.songFolderArtworkSettingDescription,
+                              ),
+                              value: preferences.enableFolderArtworkForSongs,
+                              onChanged: (value) {
+                                appSettingsController
+                                    .setEnableFolderArtworkForSongs(value);
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                            divider(),
+                            const SizedBox(height: 12),
+                            SwitchListTile.adaptive(
+                              contentPadding: EdgeInsets.zero,
+                              dense: true,
+                              visualDensity: const VisualDensity(
+                                horizontal: -2,
+                                vertical: -2,
+                              ),
+                              title: Text(l10n.groupAlbumsByArtistSettingTitle),
+                              subtitle: Text(
+                                l10n.groupAlbumsByArtistSettingDescription,
+                              ),
+                              value: preferences.groupMetadataAlbumsByArtist,
+                              onChanged: (value) {
+                                appSettingsController
+                                    .setGroupMetadataAlbumsByArtist(value);
+                              },
+                            ),
+                          ],
+                        ),
+                      if (_section != null) const SizedBox(height: 8),
+                      if (_section == 3)
+                        section(
+                          title: l10n.scraperPipelineLabel,
+                          children: [
+                            settingRow(
+                              title: l10n.lyricsScrapingServiceUrlLabel,
+                              subtitle:
+                                  (preferences.lyricsScrapingServiceBaseUrl
+                                          ?.trim()
+                                          .isNotEmpty ??
+                                      false)
+                                  ? l10n.lyricsScrapingServiceUrlConfigured
+                                  : l10n.lyricsScrapingServiceUrlNotConfigured,
+                              trailing: Icon(
+                                Icons.chevron_right_rounded,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                              onTap: () => _showLyricsServiceUrlDialog(
+                                context: context,
+                                controller: appSettingsController,
+                                preferences: preferences,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            divider(),
+                            const SizedBox(height: 12),
+                            SwitchListTile.adaptive(
+                              contentPadding: EdgeInsets.zero,
+                              dense: true,
+                              visualDensity: const VisualDensity(
+                                horizontal: -2,
+                                vertical: -2,
+                              ),
+                              title: Text(l10n.enableLyricsScrapingLabel),
+                              subtitle: Text(
+                                l10n.enableLyricsScrapingDescription,
+                              ),
+                              value: preferences.enableLyricsScraping,
+                              onChanged: (value) {
+                                appSettingsController.setEnableLyricsScraping(
+                                  value,
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      if (_section != null) const SizedBox(height: 8),
+                      if (_section == 1)
+                        section(
+                          title: l10n.playbackCacheTitle,
+                          children: [
+                            settingRow(
+                              title: l10n.persistentPlaybackCacheLabel,
+                              subtitle: l10n.persistentPlaybackCacheDescription,
+                              trailing: Switch.adaptive(
+                                value: cacheSettings.enablePersistentCache,
                                 onChanged: (value) {
                                   ref
                                       .read(
                                         playbackCacheSettingsControllerProvider
                                             .notifier,
                                       )
-                                      .setMemoryCacheTrackLimit(value.round());
+                                      .setPersistentCacheEnabled(value);
                                 },
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(height: 12),
+                            divider(),
+                            const SizedBox(height: 12),
                             Text(
-                              l10n.memoryCacheTrackLimitValue(
-                                cacheSettings.memoryCacheTrackLimit,
-                              ),
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                color: colorScheme.primary,
+                              l10n.memoryCacheTrackLimitLabel,
+                              style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              l10n.memoryCacheTrackLimitDescription,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Slider(
+                                    min: 1,
+                                    max: 12,
+                                    divisions: 11,
+                                    value: cacheSettings.memoryCacheTrackLimit
+                                        .toDouble()
+                                        .clamp(1, 12),
+                                    onChanged: (value) {
+                                      ref
+                                          .read(
+                                            playbackCacheSettingsControllerProvider
+                                                .notifier,
+                                          )
+                                          .setMemoryCacheTrackLimit(
+                                            value.round(),
+                                          );
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  l10n.memoryCacheTrackLimitValue(
+                                    cacheSettings.memoryCacheTrackLimit,
+                                  ),
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    color: colorScheme.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: resetButton(
+                                enabled:
+                                    cacheSettings.memoryCacheTrackLimit !=
+                                    defaultMemoryCacheTrackLimit,
+                                onPressed: () {
+                                  ref
+                                      .read(
+                                        playbackCacheSettingsControllerProvider
+                                            .notifier,
+                                      )
+                                      .setMemoryCacheTrackLimit(
+                                        defaultMemoryCacheTrackLimit,
+                                      );
+                                },
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            divider(),
+                            if (_section != null) const SizedBox(height: 8),
+                            settingRow(
+                              title: l10n.clearCachedFilesTitle,
+                              subtitle: l10n.clearCachedFilesDescription,
+                              trailing: Icon(
+                                Icons.chevron_right_rounded,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                              onTap: () => _showCacheManagementDialog(
+                                context: context,
+                                sourceNames: {
+                                  for (final source in sources)
+                                    source.id: source.name,
+                                },
                               ),
                             ),
                           ],
                         ),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: resetButton(
-                            enabled:
-                                cacheSettings.memoryCacheTrackLimit !=
-                                defaultMemoryCacheTrackLimit,
-                            onPressed: () {
-                              ref
-                                  .read(
-                                    playbackCacheSettingsControllerProvider
-                                        .notifier,
-                                  )
-                                  .setMemoryCacheTrackLimit(
-                                    defaultMemoryCacheTrackLimit,
-                                  );
-                            },
-                          ),
+                      if (_section != null) const SizedBox(height: 8),
+                      if (_section == 4)
+                        section(
+                          title: l10n.debugSettingsTitle,
+                          children: [
+                            SwitchListTile.adaptive(
+                              contentPadding: EdgeInsets.zero,
+                              dense: true,
+                              visualDensity: const VisualDensity(
+                                horizontal: -2,
+                                vertical: -2,
+                              ),
+                              title: Text(l10n.debugModeLabel),
+                              subtitle: Text(l10n.debugModeDescription),
+                              value: preferences.enableDebugMode,
+                              onChanged: (value) {
+                                appSettingsController.setDebugMode(value);
+                                if (!value) {
+                                  return;
+                                }
+                                showTopSnackBar(
+                                  context,
+                                  l10n.debugModeEnabledMessage,
+                                  duration: const Duration(seconds: 3),
+                                );
+                              },
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 8),
-                        divider(),
-                        const SizedBox(height: 14),
-                        settingRow(
-                          title: l10n.clearCachedFilesTitle,
-                          subtitle: l10n.clearCachedFilesDescription,
-                          trailing: Icon(
-                            Icons.chevron_right_rounded,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                          onTap: () => _showCacheManagementDialog(
-                            context: context,
-                            sourceNames: {
-                              for (final source in sources)
-                                source.id: source.name,
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    section(
-                      title: l10n.debugSettingsTitle,
-                      children: [
-                        SwitchListTile.adaptive(
-                          contentPadding: EdgeInsets.zero,
-                          dense: true,
-                          visualDensity: const VisualDensity(
-                            horizontal: -2,
-                            vertical: -2,
-                          ),
-                          title: Text(l10n.debugModeLabel),
-                          subtitle: Text(l10n.debugModeDescription),
-                          value: preferences.enableDebugMode,
-                          onChanged: (value) {
-                            appSettingsController.setDebugMode(value);
-                            if (!value) {
-                              return;
-                            }
-                            showTopSnackBar(
-                              context,
-                              l10n.debugModeEnabledMessage,
-                              duration: const Duration(seconds: 3),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1628,18 +1733,20 @@ class _SettingsBottomSheetFrame extends StatelessWidget {
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w700),
-                        ),
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700),
                       ),
                       if (headerTrailing != null) ...[
-                        const SizedBox(width: 12),
-                        headerTrailing!,
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: headerTrailing!,
+                        ),
                       ],
                     ],
                   ),
@@ -2367,7 +2474,47 @@ class _CacheManagementDialogState
                       description: l10n.cachedTracksEmptyDescription,
                     )
                   else ...[
-                    Text(l10n.cachedTracksDialogDescription),
+                    Text(l10n.playbackCacheNotice),
+                    const SizedBox(height: 12),
+                    Text(
+                      '${l10n.cachedBytesLabel}: ${_cacheSize(items.fold<int>(0, (sum, item) => sum + item.cachedBytes))}',
+                    ),
+                    Text(
+                      '${l10n.memoryCacheUsageLabel}: ${_cacheSize(ref.read(webDavPlaybackCacheProvider).retainedMemoryBytes)} / 64 MiB',
+                    ),
+                    for (final sourceId
+                        in items.map((item) => item.sourceId).toSet())
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(widget.sourceNames[sourceId] ?? sourceId),
+                        subtitle: Text(
+                          _cacheSize(
+                            items
+                                .where((item) => item.sourceId == sourceId)
+                                .fold<int>(
+                                  0,
+                                  (sum, item) => sum + item.cachedBytes,
+                                ),
+                          ),
+                        ),
+                        trailing: IconButton(
+                          tooltip: l10n.clearSourceCacheAction,
+                          icon: const Icon(Icons.delete_outline_rounded),
+                          onPressed: () async {
+                            await ref
+                                .read(webDavPlaybackCacheProvider)
+                                .removeCachedTracks(
+                                  items
+                                      .where(
+                                        (item) => item.sourceId == sourceId,
+                                      )
+                                      .map((item) => item.trackId)
+                                      .toSet(),
+                                );
+                            if (mounted) setState(_selectedTrackIds.clear);
+                          },
+                        ),
+                      ),
                     const SizedBox(height: 10),
                     Text(
                       l10n.selectedCacheCountLabel(selectedIds.length),
@@ -2436,7 +2583,7 @@ class _CacheManagementDialogState
                         ),
                       ],
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 8),
                     ListView.separated(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
@@ -2578,3 +2725,6 @@ class _DialogOption<T> {
   final String label;
   final IconData icon;
 }
+
+String _cacheSize(int bytes) =>
+    '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MiB';

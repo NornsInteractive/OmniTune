@@ -1327,4 +1327,80 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get copyLogsAction => 'Copy logs';
+
+  @override
+  String get playbackModeRepeatAll => 'Repeat all';
+
+  @override
+  String get librarySearchTitle => 'Search library';
+
+  @override
+  String get librarySearchHint => 'Song, artist or album';
+
+  @override
+  String get allSourcesLabel => 'All sources';
+
+  @override
+  String get sortTitleLabel => 'Title';
+
+  @override
+  String get sortArtistLabel => 'Artist';
+
+  @override
+  String get sortAlbumLabel => 'Album';
+
+  @override
+  String get searchNoResults => 'No matching songs';
+
+  @override
+  String get scanCancelledLabel => 'Scan cancelled. Saved songs are kept.';
+
+  @override
+  String get cancelScanAction => 'Cancel scan';
+
+  @override
+  String get retryFailedScanAction => 'Retry failed sources';
+
+  @override
+  String get scanFailedSourcesLabel => 'Failed sources';
+
+  @override
+  String get playbackSettingsTitle => 'Playback & cache';
+
+  @override
+  String get advancedSettingsTitle => 'Advanced';
+
+  @override
+  String get resumeLyricsFollow => 'Follow current line';
+
+  @override
+  String get playbackBufferingLabel => 'Buffering';
+
+  @override
+  String get playbackPausedLabel => 'Paused';
+
+  @override
+  String get playbackLoadingLabel => 'Loading audio';
+
+  @override
+  String get playbackPlayingLabel => 'Playing';
+
+  @override
+  String get playbackCacheNotice =>
+      'Playback cache may be evicted automatically. It is not an offline download.';
+
+  @override
+  String get clearSourceCacheAction => 'Clear this source cache';
+
+  @override
+  String get cachedBytesLabel => 'Cached';
+
+  @override
+  String get memoryCacheUsageLabel => 'Memory cache';
+
+  @override
+  String get systemPlaybackChannel => 'Music playback';
+
+  @override
+  String get showCoverAction => 'Show cover';
 }

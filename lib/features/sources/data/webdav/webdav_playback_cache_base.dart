@@ -67,7 +67,10 @@ class PlaybackCacheInventoryItem {
 }
 
 abstract class WebDavPlaybackCache {
+  int get retainedMemoryBytes;
   void applySettings(PlaybackCacheSettings settings);
+
+  void setActivePlaybackTrack(String? trackId);
 
   Stream<PlaybackCacheSnapshot> get snapshotStream;
 
