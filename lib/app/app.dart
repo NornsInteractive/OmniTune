@@ -394,6 +394,15 @@ class MusicApp extends ConsumerWidget {
           borderRadius: BorderRadius.vertical(top: Radius.circular(radius + 4)),
         ),
       ),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: _StudioPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: _StudioPageTransitionsBuilder(),
+          TargetPlatform.linux: _StudioPageTransitionsBuilder(),
+        },
+      ),
       extensions: [
         StudioThemeData(
           compactness: compactness,
@@ -463,6 +472,38 @@ class _DirectionalMinTextScaler implements TextScaler {
         maxScaleFactor: maxScaleFactor,
       ),
       minFontSize: minFontSize,
+    );
+  }
+}
+
+class _StudioPageTransitionsBuilder extends PageTransitionsBuilder {
+  const _StudioPageTransitionsBuilder();
+
+  static final Animatable<double> _fadeTween = CurveTween(
+    curve: const Cubic(0.2, 0.0, 0.0, 1.0),
+  );
+  static final Animatable<Offset> _slideTween = Tween<Offset>(
+    begin: const Offset(0, 0.03),
+    end: Offset.zero,
+  ).chain(CurveTween(curve: const Cubic(0.2, 0.0, 0.0, 1.0)));
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    if (MediaQuery.disableAnimationsOf(context)) {
+      return child;
+    }
+    return FadeTransition(
+      opacity: animation.drive(_fadeTween),
+      child: SlideTransition(
+        position: animation.drive(_slideTween),
+        child: child,
+      ),
     );
   }
 }

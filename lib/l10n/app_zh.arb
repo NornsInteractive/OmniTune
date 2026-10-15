@@ -478,13 +478,13 @@
   "scanDirectoriesDescription": "可以添加多个需要扫描的目录。留空时会默认从当前音源根目录开始扫描。",
   "scanDirectoriesDefaultRootDescription": "当前没有单独配置扫描目录，扫描时会从这个音源的根目录开始。",
   "addScanDirectoryAction": "添加扫描目录",
-  "addScanDirectoryDialogTitle": "添加扫描目录",
+  "addScanDirectoryDialogTitle": "添加扫描目录路径",
   "scanDirectoriesDialogDescription": "输入一个相对当前音源根目录的目录路径，例如 /Jazz/ 或 /Live/Concerts/。",
   "excludedScanDirectoriesTitle": "排除目录",
   "excludedScanDirectoriesDescription": "这些目录会在扫描时被跳过，支持添加多个。",
   "excludedScanDirectoriesEmptyDescription": "当前没有排除目录，扫描时会包含根目录下的所有子目录。",
   "addExcludedScanDirectoryAction": "添加排除目录",
-  "addExcludedScanDirectoryDialogTitle": "添加排除目录",
+  "addExcludedScanDirectoryDialogTitle": "添加排除目录路径",
   "excludedScanDirectoriesDialogDescription": "输入一个需要跳过的目录路径，例如 /Temp/ 或 /Podcasts/。",
   "directoryPathLabel": "目录路径",
   "directoryPathHint": "/Albums/",
@@ -577,5 +577,9 @@
   "cachedBytesLabel": "已缓存",
   "memoryCacheUsageLabel": "内存缓存",
   "systemPlaybackChannel": "音乐播放",
-  "showCoverAction": "显示封面"
+  "showCoverAction": "显示封面",
+  "discardChangesConfirmationTitle": "放弃未保存的修改？",
+  "discardChangesConfirmationDescription": "当前有未保存的表单修改，确定要放弃吗？",
+  "discardChangesAction": "放弃修改",
+  "continueEditingAction": "继续编辑"
 }

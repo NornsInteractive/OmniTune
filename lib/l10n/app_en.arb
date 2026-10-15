@@ -464,13 +464,13 @@
   "scanDirectoriesDescription": "Add multiple directories to scan. If left empty, scanning starts from the source root by default.",
   "scanDirectoriesDefaultRootDescription": "No scan directories are configured yet, so this source will scan from its root directory.",
   "addScanDirectoryAction": "Add scan directory",
-  "addScanDirectoryDialogTitle": "Add scan directory",
+  "addScanDirectoryDialogTitle": "Add directory to scan",
   "scanDirectoriesDialogDescription": "Enter a directory path relative to the current source root, such as /Jazz/ or /Live/Concerts/.",
   "excludedScanDirectoriesTitle": "Excluded directories",
   "excludedScanDirectoriesDescription": "Directories listed here are skipped during scanning. You can add more than one.",
   "excludedScanDirectoriesEmptyDescription": "No excluded directories yet, so every subdirectory under the source root will be scanned.",
   "addExcludedScanDirectoryAction": "Add excluded directory",
-  "addExcludedScanDirectoryDialogTitle": "Add excluded directory",
+  "addExcludedScanDirectoryDialogTitle": "Add directory to exclude",
   "excludedScanDirectoriesDialogDescription": "Enter a directory path to skip, such as /Temp/ or /Podcasts/.",
   "directoryPathLabel": "Directory path",
   "directoryPathHint": "/Albums/",
@@ -563,5 +563,9 @@
   "cachedBytesLabel": "Cached",
   "memoryCacheUsageLabel": "Memory cache",
   "systemPlaybackChannel": "Music playback",
-  "showCoverAction": "Show cover"
+  "showCoverAction": "Show cover",
+  "discardChangesConfirmationTitle": "Discard unsaved changes?",
+  "discardChangesConfirmationDescription": "You have unsaved changes. Are you sure you want to discard them?",
+  "discardChangesAction": "Discard",
+  "continueEditingAction": "Continue editing"
 }

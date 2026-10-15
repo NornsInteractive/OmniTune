@@ -8,6 +8,7 @@ import 'package:music/core/i18n/localizations.dart';
 import 'package:music/core/models/source_profile.dart';
 import 'package:music/core/storage/library_preferences_repository.dart';
 import 'package:music/core/storage/source_profile_repository.dart';
+import 'package:music/features/sources/data/cloud189/cloud189_api_client.dart';
 
 class _FakeSourceProfileRepository implements SourceProfileRepository {
   @override
@@ -77,23 +78,69 @@ void main() {
       await tester.tap(find.text(l10n.addSourceAction).first);
       await tester.pumpAndSettle();
 
+      final dialogFinder = find.byKey(const Key('add-source-dialog'));
+      expect(dialogFinder, findsOneWidget);
+      expect(find.byKey(const Key('source-type-step')), findsOneWidget);
       expect(find.text(l10n.sourceTypeSelectionTitle), findsOneWidget);
 
-      final cloud189Finder = find.text(l10n.cloud189Protocol);
+      final cloud189Finder = find.descendant(
+        of: dialogFinder,
+        matching: find.text(l10n.cloud189SourceTypeTitle),
+      );
       await tester.scrollUntilVisible(
         cloud189Finder,
         100,
-        scrollable: find.byType(Scrollable).last,
+        scrollable: find
+            .descendant(of: dialogFinder, matching: find.byType(Scrollable))
+            .first,
       );
       await tester.pumpAndSettle();
 
       expect(cloud189Finder, findsOneWidget);
 
-      // Tapping cloud189 navigates to supported add-source form
+      // Tapping cloud189 navigates to supported add-source form in same dialog
       await tester.tap(cloud189Finder);
       await tester.pumpAndSettle();
 
+      expect(dialogFinder, findsOneWidget);
+      expect(
+        find.descendant(
+          of: dialogFinder,
+          matching: find.byKey(const Key('source-config-step')),
+        ),
+        findsAtLeastNWidgets(1),
+      );
       expect(find.text(l10n.cloud189SourceTypeTitle), findsOneWidget);
+
+      // Supported form contract: OpenList and App authorization modes present,
+      // legacy CloudTV mode/fields absent.
+      final segmentedButtonFinder = find.byType(
+        SegmentedButton<Cloud189AuthMode>,
+      );
+      expect(segmentedButtonFinder, findsOneWidget);
+      final segmentedButton = tester.widget<SegmentedButton<Cloud189AuthMode>>(
+        segmentedButtonFinder,
+      );
+      final segmentValues = segmentedButton.segments
+          .map((s) => s.value)
+          .toSet();
+      expect(
+        segmentValues,
+        equals({
+          Cloud189AuthMode.openListPassword,
+          Cloud189AuthMode.appAuthorization,
+        }),
+      );
+      expect(segmentValues.contains(Cloud189AuthMode.cloudTV), isFalse);
+
+      expect(find.text(l10n.cloud189OpenListModeLabel), findsOneWidget);
+      expect(find.text(l10n.cloud189AppAuthorizationModeLabel), findsOneWidget);
+      await tester.tap(find.text(l10n.cloud189AppAuthorizationModeLabel));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.cloud189AppKeyLabel), findsOneWidget);
+      await tester.tap(find.text(l10n.cloud189OpenListModeLabel));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.cloud189OpenListUsernameLabel), findsOneWidget);
     },
   );
 }

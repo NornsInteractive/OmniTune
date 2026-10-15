@@ -1114,7 +1114,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addScanDirectoryAction => 'Add scan directory';
 
   @override
-  String get addScanDirectoryDialogTitle => 'Add scan directory';
+  String get addScanDirectoryDialogTitle => 'Add directory to scan';
 
   @override
   String get scanDirectoriesDialogDescription =>
@@ -1135,7 +1135,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addExcludedScanDirectoryAction => 'Add excluded directory';
 
   @override
-  String get addExcludedScanDirectoryDialogTitle => 'Add excluded directory';
+  String get addExcludedScanDirectoryDialogTitle => 'Add directory to exclude';
 
   @override
   String get excludedScanDirectoriesDialogDescription =>
@@ -1403,4 +1403,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get showCoverAction => 'Show cover';
+
+  @override
+  String get discardChangesConfirmationTitle => 'Discard unsaved changes?';
+
+  @override
+  String get discardChangesConfirmationDescription =>
+      'You have unsaved changes. Are you sure you want to discard them?';
+
+  @override
+  String get discardChangesAction => 'Discard';
+
+  @override
+  String get continueEditingAction => 'Continue editing';
 }

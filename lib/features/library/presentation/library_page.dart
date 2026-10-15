@@ -1017,8 +1017,8 @@ class _SongCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
-    final cardRadius = studioRadiusOf(context, 18);
-    final coverSize = studioListSpacingOf(context, 50).clamp(48.0, 56.0);
+    final cardRadius = studioRadiusOf(context, 16);
+    final coverSize = studioListSpacingOf(context, 48).clamp(48.0, 50.0);
     final isCurrentTrack = ref.watch(isCurrentTrackIdProvider(song.id));
     return Material(
       color: isCurrentTrack
@@ -1026,13 +1026,14 @@ class _SongCard extends ConsumerWidget {
           : colorScheme.surfaceContainerHigh.withValues(alpha: 0.8),
       borderRadius: BorderRadius.circular(cardRadius),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
+      child: StudioPressable(
         onTap: onTap,
         onLongPress: onMore,
+        borderRadius: BorderRadius.circular(cardRadius),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 72),
+          constraints: const BoxConstraints(minHeight: 64),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final showInlineFavorite = constraints.maxWidth >= 340;
@@ -1137,7 +1138,7 @@ class _LibraryTrackThumbnail extends StatelessWidget {
   }
 }
 
-class _CompactIconButton extends StatelessWidget {
+class _CompactIconButton extends StatefulWidget {
   const _CompactIconButton({
     required this.icon,
     required this.onTap,
@@ -1149,6 +1150,62 @@ class _CompactIconButton extends StatelessWidget {
   final bool active;
 
   @override
+  State<_CompactIconButton> createState() => _CompactIconButtonState();
+}
+
+class _CompactIconButtonState extends State<_CompactIconButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _bounceController;
+  late final Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _bounceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 140),
+    );
+    _scaleAnimation =
+        TweenSequence<double>([
+          TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.25), weight: 50),
+          TweenSequenceItem(tween: Tween(begin: 1.25, end: 1.0), weight: 50),
+        ]).animate(
+          CurvedAnimation(
+            parent: _bounceController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _bounceController.stop();
+      _bounceController.value = 0.0;
+    }
+  }
+
+  @override
+  void didUpdateWidget(_CompactIconButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _bounceController.stop();
+      _bounceController.value = 0.0;
+      return;
+    }
+    if (widget.active != oldWidget.active && widget.active) {
+      _bounceController.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _bounceController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final buttonRadius = studioRadiusOf(context, 16);
@@ -1157,17 +1214,20 @@ class _CompactIconButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(buttonRadius),
       child: InkWell(
         borderRadius: BorderRadius.circular(buttonRadius),
-        onTap: onTap,
+        onTap: widget.onTap,
         child: SizedBox(
           width: 48,
           height: 48,
           child: Center(
-            child: Icon(
-              icon,
-              size: 20,
-              color: active
-                  ? colorScheme.primary
-                  : colorScheme.onSurfaceVariant,
+            child: ScaleTransition(
+              scale: _scaleAnimation,
+              child: Icon(
+                widget.icon,
+                size: 20,
+                color: widget.active
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
         ),

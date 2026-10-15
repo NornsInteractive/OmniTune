@@ -1060,7 +1060,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get addScanDirectoryAction => '添加扫描目录';
 
   @override
-  String get addScanDirectoryDialogTitle => '添加扫描目录';
+  String get addScanDirectoryDialogTitle => '添加扫描目录路径';
 
   @override
   String get scanDirectoriesDialogDescription =>
@@ -1080,7 +1080,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get addExcludedScanDirectoryAction => '添加排除目录';
 
   @override
-  String get addExcludedScanDirectoryDialogTitle => '添加排除目录';
+  String get addExcludedScanDirectoryDialogTitle => '添加排除目录路径';
 
   @override
   String get excludedScanDirectoriesDialogDescription =>
@@ -1342,4 +1342,16 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get showCoverAction => '显示封面';
+
+  @override
+  String get discardChangesConfirmationTitle => '放弃未保存的修改？';
+
+  @override
+  String get discardChangesConfirmationDescription => '当前有未保存的表单修改，确定要放弃吗？';
+
+  @override
+  String get discardChangesAction => '放弃修改';
+
+  @override
+  String get continueEditingAction => '继续编辑';
 }

@@ -34,7 +34,9 @@ class _MusicAppShellState extends ConsumerState<MusicAppShell> {
   void initState() {
     super.initState();
     _notificationClicks = AudioService.notificationClicked.listen((clicked) {
-      if (!clicked || !mounted || !ref.read(playerControllerProvider).hasTrack) {
+      if (!clicked ||
+          !mounted ||
+          !ref.read(playerControllerProvider).hasTrack) {
         return;
       }
       final router = ref.read(appRouterProvider);
@@ -133,7 +135,12 @@ class _WideAppShell extends StatelessWidget {
             child: Column(
               children: [
                 if (kIsWeb) const _WebApkDownloadBanner(),
-                Expanded(child: navigationShell),
+                Expanded(
+                  child: _NavShellTransition(
+                    currentIndex: navigationShell.currentIndex,
+                    child: navigationShell,
+                  ),
+                ),
                 const MiniPlayer(),
               ],
             ),
@@ -163,7 +170,12 @@ class _CompactAppShell extends StatelessWidget {
       body: Column(
         children: [
           if (kIsWeb) const _WebApkDownloadBanner(),
-          Expanded(child: navigationShell),
+          Expanded(
+            child: _NavShellTransition(
+              currentIndex: navigationShell.currentIndex,
+              child: navigationShell,
+            ),
+          ),
           const MiniPlayer(),
           Padding(
             padding: EdgeInsets.fromLTRB(
@@ -410,7 +422,7 @@ class _NavButton extends StatelessWidget {
       ),
       child: Material(
         color: Colors.transparent,
-        child: InkWell(
+        child: StudioPressable(
           borderRadius: BorderRadius.circular(buttonRadius),
           onTap: destination.onTap,
           child: Padding(
@@ -548,6 +560,90 @@ class _WebApkDownloadBanner extends StatelessWidget {
     showTopSnackBar(
       context,
       AppLocalizations.of(context)!.webApkBannerLaunchFailedMessage,
+    );
+  }
+}
+
+class _NavShellTransition extends StatefulWidget {
+  const _NavShellTransition({required this.currentIndex, required this.child});
+
+  final int currentIndex;
+  final Widget child;
+
+  @override
+  State<_NavShellTransition> createState() => _NavShellTransitionState();
+}
+
+class _NavShellTransitionState extends State<_NavShellTransition>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _fade;
+  late final Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+      value: 1.0,
+    );
+    _fade = CurvedAnimation(
+      parent: _controller,
+      curve: const Cubic(0.2, 0.0, 0.0, 1.0),
+    );
+    _slide = Tween<Offset>(begin: const Offset(0, 10), end: Offset.zero)
+        .animate(
+          CurvedAnimation(
+            parent: _controller,
+            curve: const Cubic(0.2, 0.0, 0.0, 1.0),
+          ),
+        );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.stop();
+      _controller.value = 1.0;
+    }
+  }
+
+  @override
+  void didUpdateWidget(_NavShellTransition oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.currentIndex != oldWidget.currentIndex) {
+      if (MediaQuery.disableAnimationsOf(context)) {
+        _controller.stop();
+        _controller.value = 1.0;
+      } else {
+        _controller.forward(from: 0.0);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Opacity(
+          opacity: disableAnimations ? 1.0 : _fade.value,
+          child: Transform.translate(
+            offset: disableAnimations ? Offset.zero : _slide.value,
+            child: child,
+          ),
+        );
+      },
+      child: widget.child,
     );
   }
 }

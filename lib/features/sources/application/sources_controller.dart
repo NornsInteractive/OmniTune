@@ -9,8 +9,12 @@ part 'sources_controller.g.dart';
 
 @riverpod
 class SourcesController extends _$SourcesController {
+  bool _disposed = false;
+
   @override
   Future<List<SourceProfile>> build() async {
+    _disposed = false;
+    ref.onDispose(() => _disposed = true);
     final repository = ref.watch(sourceProfileRepositoryProvider);
     final filtered = await _loadVisibleProfiles(repository);
 
@@ -22,7 +26,9 @@ class SourcesController extends _$SourcesController {
       return const [];
     }
 
-    final hasActiveSource = filtered.any((profile) => profile.id == activeSourceId);
+    final hasActiveSource = filtered.any(
+      (profile) => profile.id == activeSourceId,
+    );
     if (!hasActiveSource) {
       await repository.saveActiveSourceId(filtered.first.id);
     }
@@ -37,16 +43,24 @@ class SourcesController extends _$SourcesController {
       );
     }
 
+    final keepAlive = ref.keepAlive();
     final repository = ref.read(sourceProfileRepositoryProvider);
-    final persistedProfiles = await repository.loadProfiles();
-    final updatedPersistedProfiles =
-        [...persistedProfiles.where((item) => item.id != profile.id), profile]
-          ..sort(_compareProfilesByName);
-    final visibleProfiles = _filterVisibleProfiles(updatedPersistedProfiles);
+    try {
+      final persistedProfiles = await repository.loadProfiles();
+      final updatedPersistedProfiles = [
+        ...persistedProfiles.where((item) => item.id != profile.id),
+        profile,
+      ]..sort(_compareProfilesByName);
+      final visibleProfiles = _filterVisibleProfiles(updatedPersistedProfiles);
 
-    state = AsyncData(visibleProfiles);
-    await repository.saveProfiles(updatedPersistedProfiles);
-    return profile;
+      await repository.saveProfiles(updatedPersistedProfiles);
+      if (!_disposed) {
+        state = AsyncData(visibleProfiles);
+      }
+      return profile;
+    } finally {
+      keepAlive.close();
+    }
   }
 
   Future<void> deleteProfile(String sourceId) async {

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show SocketException;
 import 'dart:math' as math;
 
 import 'package:crypto/crypto.dart';
@@ -425,7 +426,8 @@ class DioOpenListCloud189RemoteClient implements Cloud189RemoteClient {
 
     final entry = await _entryForPath(path);
     final downloadUrl = await _downloadUrlForFile(entry.id);
-    final response = await _dio.get<ResponseBody>(
+    final response = await _getCloud189Download(
+      _dio,
       downloadUrl,
       options: Options(
         responseType: ResponseType.stream,
@@ -1084,7 +1086,8 @@ class DioCloud189RemoteClient implements Cloud189RemoteClient {
 
     final entry = await _entryForPath(path);
     final downloadUrl = await _downloadUrlForFile(entry.id);
-    final response = await _dio.get<ResponseBody>(
+    final response = await _getCloud189Download(
+      _dio,
       downloadUrl,
       options: Options(
         responseType: ResponseType.stream,
@@ -1861,6 +1864,25 @@ String? _downloadUrlFromXml(String text) {
     return XmlDocument.parse(text).rootElement.innerText.trim();
   } catch (_) {
     return null;
+  }
+}
+
+Future<Response<ResponseBody>> _getCloud189Download(
+  Dio dio,
+  String url, {
+  required Options options,
+}) async {
+  try {
+    return await dio.get<ResponseBody>(url, options: options);
+  } on DioException catch (error) {
+    final isConnectionFailure =
+        error.type == DioExceptionType.connectionError ||
+        (!kIsWeb &&
+            error.type == DioExceptionType.unknown &&
+            error.error is SocketException);
+    if (error.response != null || !isConnectionFailure) rethrow;
+    // Retry once before any body is returned; never replay a partial stream.
+    return dio.get<ResponseBody>(url, options: options);
   }
 }
 

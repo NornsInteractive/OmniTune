@@ -64,12 +64,13 @@ dart run build_runner build --delete-conflicting-outputs
 - 必须使用 **design-taste-frontend（taste skill）**；Flutter 页面将其视觉、动效和审计原则应用到 Material 原生组件，不能引入 React/CSS 或网页技术替代 Flutter。
 - 本项目全部 UI 工作复用同一个 agy 会话，会话名称固定为 **OmniTune**。会话 ID 记录在 `docs/PROJECT_PROGRESS.md`；使用 `agy --conversation <ID>` 明确恢复，禁止用 `--continue` 猜测最近会话。
 - 首次创建后使用 `/rename OmniTune` 命名。后续不得为单个页面新建会话；会话不可恢复时先报告原因。
-- agy 使用 **Gemini 3.8 Flash**（CLI 模型 `gemini-3.8-flash-high`）；启动时确认当前账号以 `mel` 开头。CLI 返回旧会话错误时，先重启本项目的 agy 进程并核对本轮日志、回复和实际代码变更，不能仅凭残留错误判定当前额度耗尽。
+- agy 使用 **Gemini 3.8 Flash**（CLI 模型 `gemini-3.8-flash-high`）；启动时核对当前登录账号，只记录账号前缀。用户明确更换账号后，后续请求重新加载当前认证，不恢复此前账号；本轮用户已从 `mel` 更换为 `wjh`。CLI 返回旧会话错误时，先重启本项目的 agy 进程并核对本轮日志、回复和实际代码变更，不能仅凭残留错误判定当前额度耗尽。
 - 明暗主题、i18n、用户主题配置、键鼠和 Android TV D-pad 必须保留；动画遵守系统减少动态效果设置，隐藏页面停止动画。
 - 交付 UI 时必须附上测试结果和实际验证范围；未做真机性能测量时不得声称所有平台卡顿已解决。
 
 ### 6. 测试与 OpenCode 免费模型（长期规则）
 - 所有测试代码、回归用例、测试脚本和性能测试的新增及修改，全部交给 **OpenCode 免费模型** 实现；Codex 负责定位、审查、运行与结果记录。
+- OpenCode 在隔离副本中实现测试，审查补丁后再回写项目；禁止对共享工作区执行 `git stash`、`restore`、`reset`、`checkout`、`clean` 或覆盖已有改动。
 - 调用前确认模型输入、输出费用均为 0，明确指定免费模型；免费模型不可用时记录具体原因，不得自动切换收费模型。
 - UI 产品代码仍由上述固定的 **OmniTune** agy 会话实现；UI 测试也遵守本条 OpenCode 分工。
 - 可以通过 ADB 安装并测试，记录设备、版本、播放场景和实际指标；未经明确授权不得卸载应用、清除数据或替换签名以绕过安装失败。

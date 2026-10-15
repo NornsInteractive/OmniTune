@@ -412,52 +412,55 @@ class _AlbumsContent extends ConsumerWidget {
                 context,
                 const EdgeInsets.fromLTRB(28, 0, 28, 144),
               ),
-              child: Column(
-                children: [
-                  if (viewMode == _AlbumViewMode.list)
-                    _AlbumList(
-                      albums: visibleAlbums,
-                      onOpenAlbum: (album) =>
-                          _openAlbumSheet(context, ref, album, l10n),
-                      onPlayAlbum: (album) {
-                        if (album.tracks.isEmpty) {
-                          return;
-                        }
-                        ref
-                            .read(playerControllerProvider.notifier)
-                            .playLibrarySong(
-                              album.tracks.first,
-                              playlist: album.tracks,
-                            );
-                      },
-                    )
-                  else
-                    _AlbumGrid(
-                      albums: visibleAlbums,
-                      maxWidth: width - 56,
-                      onOpenAlbum: (album) =>
-                          _openAlbumSheet(context, ref, album, l10n),
-                      onPlayAlbum: (album) {
-                        if (album.tracks.isEmpty) {
-                          return;
-                        }
-                        ref
-                            .read(playerControllerProvider.notifier)
-                            .playLibrarySong(
-                              album.tracks.first,
-                              playlist: album.tracks,
-                            );
-                      },
-                    ),
-                  if (totalPages > 1) ...[
-                    const SizedBox(height: 32),
-                    _PaginationRow(
-                      currentPage: currentPage,
-                      totalPages: totalPages,
-                      onPageChanged: onPageChanged,
-                    ),
+              child: StudioEntranceTransition(
+                key: ValueKey('$groupingMode-$viewMode-$currentPage'),
+                child: Column(
+                  children: [
+                    if (viewMode == _AlbumViewMode.list)
+                      _AlbumList(
+                        albums: visibleAlbums,
+                        onOpenAlbum: (album) =>
+                            _openAlbumSheet(context, ref, album, l10n),
+                        onPlayAlbum: (album) {
+                          if (album.tracks.isEmpty) {
+                            return;
+                          }
+                          ref
+                              .read(playerControllerProvider.notifier)
+                              .playLibrarySong(
+                                album.tracks.first,
+                                playlist: album.tracks,
+                              );
+                        },
+                      )
+                    else
+                      _AlbumGrid(
+                        albums: visibleAlbums,
+                        maxWidth: width - 56,
+                        onOpenAlbum: (album) =>
+                            _openAlbumSheet(context, ref, album, l10n),
+                        onPlayAlbum: (album) {
+                          if (album.tracks.isEmpty) {
+                            return;
+                          }
+                          ref
+                              .read(playerControllerProvider.notifier)
+                              .playLibrarySong(
+                                album.tracks.first,
+                                playlist: album.tracks,
+                              );
+                        },
+                      ),
+                    if (totalPages > 1) ...[
+                      const SizedBox(height: 32),
+                      _PaginationRow(
+                        currentPage: currentPage,
+                        totalPages: totalPages,
+                        onPageChanged: onPageChanged,
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -1007,7 +1010,7 @@ class _AlbumGridCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final cardRadius = studioRadiusOf(context, 24);
-    return InkWell(
+    return StudioPressable(
       borderRadius: BorderRadius.circular(cardRadius),
       onTap: onOpenAlbum,
       child: Column(
@@ -1043,7 +1046,7 @@ class _AlbumGridCard extends StatelessWidget {
                     child: Material(
                       color: colorScheme.primary.withValues(alpha: 0.96),
                       shape: const CircleBorder(),
-                      child: InkWell(
+                      child: StudioPressable(
                         customBorder: const CircleBorder(),
                         onTap: onPlayAlbum,
                         child: SizedBox(
@@ -1153,7 +1156,7 @@ class _PageIndexButton extends StatelessWidget {
           ? colorScheme.primary.withValues(alpha: 0.2)
           : Colors.transparent,
       borderRadius: BorderRadius.circular(pageRadius),
-      child: InkWell(
+      child: StudioPressable(
         borderRadius: BorderRadius.circular(pageRadius),
         onTap: onTap,
         child: Container(
@@ -1234,7 +1237,7 @@ class _AlbumListRow extends StatelessWidget {
     return Material(
       color: colorScheme.surfaceContainer.withValues(alpha: 0.6),
       borderRadius: BorderRadius.circular(cardRadius),
-      child: InkWell(
+      child: StudioPressable(
         borderRadius: BorderRadius.circular(cardRadius),
         onTap: onTap,
         child: Padding(
@@ -1289,7 +1292,7 @@ class _AlbumListRow extends StatelessWidget {
               Material(
                 color: colorScheme.primary.withValues(alpha: 0.12),
                 shape: const CircleBorder(),
-                child: InkWell(
+                child: StudioPressable(
                   customBorder: const CircleBorder(),
                   onTap: onPlay,
                   child: SizedBox(
@@ -1486,7 +1489,8 @@ class _AlbumTrackTile extends ConsumerWidget {
       color: colorScheme.surfaceContainer.withValues(alpha: 0.7),
       borderRadius: BorderRadius.circular(cardRadius),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
+      child: StudioPressable(
+        borderRadius: BorderRadius.circular(cardRadius),
         onTap: onTap,
         onLongPress: onMoreOptions,
         child: Container(

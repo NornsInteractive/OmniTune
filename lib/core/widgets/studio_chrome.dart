@@ -606,3 +606,152 @@ class _BackdropGlow extends StatelessWidget {
     );
   }
 }
+
+class StudioPressable extends StatefulWidget {
+  const StudioPressable({
+    super.key,
+    required this.child,
+    this.onTap,
+    this.onLongPress,
+    this.borderRadius,
+    this.customBorder,
+    this.pressedScale = 0.98,
+    this.duration = const Duration(milliseconds: 120),
+    this.curve = const Cubic(0.2, 0.0, 0.0, 1.0),
+    this.enabled = true,
+  });
+
+  final Widget child;
+  final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+  final BorderRadius? borderRadius;
+  final ShapeBorder? customBorder;
+  final double pressedScale;
+  final Duration duration;
+  final Curve curve;
+  final bool enabled;
+
+  @override
+  State<StudioPressable> createState() => _StudioPressableState();
+}
+
+class _StudioPressableState extends State<StudioPressable> {
+  bool _isPressed = false;
+
+  void _setPressed(bool value) {
+    if (_isPressed != value && mounted) {
+      setState(() => _isPressed = value);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    final scale = (_isPressed && widget.enabled) ? widget.pressedScale : 1.0;
+
+    return AnimatedScale(
+      scale: scale,
+      duration: disableAnimations ? Duration.zero : widget.duration,
+      curve: widget.curve,
+      child: InkWell(
+        onTap: widget.enabled ? widget.onTap : null,
+        onLongPress: widget.enabled ? widget.onLongPress : null,
+        borderRadius: widget.borderRadius,
+        customBorder: widget.customBorder,
+        onHighlightChanged: (highlighted) {
+          if (widget.enabled) {
+            _setPressed(highlighted);
+          } else if (_isPressed) {
+            _setPressed(false);
+          }
+        },
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+class StudioEntranceTransition extends StatefulWidget {
+  const StudioEntranceTransition({
+    super.key,
+    required this.child,
+    this.duration = const Duration(milliseconds: 200),
+    this.offset = const Offset(0, 10),
+    this.curve = const Cubic(0.2, 0.0, 0.0, 1.0),
+  });
+
+  final Widget child;
+  final Duration duration;
+  final Offset offset;
+  final Curve curve;
+
+  @override
+  State<StudioEntranceTransition> createState() =>
+      _StudioEntranceTransitionState();
+}
+
+class _StudioEntranceTransitionState extends State<StudioEntranceTransition>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _fadeAnimation;
+  late final Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: widget.duration);
+    _fadeAnimation = CurvedAnimation(parent: _controller, curve: widget.curve);
+    _slideAnimation = Tween<Offset>(
+      begin: widget.offset,
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: widget.curve));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.stop();
+      _controller.value = 1.0;
+    } else if (_controller.value == 0.0 && !_controller.isAnimating) {
+      _controller.forward();
+    }
+  }
+
+  @override
+  void didUpdateWidget(StudioEntranceTransition oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.stop();
+      _controller.value = 1.0;
+      return;
+    }
+    if (widget.child.key != oldWidget.child.key) {
+      _controller.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Opacity(
+          opacity: disableAnimations ? 1.0 : _fadeAnimation.value,
+          child: Transform.translate(
+            offset: disableAnimations ? Offset.zero : _slideAnimation.value,
+            child: child,
+          ),
+        );
+      },
+      child: widget.child,
+    );
+  }
+}

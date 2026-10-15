@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -42,6 +43,8 @@ class _FakePlayerController extends PlayerController {
   PlayerViewState _initialState;
   int playPauseCallCount = 0;
   int playCallCount = 0;
+  int seekAndPlayCallCount = 0;
+  Duration? lastSeekPosition;
 
   @override
   PlayerViewState build() => _initialState;
@@ -54,6 +57,12 @@ class _FakePlayerController extends PlayerController {
   @override
   Future<void> play() async {
     playCallCount++;
+  }
+
+  @override
+  Future<void> seekAndPlay(Duration position) async {
+    seekAndPlayCallCount++;
+    lastSeekPosition = position;
   }
 
   void emitState(PlayerViewState newState) {
@@ -508,7 +517,10 @@ void main() {
         expect(nowPlayingRoute?.reverseTransitionDuration, Duration.zero);
 
         // Switch to lyrics view and advance position - scrolling with disableAnimations must not throw
-        await tester.tap(find.byType(AspectRatio).first, warnIfMissed: false);
+        await tester.tap(
+          find.byKey(const Key('player-artwork-region')),
+          warnIfMissed: false,
+        );
         await tester.pump();
 
         fakeController.emitState(
@@ -643,12 +655,19 @@ void main() {
         await tester.tap(addSourceIconFinder);
         await tester.pumpAndSettle();
 
-        // 189 Cloud option is visible
-        final cloud189OptionFinder = find.text(l10n.cloud189Protocol);
+        // 189 Cloud option is visible inside the add-source dialog chooser
+        final dialogFinder = find.byKey(const Key('add-source-dialog'));
+        expect(dialogFinder, findsOneWidget);
+        final cloud189OptionFinder = find.descendant(
+          of: dialogFinder,
+          matching: find.text(l10n.cloud189SourceTypeTitle),
+        );
         await tester.scrollUntilVisible(
           cloud189OptionFinder,
           100,
-          scrollable: find.byType(Scrollable).last,
+          scrollable: find
+              .descendant(of: dialogFinder, matching: find.byType(Scrollable))
+              .first,
         );
         await tester.pumpAndSettle();
         expect(cloud189OptionFinder, findsOneWidget);
@@ -693,9 +712,25 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text(l10n.cloud189OpenListUsernameLabel), findsOneWidget);
 
-        // Path B: From Settings Page
-        final context = tester.element(find.byType(AddSourcePage));
-        GoRouter.of(context).go('/settings');
+        // Path B: From Settings Page. Capture the router from a live context,
+        // close any still-open root dialog via its X, then navigate.
+        final router = GoRouter.of(tester.element(find.byType(AddSourcePage)));
+        final openDialog = find.byKey(const Key('add-source-dialog'));
+        if (openDialog.evaluate().isNotEmpty) {
+          final dialogClose = find.descendant(
+            of: openDialog,
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is Icon &&
+                  (widget.icon == Icons.close_rounded ||
+                      widget.icon == Icons.close),
+            ),
+          );
+          expect(dialogClose, findsOneWidget);
+          await tester.tap(dialogClose.first);
+          await tester.pumpAndSettle();
+        }
+        router.go('/settings');
         await tester.pumpAndSettle();
 
         expect(find.byType(SettingsPage), findsOneWidget);
@@ -719,8 +754,21 @@ void main() {
         await tester.tap(addSourceBtn.first);
         await tester.pumpAndSettle();
 
-        // Cloud 189 option present from settings picker too
-        final cloud189FromSettings = find.text(l10n.cloud189Protocol);
+        // Cloud 189 option present from settings picker too (dialog chooser)
+        final settingsDialog = find.byKey(const Key('add-source-dialog'));
+        expect(settingsDialog, findsOneWidget);
+        final cloud189FromSettings = find.descendant(
+          of: settingsDialog,
+          matching: find.text(l10n.cloud189SourceTypeTitle),
+        );
+        await tester.scrollUntilVisible(
+          cloud189FromSettings,
+          100,
+          scrollable: find
+              .descendant(of: settingsDialog, matching: find.byType(Scrollable))
+              .first,
+        );
+        await tester.pumpAndSettle();
         expect(cloud189FromSettings, findsOneWidget);
 
         // Tap 189 Cloud to navigate to AddSourcePage from settings
@@ -1001,38 +1049,31 @@ void main() {
         await tester.pumpAndSettle();
 
         // Switch to lyrics mode
-        await tester.tap(find.byType(AspectRatio).first, warnIfMissed: false);
+        await tester.tap(
+          find.byKey(const Key('player-artwork-region')),
+          warnIfMissed: false,
+        );
         await tester.pumpAndSettle();
 
         // At position 0s: line 1 ('First line intro') is active (fontSize 23, w800)
         final line1Finder = find.text('First line intro');
         expect(line1Finder, findsOneWidget);
-        final line1TextStyle = tester.widget<AnimatedDefaultTextStyle>(
-          find
-              .ancestor(
-                of: line1Finder,
-                matching: find.byType(AnimatedDefaultTextStyle),
-              )
-              .first,
+        final line1Paragraph = tester.renderObject<RenderParagraph>(
+          line1Finder,
         );
-        expect(line1TextStyle.style.fontSize, 23.0);
-        expect(line1TextStyle.style.fontWeight, FontWeight.w800);
+        expect(line1Paragraph.text.style!.fontSize, 23.0);
+        expect(line1Paragraph.text.style!.fontWeight, FontWeight.w800);
 
         // Line 2 ('Second line chorus') is inactive (fontSize 17, w500)
         final line2Finder = find.text('Second line chorus');
         expect(line2Finder, findsOneWidget);
-        final line2TextStyleBefore = tester.widget<AnimatedDefaultTextStyle>(
-          find
-              .ancestor(
-                of: line2Finder,
-                matching: find.byType(AnimatedDefaultTextStyle),
-              )
-              .first,
+        final line2Paragraph = tester.renderObject<RenderParagraph>(
+          line2Finder,
         );
-        expect(line2TextStyleBefore.style.fontSize, 17.0);
-        expect(line2TextStyleBefore.style.fontWeight, FontWeight.w500);
+        expect(line2Paragraph.text.style!.fontSize, 17.0);
+        expect(line2Paragraph.text.style!.fontWeight, FontWeight.w500);
 
-        // Advance position to 15s
+        // Advance position to 15s - triggers activeIndex change
         fakeController.emitState(
           _createSampleState(
             track: sampleTrack,
@@ -1041,31 +1082,32 @@ void main() {
             duration: const Duration(minutes: 3),
           ),
         );
+
+        // At 40ms: line2 fontSize already 23 (target), paragraph.size stable, color animating
+        await tester.pump(const Duration(milliseconds: 40));
+        final line2At40 = tester.renderObject<RenderParagraph>(line2Finder);
+        expect(line2At40.text.style!.fontSize, 23.0);
+        expect(line2At40.text.style!.fontWeight, FontWeight.w800);
+        final sizeAt40 = line2At40.size;
+
+        // At 120ms: paragraph.size still stable, fontSize 23, color animating
+        await tester.pump(const Duration(milliseconds: 80));
+        final line2At120 = tester.renderObject<RenderParagraph>(line2Finder);
+        expect(line2At120.text.style!.fontSize, 23.0);
+        expect(line2At120.text.style!.fontWeight, FontWeight.w800);
+        expect(line2At120.size, sizeAt40);
+
         await tester.pumpAndSettle();
 
         // Line 2 now becomes active (fontSize 23, w800)
-        final line2TextStyleAfter = tester.widget<AnimatedDefaultTextStyle>(
-          find
-              .ancestor(
-                of: line2Finder,
-                matching: find.byType(AnimatedDefaultTextStyle),
-              )
-              .first,
-        );
-        expect(line2TextStyleAfter.style.fontSize, 23.0);
-        expect(line2TextStyleAfter.style.fontWeight, FontWeight.w800);
+        final line2After = tester.renderObject<RenderParagraph>(line2Finder);
+        expect(line2After.text.style!.fontSize, 23.0);
+        expect(line2After.text.style!.fontWeight, FontWeight.w800);
 
         // Line 1 reverts to inactive (fontSize 17, w500)
-        final line1TextStyleAfter = tester.widget<AnimatedDefaultTextStyle>(
-          find
-              .ancestor(
-                of: line1Finder,
-                matching: find.byType(AnimatedDefaultTextStyle),
-              )
-              .first,
-        );
-        expect(line1TextStyleAfter.style.fontSize, 17.0);
-        expect(line1TextStyleAfter.style.fontWeight, FontWeight.w500);
+        final line1After = tester.renderObject<RenderParagraph>(line1Finder);
+        expect(line1After.text.style!.fontSize, 17.0);
+        expect(line1After.text.style!.fontWeight, FontWeight.w500);
       },
     );
 
@@ -1497,6 +1539,20 @@ void main() {
         await tester.tap(find.byIcon(Icons.expand_less_rounded));
         await tester.pump();
         expect(find.byType(NowPlayingPanel), findsOneWidget);
+
+        // reduceAnimations mode switch completes within the next pump:
+        // no lingering animation ticks after toggling cover -> lyrics.
+        await tester.tap(
+          find.byKey(const Key('player-artwork-region')),
+          warnIfMissed: false,
+        );
+        await tester.pump();
+        expect(find.byKey(const Key('player-lyrics-region')), findsOneWidget);
+        expect(
+          tester.binding.transientCallbackCount,
+          0,
+          reason: 'reduced-motion mode switch must finish with no ticks',
+        );
       },
     );
 
@@ -1534,11 +1590,26 @@ void main() {
         await tester.tap(find.byIcon(Icons.expand_less_rounded));
         await tester.pump();
         expect(find.byType(NowPlayingPanel), findsOneWidget);
+
+        // Wide layout: art and lyrics are side-by-side, no overlap.
+        final wideArt = find.byKey(const Key('player-artwork-region'));
+        final wideLyrics = find.byKey(const Key('player-lyrics-region'));
+        expect(wideArt, findsOneWidget);
+        expect(wideLyrics, findsOneWidget);
+        final wideArtRect = tester.getRect(wideArt);
+        final wideLyricsRect = tester.getRect(wideLyrics);
+        expect(
+          wideArtRect.right,
+          lessThanOrEqualTo(wideLyricsRect.left + 0.001),
+          reason:
+              'wide art must sit left of lyrics without overlap '
+              '(art.right=${wideArtRect.right} lyrics.left=${wideLyricsRect.left})',
+        );
       },
     );
 
     testWidgets(
-      '12. NowPlayingPage SafeArea card bottom padding 8dp on regular and narrow screens',
+      '12. NowPlayingPage has no outer card; player-controls Key geometry and safe-area proximity',
       (tester) async {
         addTearDown(() => tester.view.reset());
         tester.view.padding = const FakeViewPadding(bottom: 24);
@@ -1600,26 +1671,28 @@ void main() {
           );
           expect(panel, isA<NowPlayingPanel>());
 
-          final cardFinder = find
-              .descendant(
-                of: find.byType(NowPlayingPanel),
-                matching: find.byType(ConstrainedBox),
-              )
-              .first;
-          final constrainedBox = tester.widget<ConstrainedBox>(cardFinder);
-          final cardWidget = constrainedBox.child as Material;
-          final container = cardWidget.child as Container;
-          expect(
-            container.padding?.resolve(TextDirection.ltr).bottom ?? 0.0,
-            equals(16.0),
-          );
+          final controlsFinder = find.byKey(const Key('player-controls'));
+          expect(controlsFinder, findsOneWidget);
+          final controlsRect = tester.getRect(controlsFinder);
 
-          final cardBottom = tester.getBottomRight(cardFinder).dy;
+          final controlsBottom = controlsRect.bottom;
           final viewBottom =
               tester.view.physicalSize.height / tester.view.devicePixelRatio;
           final safeBottomInset =
               tester.view.padding.bottom / tester.view.devicePixelRatio;
-          expect(viewBottom - safeBottomInset - cardBottom, equals(8.0));
+          final controlsGap = viewBottom - safeBottomInset - controlsBottom;
+          expect(
+            controlsGap,
+            inInclusiveRange(7.0, 9.0),
+            reason:
+                'controls safe-bottom gap should be 8dp +/-1 for viewport '
+                '$size (actual $controlsGap)',
+          );
+          expect(
+            controlsGap,
+            greaterThanOrEqualTo(0.0),
+            reason: 'controls must not sit offscreen for viewport $size',
+          );
 
           final playButton = find
               .byWidgetPredicate(
@@ -1638,6 +1711,423 @@ void main() {
         }
       },
     );
+
+    testWidgets('player390 geometry and lyric mode behavior', (tester) async {
+      addTearDown(() => tester.view.reset());
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+
+      final sampleTrack = _createSampleTrack();
+      final sampleLines = [
+        for (var i = 0; i < 12; i++)
+          LyricLine(
+            time: Duration(seconds: i * 10),
+            text: 'Scrub line $i',
+          ),
+      ];
+      final fakeController = _FakePlayerController(
+        _createSampleState(
+          track: sampleTrack,
+          lyrics: sampleLines,
+          isPlaying: true,
+        ),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sourceProfileRepositoryProvider.overrideWithValue(
+              _FakeSourceProfileRepository(),
+            ),
+            libraryPreferencesRepositoryProvider.overrideWithValue(
+              _FakeLibraryPreferencesRepository(),
+            ),
+            playerControllerProvider.overrideWith(() => fakeController),
+            folderArtworkProvider.overrideWith((ref, request) async => null),
+          ],
+          child: MediaQuery(
+            data: MediaQueryData.fromView(
+              tester.view,
+            ).copyWith(textScaler: TextScaler.noScaling),
+            child: const MusicApp(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.expand_less_rounded));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(NowPlayingPanel), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      final artFinder = find.byKey(const Key('player-artwork-region'));
+      expect(artFinder, findsOneWidget);
+      final artRect = tester.getRect(artFinder);
+      expect(
+        artRect.width,
+        greaterThanOrEqualTo(320.0),
+        reason:
+            '390x844 artwork width should be >=320 (actual ${artRect.width})',
+      );
+      expect(
+        artRect.height,
+        moreOrLessEquals(artRect.width, epsilon: 1.0),
+        reason:
+            '390x844 artwork should be square '
+            '(${artRect.width}x${artRect.height})',
+      );
+
+      await tester.tap(artFinder);
+      await tester.pumpAndSettle();
+
+      final lyricsFinder = find.byKey(const Key('player-lyrics-region'));
+      expect(lyricsFinder, findsOneWidget);
+      expect(find.byKey(const Key('player-artwork-region')), findsNothing);
+      final lyricsRect = tester.getRect(lyricsFinder);
+      expect(
+        lyricsRect.height,
+        greaterThanOrEqualTo(400.0),
+        reason:
+            'lyrics region height should be >=400 on 390x844 '
+            '(actual ${lyricsRect.height})',
+      );
+
+      // Plain lyric line rows are display-only: tapping one must not seek.
+      final callsBefore = fakeController.seekAndPlayCallCount;
+      await tester.tap(find.text('Scrub line 1'), warnIfMissed: false);
+      await tester.pumpAndSettle();
+      expect(
+        fakeController.seekAndPlayCallCount,
+        callsBefore,
+        reason: 'plain lyric line tap must not record a seek side effect',
+      );
+      expect(lyricsFinder, findsOneWidget);
+      expect(find.byKey(const Key('player-artwork-region')), findsNothing);
+
+      // Scrubber flow: drag lyrics -> centered-line timestamp + play button
+      // -> seekAndPlay with that line's time, mode stays lyrics.
+      await tester.drag(lyricsFinder, const Offset(0, -240));
+      await tester.pumpAndSettle();
+
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(NowPlayingPanel)),
+      )!;
+      final scrubPlayFinder = find.descendant(
+        of: lyricsFinder,
+        matching: find.byIcon(Icons.play_arrow_rounded),
+      );
+      expect(scrubPlayFinder, findsOneWidget);
+      final scrubPlayButtonFinder = find.ancestor(
+        of: scrubPlayFinder,
+        matching: find.byType(IconButton),
+      );
+      final scrubPlayButton = tester.widget<IconButton>(scrubPlayButtonFinder);
+      expect(scrubPlayButton.tooltip, l10n.playAction);
+      expect(
+        scrubPlayButtonFinder.hitTestable(),
+        findsOneWidget,
+        reason: 'scrubber play button must be hittable after drag',
+      );
+
+      final timestampFinder = find.descendant(
+        of: lyricsFinder,
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is Text &&
+              RegExp(r'^\d{2}:\d{2}$').hasMatch(widget.data ?? ''),
+        ),
+      );
+      expect(timestampFinder, findsOneWidget);
+      final timestampText = tester.widget<Text>(timestampFinder).data!.trim();
+      final parts = timestampText.split(':');
+      final expectedSeek = Duration(
+        minutes: int.parse(parts[0]),
+        seconds: int.parse(parts[1]),
+      );
+
+      await tester.tap(scrubPlayFinder);
+      await tester.pumpAndSettle();
+      expect(
+        fakeController.seekAndPlayCallCount,
+        callsBefore + 1,
+        reason:
+            'scrubber play must record seekAndPlay (timestamp $timestampText)',
+      );
+      expect(fakeController.lastSeekPosition, expectedSeek);
+      expect(lyricsFinder, findsOneWidget);
+      expect(find.byKey(const Key('player-artwork-region')), findsNothing);
+
+      await tester.tap(find.byIcon(Icons.album_rounded));
+      await tester.pumpAndSettle();
+      expect(artFinder, findsOneWidget);
+      expect(find.byKey(const Key('player-lyrics-region')), findsNothing);
+      expect(tester.takeException(), isNull);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    });
+
+    for (final (scale, reduce) in [(1.0, false), (2.0, true)]) {
+      testWidgets(
+        'long paused lyrics initially follow active line without user scroll (scale:$scale, reduce:$reduce)',
+        (tester) async {
+          tester.platformDispatcher.textScaleFactorTestValue = scale;
+          tester.platformDispatcher.accessibilityFeaturesTestValue =
+              FakeAccessibilityFeatures(disableAnimations: reduce);
+          addTearDown(() {
+            tester.platformDispatcher.clearTextScaleFactorTestValue();
+            tester.platformDispatcher.clearAccessibilityFeaturesTestValue();
+          });
+          addTearDown(() => tester.view.reset());
+          tester.view.physicalSize = const Size(390, 844);
+          tester.view.devicePixelRatio = 1.0;
+          tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+
+          final sampleTrack = _createSampleTrack();
+          final sampleLines = <LyricLine>[];
+          for (var i = 0; i < 120; i++) {
+            sampleLines.add(
+              LyricLine(
+                time: Duration(seconds: i * 10),
+                text: 'Lyric line $i',
+              ),
+            );
+          }
+          final fakeController = _FakePlayerController(
+            _createSampleState(
+              track: sampleTrack,
+              lyrics: sampleLines,
+              position: Duration(seconds: 800),
+              duration: Duration(minutes: 20),
+              isPlaying: false,
+            ),
+          );
+
+          try {
+            await tester.pumpWidget(
+              ProviderScope(
+                overrides: [
+                  sourceProfileRepositoryProvider.overrideWithValue(
+                    _FakeSourceProfileRepository(),
+                  ),
+                  libraryPreferencesRepositoryProvider.overrideWithValue(
+                    _FakeLibraryPreferencesRepository(
+                      LibraryPreferences(fontScaleFactor: scale),
+                    ),
+                  ),
+                  playerControllerProvider.overrideWith(() => fakeController),
+                  folderArtworkProvider.overrideWith(
+                    (ref, request) async => null,
+                  ),
+                ],
+                child: MediaQuery(
+                  data: MediaQueryData(
+                    textScaler: TextScaler.linear(scale),
+                    disableAnimations: reduce,
+                  ),
+                  child: const MusicApp(),
+                ),
+              ),
+            );
+            await tester.pumpAndSettle();
+            await tester.tap(find.byIcon(Icons.expand_less_rounded));
+            await tester.pumpAndSettle();
+
+            expect(find.byType(NowPlayingPanel), findsOneWidget);
+            expect(tester.takeException(), isNull);
+
+            final panelContext = tester.element(find.byType(NowPlayingPanel));
+            expect(
+              MediaQuery.textScalerOf(panelContext).scale(1.0),
+              moreOrLessEquals(scale, epsilon: 0.01),
+            );
+            expect(
+              MediaQuery.of(panelContext).disableAnimations,
+              equals(reduce),
+            );
+
+            final artFinder = find.byKey(const Key('player-artwork-region'));
+            expect(artFinder, findsOneWidget);
+            await tester.tap(artFinder);
+
+            await tester.pump(const Duration(milliseconds: 100));
+            await tester.pump(const Duration(milliseconds: 100));
+            await tester.pump(const Duration(milliseconds: 100));
+            await tester.pump(const Duration(milliseconds: 100));
+            await tester.pump(const Duration(milliseconds: 100));
+
+            final lyricsFinder = find.byKey(const Key('player-lyrics-region'));
+            expect(lyricsFinder, findsOneWidget);
+            expect(
+              find.byKey(const Key('player-artwork-region')),
+              findsNothing,
+            );
+            final lyricsRect = tester.getRect(lyricsFinder);
+
+            final line80Finder = find.text('Lyric line 80');
+            expect(line80Finder, findsOneWidget);
+
+            final l10n = AppLocalizations.of(
+              tester.element(find.byType(NowPlayingPanel)),
+            )!;
+
+            expect(lyricsRect.contains(tester.getCenter(line80Finder)), isTrue);
+
+            final scrubFinder = find.descendant(
+              of: lyricsFinder,
+              matching: find.byIcon(Icons.play_arrow_rounded),
+            );
+            expect(
+              scrubFinder,
+              findsOneWidget,
+              reason: 'scrubber play icon must exist in lyrics region tree',
+            );
+
+            final aoFinder = find.ancestor(
+              of: scrubFinder,
+              matching: find.byType(AnimatedOpacity),
+            );
+            expect(
+              aoFinder,
+              findsOneWidget,
+              reason: 'scrubber must be wrapped in AnimatedOpacity',
+            );
+            final aoWidget = tester.widget<AnimatedOpacity>(aoFinder.first);
+            expect(
+              aoWidget.opacity,
+              0.0,
+              reason:
+                  'scrubber AnimatedOpacity target opacity should be 0.0 before user drag',
+            );
+            expect(
+              scrubFinder.hitTestable(),
+              findsNothing,
+              reason:
+                  'no hit-testable scrubber play button after initial lyrics tap',
+            );
+
+            expect(
+              find.text(l10n.resumeLyricsFollow),
+              findsNothing,
+              reason: 'no resume-lyrics-follow control initially',
+            );
+
+            if (!reduce) {
+              fakeController.emitState(
+                _createSampleState(
+                  track: sampleTrack,
+                  lyrics: sampleLines,
+                  position: Duration(seconds: 1000),
+                  duration: Duration(minutes: 20),
+                  isPlaying: false,
+                ),
+              );
+              await tester.pump();
+              fakeController.emitState(
+                _createSampleState(
+                  track: sampleTrack,
+                  lyrics: sampleLines,
+                  position: Duration(seconds: 800),
+                  duration: Duration(minutes: 20),
+                  isPlaying: false,
+                ),
+              );
+              await tester.pump(const Duration(milliseconds: 100));
+              await tester.pump(const Duration(milliseconds: 100));
+              await tester.pump(const Duration(milliseconds: 100));
+              await tester.pump(const Duration(milliseconds: 100));
+              await tester.pump(const Duration(milliseconds: 100));
+
+              expect(
+                lyricsRect.contains(tester.getCenter(line80Finder)),
+                isTrue,
+                reason: 'line 80 must re-center after the 1000s position blip',
+              );
+              expect(
+                find.text(l10n.resumeLyricsFollow),
+                findsNothing,
+                reason: 'no resume-lyrics-follow control after 1000s blip',
+              );
+              expect(
+                tester.widget<AnimatedOpacity>(aoFinder.first).opacity,
+                0.0,
+                reason:
+                    'scrubber AnimatedOpacity must return to 0.0 after blip',
+              );
+
+              fakeController.emitState(
+                _createSampleState(
+                  track: sampleTrack,
+                  lyrics: sampleLines,
+                  position: Duration(seconds: 900),
+                  duration: Duration(minutes: 20),
+                  isPlaying: false,
+                ),
+              );
+              await tester.pump();
+              await tester.pump(const Duration(milliseconds: 80));
+
+              await tester.dragFrom(lyricsRect.center, const Offset(0, -120));
+
+              await tester.pump(const Duration(milliseconds: 200));
+              expect(
+                find.text(l10n.resumeLyricsFollow),
+                findsOneWidget,
+                reason: 'user drag must reveal resume-lyrics-follow control',
+              );
+              expect(
+                scrubFinder.hitTestable(),
+                findsOneWidget,
+                reason: 'scrubber must be hit-testable during user drag',
+              );
+              expect(
+                fakeController.seekAndPlayCallCount,
+                0,
+                reason: 'dragging lyrics must not seek playback',
+              );
+
+              await tester.pump(const Duration(milliseconds: 2500));
+              expect(
+                find.text(l10n.resumeLyricsFollow),
+                findsOneWidget,
+                reason: 'resume-lyrics-follow control must stay under 3s',
+              );
+
+              await tester.pump(const Duration(milliseconds: 300));
+              await tester.pump(const Duration(milliseconds: 320));
+              await tester.pump(const Duration(milliseconds: 80));
+
+              expect(
+                find.text(l10n.resumeLyricsFollow),
+                findsNothing,
+                reason:
+                    'resume-lyrics-follow control must hide after 3s resume',
+              );
+              expect(
+                tester.widget<AnimatedOpacity>(aoFinder.first).opacity,
+                0.0,
+                reason:
+                    'scrubber AnimatedOpacity must return to 0.0 after resume',
+              );
+              expect(
+                lyricsRect.contains(
+                  tester.getCenter(find.text(sampleLines[90].text)),
+                ),
+                isTrue,
+                reason: 'line 90 must re-center after 3s auto resume',
+              );
+              expect(tester.takeException(), isNull);
+            }
+          } finally {
+            await tester.pumpWidget(const SizedBox.shrink());
+            await tester.pump();
+            await tester.pump();
+          }
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
 
     testWidgets(
       '13. NowPlayingPage text scaler 1.3 and 2.0 no overflow play button visible and hittable',
@@ -1817,12 +2307,7 @@ void main() {
         expect(coverWidget.title, isNotEmpty);
         expect(coverWidget.subtitle, isNotEmpty);
 
-        final artworkStage = find
-            .byWidgetPredicate(
-              (widget) =>
-                  widget.runtimeType.toString().contains('ArtworkStage'),
-            )
-            .first;
+        final artworkStage = find.byKey(const Key('player-artwork-region'));
         await tester.tap(artworkStage);
         await tester.pump();
 
@@ -1972,10 +2457,21 @@ void main() {
               final thumbnailWidget = tester.widget<TrackCoverThumbnail>(
                 thumbnailFinder,
               );
-              expect(thumbnailWidget.size, greaterThanOrEqualTo(48.0));
+              expect(
+                thumbnailWidget.size,
+                greaterThanOrEqualTo(48.0),
+                reason: 'thumbnail size for viewport $size section $section',
+              );
 
               final cardRect = tester.getRect(cardFinder);
-              expect(cardRect.height, greaterThanOrEqualTo(72.0 - 1e-6));
+              expect(
+                cardRect.height,
+                inInclusiveRange(63.0, 65.0),
+                reason:
+                    'default-font song card must be a compact 64dp +/-1 row '
+                    '(actual ${cardRect.height}) for viewport $size section '
+                    '$section',
+              );
               expect(
                 tester.getRect(thumbnailFinder).left - cardRect.left,
                 equals(12.0),

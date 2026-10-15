@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:music/core/i18n/localizations.dart';
@@ -16,99 +18,198 @@ import '../../library/application/library_catalog_controller.dart';
 import '../../sources/data/cloud189/cloud189_api_client.dart';
 import '../../sources/application/sources_controller.dart';
 import '../application/add_source_controller.dart';
+import '../application/app_settings_controller.dart';
+
+final Set<NavigatorState> _activePickers = <NavigatorState>{};
 
 Future<void> showSourceTypePicker(BuildContext context) async {
-  final l10n = AppLocalizations.of(context)!;
-  final router = GoRouter.of(context);
-  final protocols = _availableSourceProtocols();
-  final scheme = Theme.of(context).colorScheme;
-  final isDark = Theme.of(context).brightness == Brightness.dark;
+  final navigator = Navigator.of(context, rootNavigator: true);
+  if (_activePickers.contains(navigator)) {
+    return;
+  }
+  _activePickers.add(navigator);
+  try {
+    await showDialog<void>(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: false,
+      builder: (dialogContext) => ProviderScope(
+        overrides: [
+          addSourceControllerProvider.overrideWith(AddSourceController.new),
+        ],
+        child: const _AddSourceDialog(),
+      ),
+    );
+  } finally {
+    _activePickers.remove(navigator);
+  }
+}
 
-  await showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (sheetContext) {
-      return SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: Material(
-            color: scheme.surfaceContainerHigh.withValues(
-              alpha: isDark ? 0.94 : 0.98,
-            ),
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(28),
-              side: BorderSide(
-                color: scheme.outlineVariant.withValues(
-                  alpha: isDark ? 0.42 : 0.62,
-                ),
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.84,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.settingsAddSourceTitle,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: scheme.primary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      l10n.sourceTypeSelectionTitle,
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      l10n.sourceTypeSelectionDescription,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Expanded(
-                      child: GridView.builder(
-                        itemCount: protocols.length,
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              mainAxisSpacing: 12,
-                              crossAxisSpacing: 12,
-                              childAspectRatio: 1.25,
-                            ),
-                        itemBuilder: (context, index) {
-                          final protocol = protocols[index];
-                          return _SourceTypeGridCard(
-                            protocol: protocol,
-                            onTap: () {
-                              Navigator.of(sheetContext).pop();
-                              router.push(
-                                '/settings/add-source/${protocol.storageValue}',
-                              );
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
+class _AddSourceDialog extends StatefulWidget {
+  const _AddSourceDialog();
+
+  @override
+  State<_AddSourceDialog> createState() => _AddSourceDialogState();
+}
+
+class _AddSourceDialogState extends State<_AddSourceDialog> {
+  SourceProtocol? _selectedProtocol;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final protocols = _availableSourceProtocols();
+    final mediaQuery = MediaQuery.of(context);
+    final availableHeight =
+        mediaQuery.size.height -
+        mediaQuery.padding.vertical -
+        mediaQuery.viewInsets.bottom;
+    final maxDialogHeight = availableHeight * 0.85;
+
+    return Dialog(
+      key: const Key('add-source-dialog'),
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: AnimatedContainer(
+        duration: mediaQuery.disableAnimations
+            ? Duration.zero
+            : const Duration(milliseconds: 180),
+        constraints: BoxConstraints(maxWidth: 640, maxHeight: maxDialogHeight),
+        child: Material(
+          color: colorScheme.surfaceContainerHigh.withValues(
+            alpha: isDark ? 0.94 : 0.98,
+          ),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28),
+            side: BorderSide(
+              color: colorScheme.outlineVariant.withValues(
+                alpha: isDark ? 0.42 : 0.62,
               ),
             ),
           ),
+          clipBehavior: Clip.antiAlias,
+          child: AnimatedSwitcher(
+            duration: mediaQuery.disableAnimations
+                ? Duration.zero
+                : const Duration(milliseconds: 200),
+            switchInCurve: const Cubic(0.2, 0.0, 0.0, 1.0),
+            switchOutCurve: const Cubic(0.2, 0.0, 0.0, 1.0),
+            transitionBuilder: (child, animation) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            child: _selectedProtocol == null
+                ? PopScope(
+                    key: const ValueKey('step-protocol-chooser'),
+                    canPop: true,
+                    child: Shortcuts(
+                      shortcuts: <ShortcutActivator, Intent>{
+                        LogicalKeySet(LogicalKeyboardKey.escape):
+                            const DismissIntent(),
+                      },
+                      child: Actions(
+                        actions: <Type, Action<Intent>>{
+                          DismissIntent: CallbackAction<DismissIntent>(
+                            onInvoke: (_) => Navigator.of(context).pop(),
+                          ),
+                        },
+                        child: _buildProtocolSelectionStep(
+                          context,
+                          l10n,
+                          colorScheme,
+                          protocols,
+                        ),
+                      ),
+                    ),
+                  )
+                : AddSourcePage(
+                    key: const Key('source-config-step'),
+                    initialProtocol: _selectedProtocol!,
+                    embedded: true,
+                    onBack: () => setState(() => _selectedProtocol = null),
+                    onClose: () => Navigator.of(context).pop(),
+                  ),
+          ),
         ),
-      );
-    },
-  );
+      ),
+    );
+  }
+
+  Widget _buildProtocolSelectionStep(
+    BuildContext context,
+    AppLocalizations l10n,
+    ColorScheme colorScheme,
+    List<SourceProtocol> protocols,
+  ) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 12, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  l10n.settingsAddSourceTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: colorScheme.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              IconButton(
+                key: const Key('add-source-close'),
+                tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                icon: const Icon(Icons.close_rounded),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Container(
+            key: const Key('source-type-step'),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              children: [
+                Text(
+                  l10n.sourceTypeSelectionTitle,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  l10n.sourceTypeSelectionDescription,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                for (final protocol in protocols) ...[
+                  _SourceTypeCard(
+                    protocol: protocol,
+                    onTap: () {
+                      setState(() {
+                        _selectedProtocol = protocol;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class SourceTypeSelectionPage extends StatelessWidget {
@@ -184,13 +285,90 @@ class AddSourcePage extends ConsumerStatefulWidget {
     super.key,
     this.sourceId,
     this.initialProtocol = SourceProtocol.webdav,
+    this.embedded = false,
+    this.onBack,
+    this.onClose,
   });
 
   final String? sourceId;
   final SourceProtocol initialProtocol;
+  final bool embedded;
+  final VoidCallback? onBack;
+  final VoidCallback? onClose;
 
   @override
   ConsumerState<AddSourcePage> createState() => _AddSourcePageState();
+}
+
+@immutable
+class _AddSourceFormSnapshot {
+  const _AddSourceFormSnapshot({
+    required this.name,
+    required this.baseUrl,
+    required this.username,
+    required this.password,
+    required this.rootPath,
+    required this.protocol,
+    required this.cloud189AuthMode,
+    required this.cloud189TVLoginMode,
+    required this.cloud189DeviceId,
+    required this.cloud189AppKey,
+    required this.cloud189AppSecret,
+    required this.cloud189RedirectUri,
+    required this.cloud189AuthorizationCode,
+    required this.scanDirectories,
+    required this.excludedScanDirectories,
+  });
+
+  final String name;
+  final String baseUrl;
+  final String username;
+  final String password;
+  final String rootPath;
+  final SourceProtocol protocol;
+  final Cloud189AuthMode cloud189AuthMode;
+  final Cloud189TVLoginMode cloud189TVLoginMode;
+  final String cloud189DeviceId;
+  final String cloud189AppKey;
+  final String cloud189AppSecret;
+  final String cloud189RedirectUri;
+  final String cloud189AuthorizationCode;
+  final List<String> scanDirectories;
+  final List<String> excludedScanDirectories;
+
+  bool matches({
+    required String name,
+    required String baseUrl,
+    required String username,
+    required String password,
+    required String rootPath,
+    required SourceProtocol protocol,
+    required Cloud189AuthMode cloud189AuthMode,
+    required Cloud189TVLoginMode cloud189TVLoginMode,
+    required String cloud189DeviceId,
+    required String cloud189AppKey,
+    required String cloud189AppSecret,
+    required String cloud189RedirectUri,
+    required String cloud189AuthorizationCode,
+    required List<String> scanDirectories,
+    required List<String> excludedScanDirectories,
+  }) {
+    return this.name == name &&
+        this.baseUrl == baseUrl &&
+        this.username == username &&
+        this.password == password &&
+        this.rootPath == rootPath &&
+        this.protocol == protocol &&
+        this.cloud189AuthMode == cloud189AuthMode &&
+        this.cloud189TVLoginMode == cloud189TVLoginMode &&
+        this.cloud189DeviceId == cloud189DeviceId &&
+        this.cloud189AppKey == cloud189AppKey &&
+        this.cloud189AppSecret == cloud189AppSecret &&
+        this.cloud189RedirectUri == cloud189RedirectUri &&
+        this.cloud189AuthorizationCode == cloud189AuthorizationCode &&
+        listEquals(this.scanDirectories, scanDirectories) &&
+        listEquals(this.excludedScanDirectories, excludedScanDirectories);
+  }
 }
 
 class _AddSourcePageState extends ConsumerState<AddSourcePage> {
@@ -215,16 +393,67 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
   Cloud189TVLoginMode _cloud189TVLoginMode = Cloud189TVLoginMode.scanCode;
   final _cloud189DeviceIdController = TextEditingController();
 
+  late final String _draftSourceId;
+  int _currentOpId = 0;
+  bool _isShowingConfirmDialog = false;
+  bool _isClosedOrDisposed = false;
+  final Set<Route<dynamic>> _activeAuxiliaryRoutes = <Route<dynamic>>{};
+  AddSourceController? _scopedController;
+  _AddSourceFormSnapshot? _initialSnapshot;
+
   @override
   void initState() {
     super.initState();
     _protocol = SourceProtocolX.sanitizeForCurrentPlatform(
       widget.initialProtocol,
     );
+    _draftSourceId =
+        widget.sourceId ??
+        '${_protocol.storageValue}_${DateTime.now().microsecondsSinceEpoch}';
+    if (widget.sourceId == null) {
+      _initialSnapshot = _takeSnapshot();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _scopedController = ref.read(addSourceControllerProvider.notifier);
+  }
+
+  void _dismissOwnedAuxiliaryRoutes() {
+    for (final route in _activeAuxiliaryRoutes.toList()) {
+      if (route.isActive) {
+        route.navigator?.removeRoute(route);
+      }
+    }
+    _activeAuxiliaryRoutes.clear();
+  }
+
+  Future<T?> _showOwnedDialog<T>({
+    required BuildContext context,
+    required WidgetBuilder builder,
+    bool barrierDismissible = true,
+  }) async {
+    if (!mounted || _isClosedOrDisposed) return null;
+    final capturedRoute = DialogRoute<T>(
+      context: context,
+      barrierDismissible: barrierDismissible,
+      builder: builder,
+    );
+    _activeAuxiliaryRoutes.add(capturedRoute);
+    capturedRoute.completed.whenComplete(() {
+      _activeAuxiliaryRoutes.remove(capturedRoute);
+    });
+    return Navigator.of(context, rootNavigator: false).push<T>(capturedRoute);
   }
 
   @override
   void dispose() {
+    _currentOpId++;
+    _isClosedOrDisposed = true;
+    _dismissOwnedAuxiliaryRoutes();
+    // Do NOT call ref.read in dispose!
     _nameController.dispose();
     _urlController.dispose();
     _usernameController.dispose();
@@ -236,6 +465,144 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
     _cloud189DeviceIdController.dispose();
     _rootPathController.dispose();
     super.dispose();
+  }
+
+  _AddSourceFormSnapshot _takeSnapshot() {
+    return _AddSourceFormSnapshot(
+      name: _nameController.text,
+      baseUrl: _urlController.text,
+      username: _usernameController.text,
+      password: _passwordController.text,
+      rootPath: _rootPathController.text,
+      protocol: _protocol,
+      cloud189AuthMode: _cloud189AuthMode,
+      cloud189TVLoginMode: _cloud189TVLoginMode,
+      cloud189DeviceId: _cloud189DeviceIdController.text,
+      cloud189AppKey: _cloud189AppKeyController.text,
+      cloud189AppSecret: _cloud189AppSecretController.text,
+      cloud189RedirectUri: _cloud189RedirectUriController.text,
+      cloud189AuthorizationCode: _cloud189AuthorizationCodeController.text,
+      scanDirectories: List<String>.from(_scanDirectories),
+      excludedScanDirectories: List<String>.from(_excludedScanDirectories),
+    );
+  }
+
+  bool _isFormDirty() {
+    if (_initialSnapshot == null) {
+      return false;
+    }
+    return !_initialSnapshot!.matches(
+      name: _nameController.text,
+      baseUrl: _urlController.text,
+      username: _usernameController.text,
+      password: _passwordController.text,
+      rootPath: _rootPathController.text,
+      protocol: _protocol,
+      cloud189AuthMode: _cloud189AuthMode,
+      cloud189TVLoginMode: _cloud189TVLoginMode,
+      cloud189DeviceId: _cloud189DeviceIdController.text,
+      cloud189AppKey: _cloud189AppKeyController.text,
+      cloud189AppSecret: _cloud189AppSecretController.text,
+      cloud189RedirectUri: _cloud189RedirectUriController.text,
+      cloud189AuthorizationCode: _cloud189AuthorizationCodeController.text,
+      scanDirectories: _scanDirectories,
+      excludedScanDirectories: _excludedScanDirectories,
+    );
+  }
+
+  Future<bool> _shouldDiscard() async {
+    final controller =
+        _scopedController ??
+        (mounted ? ref.read(addSourceControllerProvider.notifier) : null);
+    if (controller?.isCommitting == true) {
+      return false;
+    }
+    if (_isShowingConfirmDialog) {
+      return false;
+    }
+    if (!_isFormDirty()) {
+      return true;
+    }
+    _isShowingConfirmDialog = true;
+    try {
+      final l10n = AppLocalizations.of(context)!;
+      final result = await _showOwnedDialog<bool>(
+        context: context,
+        builder: (dialogContext) => GlacierDialog(
+          title: Text(l10n.discardChangesConfirmationTitle),
+          content: Text(l10n.discardChangesConfirmationDescription),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(l10n.continueEditingAction),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(l10n.discardChangesAction),
+            ),
+          ],
+        ),
+      );
+      return result ?? false;
+    } finally {
+      _isShowingConfirmDialog = false;
+    }
+  }
+
+  Future<void> _handleBack() async {
+    if (_isClosedOrDisposed) return;
+    final controller =
+        _scopedController ??
+        (mounted ? ref.read(addSourceControllerProvider.notifier) : null);
+    if (controller?.isCommitting == true) {
+      return;
+    }
+    final opId = ++_currentOpId;
+    controller?.cancelPendingOperation();
+    final shouldDiscard = await _shouldDiscard();
+    if (!mounted || _isClosedOrDisposed || opId != _currentOpId) {
+      return;
+    }
+    if (shouldDiscard) {
+      _isClosedOrDisposed = true;
+      _dismissOwnedAuxiliaryRoutes();
+      if (mounted) {
+        setState(() {});
+      }
+      if (widget.onBack != null) {
+        widget.onBack!();
+      } else {
+        context.pop();
+      }
+    }
+  }
+
+  Future<void> _handleClose() async {
+    if (_isClosedOrDisposed) return;
+    final controller =
+        _scopedController ??
+        (mounted ? ref.read(addSourceControllerProvider.notifier) : null);
+    if (controller?.isCommitting == true) {
+      return;
+    }
+    final opId = ++_currentOpId;
+    controller?.cancelPendingOperation();
+    final shouldDiscard = await _shouldDiscard();
+    if (!mounted || _isClosedOrDisposed || opId != _currentOpId) {
+      return;
+    }
+    if (shouldDiscard) {
+      _isClosedOrDisposed = true;
+      _dismissOwnedAuxiliaryRoutes();
+      if (mounted) {
+        setState(() {});
+      }
+      if (widget.onClose != null) {
+        widget.onClose!();
+      } else {
+        context.pop();
+      }
+    }
   }
 
   @override
@@ -272,354 +639,406 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
       );
     }
 
-    return Scaffold(
-      backgroundColor: colorScheme.surface,
-      body: LayoutBuilder(
+    final isBusy = controllerState.isLoading || controller.isCommitting;
+
+    final formContent = Form(
+      key: _formKey,
+      child: LayoutBuilder(
         builder: (context, constraints) {
-          final maxCardHeight = constraints.maxHeight - 24;
-          return Container(
-            decoration: BoxDecoration(
-              color: colorScheme.surface,
-              gradient: RadialGradient(
-                center: Alignment.topCenter,
-                radius: 1.2,
-                colors: [
-                  colorScheme.primary.withValues(alpha: isDark ? 0.14 : 0.08),
-                  colorScheme.surface,
-                ],
-              ),
-            ),
-            child: SafeArea(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 420),
-                    child: Material(
-                      color: colorScheme.surfaceContainerHigh.withValues(
-                        alpha: isDark ? 0.94 : 0.98,
-                      ),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(28),
-                        side: BorderSide(
-                          color: colorScheme.outlineVariant.withValues(
-                            alpha: isDark ? 0.42 : 0.62,
-                          ),
+          final isLargeFont =
+              MediaQuery.textScalerOf(context).scale(14.0) > 18.0;
+          final isCompact =
+              constraints.maxWidth < 300 ||
+              constraints.maxHeight < 400 ||
+              isLargeFont;
+
+          final header = isCompact
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (widget.embedded && widget.onBack != null) ...[
+                      IconButton(
+                        key: const Key('add-source-back'),
+                        tooltip: MaterialLocalizations.of(
+                          context,
+                        ).backButtonTooltip,
+                        constraints: const BoxConstraints(
+                          minWidth: 48,
+                          minHeight: 48,
                         ),
+                        icon: const Icon(Icons.arrow_back_rounded),
+                        onPressed: controller.isCommitting ? null : _handleBack,
                       ),
-                      child: Container(
-                        constraints: BoxConstraints(maxHeight: maxCardHeight),
-                        padding: const EdgeInsets.all(20),
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    width: 48,
-                                    height: 48,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: colorScheme.primary.withValues(
-                                        alpha: 0.1,
-                                      ),
-                                      border: Border.all(
-                                        color: colorScheme.primary.withValues(
-                                          alpha: 0.25,
-                                        ),
-                                      ),
-                                    ),
-                                    child: Icon(
-                                      _protocolIcon(_protocol),
-                                      color: colorScheme.primary,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          isEditing
-                                              ? l10n.settingsEditSourceTitle
-                                              : l10n.settingsAddSourceTitle,
-                                          style: theme.textTheme.titleMedium
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          _sourceTypeTitle(l10n, _protocol),
-                                          style: theme.textTheme.bodySmall
-                                              ?.copyWith(
-                                                color: colorScheme.primary,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
-                              Expanded(
-                                child: SingleChildScrollView(
-                                  child: Column(
-                                    children: [
-                                      _ConnectionFormDeck(
-                                        nameController: _nameController,
-                                        urlController: _urlController,
-                                        usernameController: _usernameController,
-                                        passwordController: _passwordController,
-                                        cloud189AppKeyController:
-                                            _cloud189AppKeyController,
-                                        cloud189AppSecretController:
-                                            _cloud189AppSecretController,
-                                        cloud189RedirectUriController:
-                                            _cloud189RedirectUriController,
-                                        cloud189AuthorizationCodeController:
-                                            _cloud189AuthorizationCodeController,
-                                        rootPathController: _rootPathController,
-                                        protocol: _protocol,
-                                        cloud189AuthMode: _cloud189AuthMode,
-                                        onProtocolChanged: (value) =>
-                                            _setProtocol(l10n, value),
-                                        onCloud189AuthModeChanged: (value) {
-                                          setState(() {
-                                            _cloud189AuthMode = value;
-                                          });
-                                        },
-                                        obscurePassword: _obscurePassword,
-                                        onTogglePassword: () {
-                                          setState(() {
-                                            _obscurePassword =
-                                                !_obscurePassword;
-                                          });
-                                        },
-                                        onOpenCloud189Authorization: () =>
-                                            _openCloud189Authorization(context),
-                                      ),
-                                      const SizedBox(height: 12),
-                                      _DirectoryDeck(
-                                        scanDirectories: _scanDirectories,
-                                        excludedScanDirectories:
-                                            _excludedScanDirectories,
-                                        onAddScanDirectory: () async {
-                                          final result = await _promptDirectoryPath(
-                                            context,
-                                            title: l10n
-                                                .addScanDirectoryDialogTitle,
-                                            description: l10n
-                                                .scanDirectoriesDialogDescription,
-                                          );
-                                          if (result == null) {
-                                            return;
-                                          }
-                                          setState(() {
-                                            _appendDirectory(
-                                              _scanDirectories,
-                                              result,
-                                            );
-                                          });
-                                        },
-                                        onRemoveScanDirectory: (value) {
-                                          setState(() {
-                                            _scanDirectories.remove(value);
-                                          });
-                                        },
-                                        onAddExcludedDirectory: () async {
-                                          final result = await _promptDirectoryPath(
-                                            context,
-                                            title: l10n
-                                                .addExcludedScanDirectoryDialogTitle,
-                                            description: l10n
-                                                .excludedScanDirectoriesDialogDescription,
-                                          );
-                                          if (result == null) {
-                                            return;
-                                          }
-                                          setState(() {
-                                            _appendDirectory(
-                                              _excludedScanDirectories,
-                                              result,
-                                            );
-                                          });
-                                        },
-                                        onRemoveExcludedDirectory: (value) {
-                                          setState(() {
-                                            _excludedScanDirectories.remove(
-                                              value,
-                                            );
-                                          });
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              OverflowBar(
-                                alignment: MainAxisAlignment.end,
-                                spacing: 8,
-                                overflowSpacing: 8,
-                                children: [
-                                  TextButton(
-                                    onPressed: controllerState.isLoading
-                                        ? null
-                                        : () => context.pop(),
-                                    child: Text(
-                                      MaterialLocalizations.of(
-                                        context,
-                                      ).cancelButtonLabel,
-                                    ),
-                                  ),
-                                  OutlinedButton(
-                                    onPressed: controllerState.isLoading
-                                        ? null
-                                        : () async {
-                                            if (!_formKey.currentState!
-                                                .validate()) {
-                                              return;
-                                            }
-                                            try {
-                                              if (_protocol ==
-                                                  SourceProtocol.cloudDrive) {
-                                                await controller
-                                                    .testCloud189Connection(
-                                                      _createCloud189Draft(),
-                                                      captchaResolver:
-                                                          _promptCloud189Captcha,
-                                                    );
-                                              } else {
-                                                await controller.testConnection(
-                                                  _createWebDavDraft(),
-                                                );
-                                              }
-                                              if (!mounted) {
-                                                return;
-                                              }
-                                              showTopSnackBar(
-                                                this.context,
-                                                l10n.connectionTestSuccess,
-                                              );
-                                              await _showCloud189DebugLog(
-                                                controller,
-                                              );
-                                            } catch (_) {
-                                              if (!mounted) {
-                                                return;
-                                              }
-                                              showTopSnackBar(
-                                                this.context,
-                                                _connectionFailedMessage(l10n),
-                                              );
-                                              await _showCloud189DebugLog(
-                                                controller,
-                                              );
-                                            }
-                                          },
-                                    child: Text(l10n.testConnectionAction),
-                                  ),
-                                  FilledButton(
-                                    onPressed: controllerState.isLoading
-                                        ? null
-                                        : () async {
-                                            if (!_formKey.currentState!
-                                                .validate()) {
-                                              return;
-                                            }
-                                            final router = GoRouter.of(context);
-                                            try {
-                                              final isNewSource = !isEditing;
-                                              final savedProfile =
-                                                  _protocol ==
-                                                      SourceProtocol.cloudDrive
-                                                  ? await controller
-                                                        .saveCloud189Source(
-                                                          _createCloud189Draft(),
-                                                          captchaResolver:
-                                                              _promptCloud189Captcha,
-                                                        )
-                                                  : await controller
-                                                        .saveWebDavSource(
-                                                          _createWebDavDraft(),
-                                                        );
-                                              if (!mounted) {
-                                                return;
-                                              }
-                                              showTopSnackBar(
-                                                this.context,
-                                                isEditing
-                                                    ? l10n.sourceUpdatedSuccess
-                                                    : l10n.sourceSavedSuccess,
-                                              );
-                                              await _showCloud189DebugLog(
-                                                controller,
-                                              );
-                                              if (!mounted) {
-                                                return;
-                                              }
-                                              if (isNewSource) {
-                                                unawaited(
-                                                  ref
-                                                      .read(
-                                                        libraryCatalogControllerProvider
-                                                            .notifier,
-                                                      )
-                                                      .rescanSource(
-                                                        savedProfile.id,
-                                                      ),
-                                                );
-                                              }
-                                              router.pop();
-                                            } catch (_) {
-                                              if (!mounted) {
-                                                return;
-                                              }
-                                              showTopSnackBar(
-                                                this.context,
-                                                _connectionFailedMessage(l10n),
-                                              );
-                                              await _showCloud189DebugLog(
-                                                controller,
-                                              );
-                                            }
-                                          },
-                                    child: controllerState.isLoading
-                                        ? const SizedBox(
-                                            width: 18,
-                                            height: 18,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                            ),
-                                          )
-                                        : Text(
-                                            isEditing
-                                                ? l10n.saveSourceChangesAction
-                                                : l10n.saveSourceAction,
-                                          ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
+                      const SizedBox(width: 4),
+                    ],
+                    Expanded(
+                      child: Text(
+                        isEditing
+                            ? l10n.settingsEditSourceTitle
+                            : l10n.settingsAddSourceTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
+                    IconButton(
+                      key: const Key('add-source-close'),
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).closeButtonTooltip,
+                      constraints: const BoxConstraints(
+                        minWidth: 48,
+                        minHeight: 48,
+                      ),
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: controller.isCommitting ? null : _handleClose,
+                    ),
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (widget.embedded && widget.onBack != null) ...[
+                      IconButton(
+                        key: const Key('add-source-back'),
+                        tooltip: MaterialLocalizations.of(
+                          context,
+                        ).backButtonTooltip,
+                        constraints: const BoxConstraints(
+                          minWidth: 48,
+                          minHeight: 48,
+                        ),
+                        icon: const Icon(Icons.arrow_back_rounded),
+                        onPressed: controller.isCommitting ? null : _handleBack,
+                      ),
+                      const SizedBox(width: 4),
+                    ],
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: colorScheme.primary.withValues(alpha: 0.1),
+                        border: Border.all(
+                          color: colorScheme.primary.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Icon(
+                        _protocolIcon(_protocol),
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            isEditing
+                                ? l10n.settingsEditSourceTitle
+                                : l10n.settingsAddSourceTitle,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _sourceTypeTitle(l10n, _protocol),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      key: const Key('add-source-close'),
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).closeButtonTooltip,
+                      constraints: const BoxConstraints(
+                        minWidth: 48,
+                        minHeight: 48,
+                      ),
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: controller.isCommitting ? null : _handleClose,
+                    ),
+                  ],
+                );
+
+          final decks = <Widget>[
+            if (isCompact) ...[
+              Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: colorScheme.primary.withValues(alpha: 0.1),
+                      border: Border.all(
+                        color: colorScheme.primary.withValues(alpha: 0.25),
+                      ),
+                    ),
+                    child: Icon(
+                      _protocolIcon(_protocol),
+                      size: 18,
+                      color: colorScheme.primary,
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _sourceTypeTitle(l10n, _protocol),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
+              const SizedBox(height: 12),
+            ],
+            _ConnectionFormDeck(
+              nameController: _nameController,
+              urlController: _urlController,
+              usernameController: _usernameController,
+              passwordController: _passwordController,
+              cloud189AppKeyController: _cloud189AppKeyController,
+              cloud189AppSecretController: _cloud189AppSecretController,
+              cloud189RedirectUriController: _cloud189RedirectUriController,
+              cloud189AuthorizationCodeController:
+                  _cloud189AuthorizationCodeController,
+              rootPathController: _rootPathController,
+              protocol: _protocol,
+              cloud189AuthMode: _cloud189AuthMode,
+              onProtocolChanged: (value) => _setProtocol(l10n, value),
+              onCloud189AuthModeChanged: (value) {
+                setState(() {
+                  _cloud189AuthMode = value;
+                });
+              },
+              obscurePassword: _obscurePassword,
+              onTogglePassword: () {
+                setState(() {
+                  _obscurePassword = !_obscurePassword;
+                });
+              },
+              onOpenCloud189Authorization: () =>
+                  _openCloud189Authorization(context),
+              enabled: !isBusy,
             ),
+            const SizedBox(height: 12),
+            _DirectoryDeck(
+              scanDirectories: _scanDirectories,
+              excludedScanDirectories: _excludedScanDirectories,
+              onAddScanDirectory: isBusy
+                  ? null
+                  : () async {
+                      final opId = _currentOpId;
+                      final result = await _promptDirectoryPath(
+                        context,
+                        title: l10n.addScanDirectoryDialogTitle,
+                        description: l10n.scanDirectoriesDialogDescription,
+                      );
+                      if (!mounted ||
+                          _isClosedOrDisposed ||
+                          opId != _currentOpId ||
+                          result == null) {
+                        return;
+                      }
+                      setState(() {
+                        _appendDirectory(_scanDirectories, result);
+                      });
+                    },
+              onRemoveScanDirectory: isBusy
+                  ? null
+                  : (value) {
+                      setState(() {
+                        _scanDirectories.remove(value);
+                      });
+                    },
+              onAddExcludedDirectory: isBusy
+                  ? null
+                  : () async {
+                      final opId = _currentOpId;
+                      final result = await _promptDirectoryPath(
+                        context,
+                        title: l10n.addExcludedScanDirectoryDialogTitle,
+                        description:
+                            l10n.excludedScanDirectoriesDialogDescription,
+                      );
+                      if (!mounted ||
+                          _isClosedOrDisposed ||
+                          opId != _currentOpId ||
+                          result == null) {
+                        return;
+                      }
+                      setState(() {
+                        _appendDirectory(_excludedScanDirectories, result);
+                      });
+                    },
+              onRemoveExcludedDirectory: isBusy
+                  ? null
+                  : (value) {
+                      setState(() {
+                        _excludedScanDirectories.remove(value);
+                      });
+                    },
+            ),
+          ];
+
+          final body = isCompact
+              ? SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ...decks,
+                      const SizedBox(height: 16),
+                      _buildFooterButtons(
+                        l10n,
+                        controller,
+                        controllerState,
+                        isEditing,
+                      ),
+                    ],
+                  ),
+                )
+              : Column(
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: decks,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildFooterButtons(
+                      l10n,
+                      controller,
+                      controllerState,
+                      isEditing,
+                    ),
+                  ],
+                );
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              header,
+              const SizedBox(height: 12),
+              Expanded(child: body),
+            ],
           );
         },
+      ),
+    );
+
+    return Shortcuts(
+      shortcuts: <ShortcutActivator, Intent>{
+        LogicalKeySet(LogicalKeyboardKey.escape): const DismissIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          DismissIntent: CallbackAction<DismissIntent>(
+            onInvoke: (_) {
+              if (!controller.isCommitting) {
+                _handleClose();
+              }
+              return null;
+            },
+          ),
+        },
+        child: PopScope(
+          canPop: _isClosedOrDisposed && !controller.isCommitting,
+          onPopInvokedWithResult: (didPop, result) async {
+            if (didPop) return;
+            if (_isClosedOrDisposed) {
+              Navigator.of(context).pop();
+              return;
+            }
+            if (!controller.isCommitting) {
+              await _handleBack();
+            }
+          },
+          child: widget.embedded
+              ? Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  child: formContent,
+                )
+              : Scaffold(
+                  backgroundColor: colorScheme.surface,
+                  body: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final maxCardHeight = math.max(
+                        0.0,
+                        constraints.maxHeight - 24.0,
+                      );
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: colorScheme.surface,
+                          gradient: RadialGradient(
+                            center: Alignment.topCenter,
+                            radius: 1.2,
+                            colors: [
+                              colorScheme.primary.withValues(
+                                alpha: isDark ? 0.14 : 0.08,
+                              ),
+                              colorScheme.surface,
+                            ],
+                          ),
+                        ),
+                        child: SafeArea(
+                          child: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 420,
+                                ),
+                                child: Material(
+                                  color: colorScheme.surfaceContainerHigh
+                                      .withValues(alpha: isDark ? 0.94 : 0.98),
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(28),
+                                    side: BorderSide(
+                                      color: colorScheme.outlineVariant
+                                          .withValues(
+                                            alpha: isDark ? 0.42 : 0.62,
+                                          ),
+                                    ),
+                                  ),
+                                  child: Container(
+                                    constraints: BoxConstraints(
+                                      maxHeight: maxCardHeight,
+                                    ),
+                                    padding: const EdgeInsets.all(20),
+                                    child: formContent,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+        ),
       ),
     );
   }
@@ -666,6 +1085,7 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
     _excludedScanDirectories
       ..clear()
       ..addAll(profile.normalizedExcludedScanDirectories);
+    _initialSnapshot = _takeSnapshot();
   }
 
   void _setProtocol(AppLocalizations l10n, SourceProtocol value) {
@@ -695,55 +1115,61 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
     BuildContext context, {
     required String title,
     required String description,
-  }) {
+  }) async {
+    if (!mounted || _isClosedOrDisposed) return null;
     final l10n = AppLocalizations.of(context)!;
     final materialL10n = MaterialLocalizations.of(context);
     final controller = TextEditingController(text: '/');
 
-    return showDialog<String>(
-      context: context,
-      builder: (dialogContext) {
-        return GlacierDialog(
-          title: Text(title),
-          content: SizedBox(
-            width: 420,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(description),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: controller,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    labelText: l10n.directoryPathLabel,
-                    hintText: l10n.directoryPathHint,
-                    helperText: l10n.directoryPathHelpText,
+    try {
+      final result = await _showOwnedDialog<String>(
+        context: context,
+        builder: (dialogContext) {
+          return GlacierDialog(
+            title: Text(title),
+            content: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(description),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      labelText: l10n.directoryPathLabel,
+                      hintText: l10n.directoryPathHint,
+                      helperText: l10n.directoryPathHelpText,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(materialL10n.cancelButtonLabel),
-            ),
-            FilledButton(
-              onPressed: () {
-                final trimmed = controller.text.trim();
-                if (trimmed.isEmpty) {
-                  return;
-                }
-                Navigator.of(dialogContext).pop(trimmed);
-              },
-              child: Text(materialL10n.okButtonLabel),
-            ),
-          ],
-        );
-      },
-    );
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: Text(materialL10n.cancelButtonLabel),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final trimmed = controller.text.trim();
+                  if (trimmed.isEmpty) {
+                    return;
+                  }
+                  Navigator.of(dialogContext).pop(trimmed);
+                },
+                child: Text(materialL10n.okButtonLabel),
+              ),
+            ],
+          );
+        },
+      );
+      return result;
+    } finally {
+      controller.dispose();
+    }
   }
 
   String _connectionFailedMessage(AppLocalizations l10n) {
@@ -752,8 +1178,123 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
         : l10n.connectionFailedMessage;
   }
 
+  Future<String?> _promptCloud189Captcha(Uint8List captchaImageBytes) async {
+    if (!mounted || _isClosedOrDisposed) {
+      return null;
+    }
+
+    final l10n = AppLocalizations.of(context)!;
+    final materialL10n = MaterialLocalizations.of(context);
+    final codeController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    try {
+      return await _showOwnedDialog<String>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          return Shortcuts(
+            shortcuts: <ShortcutActivator, Intent>{
+              LogicalKeySet(LogicalKeyboardKey.escape): const DismissIntent(),
+            },
+            child: Actions(
+              actions: <Type, Action<Intent>>{
+                DismissIntent: CallbackAction<DismissIntent>(
+                  onInvoke: (_) {
+                    Navigator.of(dialogContext).pop();
+                    return null;
+                  },
+                ),
+              },
+              child: GlacierDialog(
+                title: Text(l10n.cloud189CaptchaDialogTitle),
+                content: SizedBox(
+                  width: 420,
+                  child: Form(
+                    key: formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(l10n.cloud189CaptchaDialogDescription),
+                        const SizedBox(height: 16),
+                        DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(18),
+                            color: Theme.of(
+                              dialogContext,
+                            ).colorScheme.surfaceContainerHighest,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Center(
+                              child: Image.memory(
+                                captchaImageBytes,
+                                fit: BoxFit.contain,
+                                filterQuality: FilterQuality.none,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: codeController,
+                          autofocus: true,
+                          textInputAction: TextInputAction.done,
+                          decoration: InputDecoration(
+                            labelText: l10n.cloud189CaptchaCodeLabel,
+                            hintText: l10n.cloud189CaptchaCodeHint,
+                          ),
+                          validator: (value) {
+                            if ((value ?? '').trim().isEmpty) {
+                              return l10n.requiredFieldError;
+                            }
+                            return null;
+                          },
+                          onFieldSubmitted: (_) {
+                            if (formKey.currentState?.validate() != true) {
+                              return;
+                            }
+                            Navigator.of(
+                              dialogContext,
+                            ).pop(codeController.text.trim());
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    child: Text(materialL10n.cancelButtonLabel),
+                  ),
+                  FilledButton(
+                    onPressed: () {
+                      if (formKey.currentState?.validate() != true) {
+                        return;
+                      }
+                      Navigator.of(
+                        dialogContext,
+                      ).pop(codeController.text.trim());
+                    },
+                    child: Text(materialL10n.okButtonLabel),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    } finally {
+      codeController.dispose();
+    }
+  }
+
   Future<void> _showCloud189DebugLog(AddSourceController controller) async {
-    if (_protocol != SourceProtocol.cloudDrive || !mounted) {
+    if (_protocol != SourceProtocol.cloudDrive ||
+        !mounted ||
+        _isClosedOrDisposed) {
       return;
     }
 
@@ -766,7 +1307,7 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
     final materialL10n = MaterialLocalizations.of(context);
     final theme = Theme.of(context);
     final maxHeight = MediaQuery.sizeOf(context).height * 0.58;
-    await showDialog<void>(
+    await _showOwnedDialog<void>(
       context: context,
       builder: (dialogContext) {
         return GlacierDialog(
@@ -808,102 +1349,6 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
     );
   }
 
-  Future<String?> _promptCloud189Captcha(Uint8List captchaImageBytes) async {
-    if (!mounted) {
-      return null;
-    }
-
-    final l10n = AppLocalizations.of(context)!;
-    final materialL10n = MaterialLocalizations.of(context);
-    final codeController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
-    try {
-      return await showDialog<String>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) {
-          return GlacierDialog(
-            title: Text(l10n.cloud189CaptchaDialogTitle),
-            content: SizedBox(
-              width: 420,
-              child: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(l10n.cloud189CaptchaDialogDescription),
-                    const SizedBox(height: 16),
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(18),
-                        color: Theme.of(
-                          dialogContext,
-                        ).colorScheme.surfaceContainerHighest,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Center(
-                          child: Image.memory(
-                            captchaImageBytes,
-                            fit: BoxFit.contain,
-                            filterQuality: FilterQuality.none,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: codeController,
-                      autofocus: true,
-                      textInputAction: TextInputAction.done,
-                      decoration: InputDecoration(
-                        labelText: l10n.cloud189CaptchaCodeLabel,
-                        hintText: l10n.cloud189CaptchaCodeHint,
-                      ),
-                      validator: (value) {
-                        if ((value ?? '').trim().isEmpty) {
-                          return l10n.requiredFieldError;
-                        }
-                        return null;
-                      },
-                      onFieldSubmitted: (_) {
-                        if (formKey.currentState?.validate() != true) {
-                          return;
-                        }
-                        Navigator.of(
-                          dialogContext,
-                        ).pop(codeController.text.trim());
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: Text(materialL10n.cancelButtonLabel),
-              ),
-              FilledButton(
-                onPressed: () {
-                  if (formKey.currentState?.validate() != true) {
-                    return;
-                  }
-                  Navigator.of(dialogContext).pop(codeController.text.trim());
-                },
-                child: Text(materialL10n.okButtonLabel),
-              ),
-            ],
-          );
-        },
-      );
-    } finally {
-      codeController.dispose();
-    }
-  }
-
   Future<void> _openCloud189Authorization(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
     final appKey = _cloud189AppKeyController.text.trim();
@@ -921,8 +1366,12 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
         'state': DateTime.now().millisecondsSinceEpoch.toString(),
       },
     );
+    final opId = _currentOpId;
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!context.mounted) {
+    if (!mounted ||
+        _isClosedOrDisposed ||
+        opId != _currentOpId ||
+        !context.mounted) {
       return;
     }
     showTopSnackBar(
@@ -935,7 +1384,7 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
 
   WebDavSourceDraft _createWebDavDraft() {
     return WebDavSourceDraft(
-      sourceId: widget.sourceId,
+      sourceId: widget.sourceId ?? _draftSourceId,
       protocol: _protocol,
       name: _nameController.text,
       baseUrl: _urlController.text,
@@ -949,7 +1398,7 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
 
   Cloud189SourceDraft _createCloud189Draft() {
     return Cloud189SourceDraft(
-      sourceId: widget.sourceId,
+      sourceId: widget.sourceId ?? _draftSourceId,
       name: _nameController.text,
       authMode: _cloud189AuthMode,
       username: _usernameController.text,
@@ -963,6 +1412,148 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
       rootPath: _rootPathController.text,
       scanDirectories: List<String>.from(_scanDirectories),
       excludedScanDirectories: List<String>.from(_excludedScanDirectories),
+    );
+  }
+
+  Widget _buildFooterButtons(
+    AppLocalizations l10n,
+    AddSourceController controller,
+    AsyncValue<void> controllerState,
+    bool isEditing,
+  ) {
+    final materialL10n = MaterialLocalizations.of(context);
+    final isBusy = controllerState.isLoading || controller.isCommitting;
+    final showDebugLog =
+        _protocol == SourceProtocol.cloudDrive &&
+        (ref
+                .watch(appSettingsControllerProvider)
+                .valueOrNull
+                ?.enableDebugMode ??
+            false) &&
+        controller.connectionDebugLog().trim().isNotEmpty;
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      alignment: WrapAlignment.end,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        if (showDebugLog)
+          TextButton.icon(
+            onPressed: () => _showCloud189DebugLog(controller),
+            icon: const Icon(Icons.description_outlined, size: 18),
+            label: Text(l10n.debugLogsTitle),
+          ),
+        TextButton(
+          onPressed: controller.isCommitting
+              ? null
+              : () async {
+                  await _handleClose();
+                },
+          child: Text(materialL10n.cancelButtonLabel),
+        ),
+        OutlinedButton(
+          onPressed: isBusy
+              ? null
+              : () async {
+                  if (!_formKey.currentState!.validate()) {
+                    return;
+                  }
+                  final opId = ++_currentOpId;
+                  try {
+                    if (_protocol == SourceProtocol.cloudDrive) {
+                      await controller.testCloud189Connection(
+                        _createCloud189Draft(),
+                        captchaResolver: _promptCloud189Captcha,
+                      );
+                    } else {
+                      await controller.testConnection(_createWebDavDraft());
+                    }
+                    if (!mounted ||
+                        _isClosedOrDisposed ||
+                        opId != _currentOpId) {
+                      return;
+                    }
+                    showTopSnackBar(context, l10n.connectionTestSuccess);
+                  } catch (_) {
+                    if (!mounted ||
+                        _isClosedOrDisposed ||
+                        opId != _currentOpId) {
+                      return;
+                    }
+                    showTopSnackBar(context, _connectionFailedMessage(l10n));
+                  }
+                },
+          child: Text(l10n.testConnectionAction),
+        ),
+        FilledButton(
+          onPressed: isBusy
+              ? null
+              : () async {
+                  if (!_formKey.currentState!.validate()) {
+                    return;
+                  }
+                  final opId = ++_currentOpId;
+                  try {
+                    final isNewSource = !isEditing;
+                    final savedProfile = _protocol == SourceProtocol.cloudDrive
+                        ? await controller.saveCloud189Source(
+                            _createCloud189Draft(),
+                            captchaResolver: _promptCloud189Captcha,
+                          )
+                        : await controller.saveWebDavSource(
+                            _createWebDavDraft(),
+                          );
+                    if (!mounted ||
+                        _isClosedOrDisposed ||
+                        opId != _currentOpId) {
+                      return;
+                    }
+                    showTopSnackBar(
+                      context,
+                      isEditing
+                          ? l10n.sourceUpdatedSuccess
+                          : l10n.sourceSavedSuccess,
+                    );
+                    if (isNewSource) {
+                      unawaited(
+                        ref
+                            .read(libraryCatalogControllerProvider.notifier)
+                            .rescanSource(savedProfile.id),
+                      );
+                    }
+                    _isClosedOrDisposed = true;
+                    _dismissOwnedAuxiliaryRoutes();
+                    if (mounted) {
+                      setState(() {});
+                    }
+                    if (widget.onClose != null) {
+                      widget.onClose!();
+                    } else {
+                      context.pop();
+                    }
+                  } catch (_) {
+                    if (!mounted ||
+                        _isClosedOrDisposed ||
+                        opId != _currentOpId) {
+                      return;
+                    }
+                    showTopSnackBar(context, _connectionFailedMessage(l10n));
+                  }
+                },
+          child: controllerState.isLoading
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Text(
+                  isEditing
+                      ? l10n.saveSourceChangesAction
+                      : l10n.saveSourceAction,
+                ),
+        ),
+      ],
     );
   }
 }
@@ -982,7 +1573,7 @@ class _SourceTypeCard extends StatelessWidget {
       radius: 28,
       tint: colorScheme.surfaceContainerHighest,
       padding: EdgeInsets.zero,
-      child: InkWell(
+      child: StudioPressable(
         borderRadius: BorderRadius.circular(28),
         onTap: onTap,
         child: Padding(
@@ -1023,68 +1614,6 @@ class _SourceTypeCard extends StatelessWidget {
   }
 }
 
-class _SourceTypeGridCard extends StatelessWidget {
-  const _SourceTypeGridCard({required this.protocol, required this.onTap});
-
-  final SourceProtocol protocol;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Material(
-      color: scheme.surface.withValues(alpha: isDark ? 0.45 : 0.82),
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: scheme.outlineVariant.withValues(
-                alpha: isDark ? 0.45 : 0.72,
-              ),
-            ),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: scheme.surfaceContainerHigh,
-                  border: Border.all(
-                    color: scheme.primary.withValues(alpha: 0.35),
-                  ),
-                ),
-                child: Icon(_protocolIcon(protocol), color: scheme.primary),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                _protocolLabel(l10n, protocol),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurface,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _ConnectionFormDeck extends StatelessWidget {
   const _ConnectionFormDeck({
     required this.nameController,
@@ -1103,6 +1632,7 @@ class _ConnectionFormDeck extends StatelessWidget {
     required this.obscurePassword,
     required this.onTogglePassword,
     required this.onOpenCloud189Authorization,
+    this.enabled = true,
   });
 
   final TextEditingController nameController;
@@ -1121,6 +1651,7 @@ class _ConnectionFormDeck extends StatelessWidget {
   final bool obscurePassword;
   final VoidCallback onTogglePassword;
   final VoidCallback onOpenCloud189Authorization;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -1134,6 +1665,7 @@ class _ConnectionFormDeck extends StatelessWidget {
         const SizedBox(height: 2),
         TextFormField(
           controller: nameController,
+          enabled: enabled,
           textInputAction: TextInputAction.next,
           decoration: InputDecoration(
             labelText: l10n.sourceNameLabel,
@@ -1159,9 +1691,11 @@ class _ConnectionFormDeck extends StatelessWidget {
                 ),
               ],
               selected: {cloud189AuthMode},
-              onSelectionChanged: (selection) {
-                onCloud189AuthModeChanged(selection.first);
-              },
+              onSelectionChanged: enabled
+                  ? (selection) {
+                      onCloud189AuthModeChanged(selection.first);
+                    }
+                  : null,
             ),
           ),
           const SizedBox(height: 16),
@@ -1177,6 +1711,7 @@ class _ConnectionFormDeck extends StatelessWidget {
           if (cloud189AuthMode == Cloud189AuthMode.openListPassword) ...[
             TextFormField(
               controller: usernameController,
+              enabled: enabled,
               textInputAction: TextInputAction.next,
               keyboardType: TextInputType.phone,
               decoration: InputDecoration(
@@ -1194,6 +1729,7 @@ class _ConnectionFormDeck extends StatelessWidget {
             const SizedBox(height: 16),
             TextFormField(
               controller: passwordController,
+              enabled: enabled,
               obscureText: obscurePassword,
               textInputAction: TextInputAction.next,
               decoration: InputDecoration(
@@ -1201,7 +1737,7 @@ class _ConnectionFormDeck extends StatelessWidget {
                 hintText: l10n.cloud189OpenListPasswordHint,
                 helperText: l10n.cloud189OpenListPasswordHelpText,
                 suffixIcon: IconButton(
-                  onPressed: onTogglePassword,
+                  onPressed: enabled ? onTogglePassword : null,
                   icon: Icon(
                     obscurePassword
                         ? Icons.visibility_rounded
@@ -1219,6 +1755,7 @@ class _ConnectionFormDeck extends StatelessWidget {
           ] else ...[
             TextFormField(
               controller: cloud189AppKeyController,
+              enabled: enabled,
               textInputAction: TextInputAction.next,
               decoration: InputDecoration(
                 labelText: l10n.cloud189AppKeyLabel,
@@ -1235,13 +1772,14 @@ class _ConnectionFormDeck extends StatelessWidget {
             const SizedBox(height: 16),
             TextFormField(
               controller: cloud189AppSecretController,
+              enabled: enabled,
               obscureText: obscurePassword,
               textInputAction: TextInputAction.next,
               decoration: InputDecoration(
                 labelText: l10n.cloud189AppSecretLabel,
                 hintText: l10n.cloud189AppSecretHint,
                 suffixIcon: IconButton(
-                  onPressed: onTogglePassword,
+                  onPressed: enabled ? onTogglePassword : null,
                   icon: Icon(
                     obscurePassword
                         ? Icons.visibility_rounded
@@ -1259,6 +1797,7 @@ class _ConnectionFormDeck extends StatelessWidget {
             const SizedBox(height: 16),
             TextFormField(
               controller: cloud189RedirectUriController,
+              enabled: enabled,
               textInputAction: TextInputAction.next,
               keyboardType: TextInputType.url,
               decoration: InputDecoration(
@@ -1280,13 +1819,14 @@ class _ConnectionFormDeck extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             FilledButton.tonalIcon(
-              onPressed: onOpenCloud189Authorization,
+              onPressed: enabled ? onOpenCloud189Authorization : null,
               icon: const Icon(Icons.open_in_new_rounded),
               label: Text(l10n.cloud189OpenAuthorizationAction),
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: cloud189AuthorizationCodeController,
+              enabled: enabled,
               minLines: 1,
               maxLines: 3,
               textInputAction: TextInputAction.next,
@@ -1307,6 +1847,7 @@ class _ConnectionFormDeck extends StatelessWidget {
             const SizedBox(height: 16),
             TextFormField(
               controller: passwordController,
+              enabled: enabled,
               obscureText: obscurePassword,
               minLines: 1,
               maxLines: obscurePassword ? 1 : 4,
@@ -1316,7 +1857,7 @@ class _ConnectionFormDeck extends StatelessWidget {
                 hintText: l10n.cloud189AppRefreshTokenHint,
                 helperText: l10n.cloud189AppRefreshTokenHelpText,
                 suffixIcon: IconButton(
-                  onPressed: onTogglePassword,
+                  onPressed: enabled ? onTogglePassword : null,
                   icon: Icon(
                     obscurePassword
                         ? Icons.visibility_rounded
@@ -1329,6 +1870,7 @@ class _ConnectionFormDeck extends StatelessWidget {
         ] else ...[
           TextFormField(
             controller: urlController,
+            enabled: enabled,
             textInputAction: TextInputAction.next,
             keyboardType: TextInputType.url,
             decoration: InputDecoration(
@@ -1350,18 +1892,20 @@ class _ConnectionFormDeck extends StatelessWidget {
           const SizedBox(height: 16),
           TextFormField(
             controller: usernameController,
+            enabled: enabled,
             textInputAction: TextInputAction.next,
             decoration: InputDecoration(labelText: l10n.usernameLabel),
           ),
           const SizedBox(height: 16),
           TextFormField(
             controller: passwordController,
+            enabled: enabled,
             obscureText: obscurePassword,
             textInputAction: TextInputAction.next,
             decoration: InputDecoration(
               labelText: _passwordLabel(l10n, protocol),
               suffixIcon: IconButton(
-                onPressed: onTogglePassword,
+                onPressed: enabled ? onTogglePassword : null,
                 icon: Icon(
                   obscurePassword
                       ? Icons.visibility_rounded
@@ -1374,6 +1918,7 @@ class _ConnectionFormDeck extends StatelessWidget {
         const SizedBox(height: 16),
         TextFormField(
           controller: rootPathController,
+          enabled: enabled,
           textInputAction: TextInputAction.done,
           decoration: InputDecoration(
             labelText: l10n.rootPathLabel,
@@ -1401,18 +1946,18 @@ class _DirectoryDeck extends StatelessWidget {
   const _DirectoryDeck({
     required this.scanDirectories,
     required this.excludedScanDirectories,
-    required this.onAddScanDirectory,
-    required this.onRemoveScanDirectory,
-    required this.onAddExcludedDirectory,
-    required this.onRemoveExcludedDirectory,
+    this.onAddScanDirectory,
+    this.onRemoveScanDirectory,
+    this.onAddExcludedDirectory,
+    this.onRemoveExcludedDirectory,
   });
 
   final List<String> scanDirectories;
   final List<String> excludedScanDirectories;
-  final Future<void> Function() onAddScanDirectory;
-  final ValueChanged<String> onRemoveScanDirectory;
-  final Future<void> Function() onAddExcludedDirectory;
-  final ValueChanged<String> onRemoveExcludedDirectory;
+  final Future<void> Function()? onAddScanDirectory;
+  final ValueChanged<String>? onRemoveScanDirectory;
+  final Future<void> Function()? onAddExcludedDirectory;
+  final ValueChanged<String>? onRemoveExcludedDirectory;
 
   @override
   Widget build(BuildContext context) {
@@ -1479,8 +2024,8 @@ class _PathGroupEditor extends StatelessWidget {
     required this.emptyDescription,
     required this.addActionLabel,
     required this.entries,
-    required this.onAdd,
-    required this.onRemove,
+    this.onAdd,
+    this.onRemove,
   });
 
   final String title;
@@ -1488,8 +2033,8 @@ class _PathGroupEditor extends StatelessWidget {
   final String emptyDescription;
   final String addActionLabel;
   final List<String> entries;
-  final Future<void> Function() onAdd;
-  final ValueChanged<String> onRemove;
+  final Future<void> Function()? onAdd;
+  final ValueChanged<String>? onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -1521,10 +2066,16 @@ class _PathGroupEditor extends StatelessWidget {
                 ],
               ),
             ),
-            FilledButton.tonalIcon(
+            FilledButton.tonal(
               onPressed: onAdd,
-              icon: const Icon(Icons.add_rounded),
-              label: Text(addActionLabel),
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  const Icon(Icons.add_rounded, size: 18),
+                  const SizedBox(width: 8),
+                  Text(addActionLabel),
+                ],
+              ),
             ),
           ],
         ),
@@ -1553,7 +2104,10 @@ class _PathGroupEditor extends StatelessWidget {
             runSpacing: 10,
             children: [
               for (final entry in entries)
-                InputChip(label: Text(entry), onDeleted: () => onRemove(entry)),
+                InputChip(
+                  label: Text(entry),
+                  onDeleted: onRemove == null ? null : () => onRemove!(entry),
+                ),
             ],
           ),
       ],
@@ -1612,16 +2166,6 @@ class _AddSourceEmptyState extends StatelessWidget {
       ),
     );
   }
-}
-
-String _protocolLabel(AppLocalizations l10n, SourceProtocol protocol) {
-  return switch (protocol) {
-    SourceProtocol.webdav => l10n.webdavProtocol,
-    SourceProtocol.sftp => l10n.sftpProtocol,
-    SourceProtocol.ftp => l10n.ftpProtocol,
-    SourceProtocol.samba => l10n.sambaProtocol,
-    SourceProtocol.cloudDrive => l10n.cloud189Protocol,
-  };
 }
 
 String _sourceTypeTitle(AppLocalizations l10n, SourceProtocol protocol) {

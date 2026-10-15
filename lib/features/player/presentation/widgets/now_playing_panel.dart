@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -167,11 +168,10 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final panelRadius = studioRadiusOf(context, 32);
         final isWide = !widget.compact && constraints.maxWidth >= 800;
         final maxPanelWidth = widget.compact
             ? constraints.maxWidth
-            : math.min(constraints.maxWidth - 20, isWide ? 920.0 : 480.0);
+            : math.min(constraints.maxWidth, isWide ? 920.0 : 480.0);
         final canFillHeight = !widget.compact && constraints.hasBoundedHeight;
         final availableHeight = constraints.hasBoundedHeight
             ? constraints.maxHeight
@@ -179,7 +179,7 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
         final textScale = MediaQuery.textScalerOf(context).scale(1.0);
         final isShortOrLargeText = availableHeight < 620 || textScale > 1.15;
         final fallbackArtworkSize = math.min(
-          maxPanelWidth - 40,
+          maxPanelWidth - 32,
           math.max(160.0, availableHeight * 0.38),
         );
 
@@ -187,6 +187,10 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
           title: displayAlbum.isEmpty ? displayTitle : displayAlbum,
           nowPlayingLabel: l10n.playerTitle,
           lyricsScrapeTooltip: l10n.scrapingUpdateLyricsAction,
+          showLyrics: _showLyrics,
+          onToggleMode: isWide
+              ? null
+              : () => setState(() => _showLyrics = !_showLyrics),
           onCollapse: () {
             final navigator = Navigator.of(context);
             if (navigator.canPop()) {
@@ -329,86 +333,89 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
           ],
         );
 
-        final bottomControlsWidget = Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(height: studioSpacingOf(context, 14).clamp(8.0, 18.0)),
-            const _NowPlayingTimelineDeck(),
-            SizedBox(height: studioSpacingOf(context, 16).clamp(10.0, 20.0)),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final availableWidth = constraints.maxWidth;
-                final defaultActionSize = studioListSpacingOf(
-                  context,
-                  56,
-                ).clamp(48.0, 64.0);
-                final isTight =
-                    availableWidth < defaultActionSize * 4 + 64.0 + 8.0;
+        final bottomControlsWidget = Container(
+          key: const Key('player-controls'),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(height: studioSpacingOf(context, 14).clamp(8.0, 18.0)),
+              const _NowPlayingTimelineDeck(),
+              SizedBox(height: studioSpacingOf(context, 16).clamp(10.0, 20.0)),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final availableWidth = constraints.maxWidth;
+                  final defaultActionSize = studioListSpacingOf(
+                    context,
+                    56,
+                  ).clamp(48.0, 64.0);
+                  final isTight =
+                      availableWidth < defaultActionSize * 4 + 64.0 + 8.0;
 
-                final actionSize = isTight ? 48.0 : defaultActionSize;
-                final primarySize = isTight
-                    ? math.max(
-                        48.0,
-                        math.min(56.0, availableWidth - actionSize * 4 - 8.0),
-                      )
-                    : 64.0;
+                  final actionSize = isTight ? 48.0 : defaultActionSize;
+                  final primarySize = isTight
+                      ? math.max(
+                          48.0,
+                          math.min(56.0, availableWidth - actionSize * 4 - 8.0),
+                        )
+                      : 64.0;
 
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _PlayerActionButton(
-                      icon: _playbackModeIcon(playerState.playbackMode),
-                      active:
-                          playerState.playbackMode != PlayerPlaybackMode.list,
-                      tooltip: _playbackModeLabel(
-                        l10n,
-                        playerState.playbackMode,
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _PlayerActionButton(
+                        icon: _playbackModeIcon(playerState.playbackMode),
+                        active:
+                            playerState.playbackMode != PlayerPlaybackMode.list,
+                        tooltip: _playbackModeLabel(
+                          l10n,
+                          playerState.playbackMode,
+                        ),
+                        onTap: controller.cyclePlaybackMode,
+                        size: actionSize,
                       ),
-                      onTap: controller.cyclePlaybackMode,
-                      size: actionSize,
-                    ),
-                    _PlayerActionButton(
-                      icon: Icons.skip_previous_rounded,
-                      tooltip: l10n.previousTrackAction,
-                      prominentIcon: true,
-                      onTap: playerState.canPlayPrevious
-                          ? controller.playPrevious
-                          : null,
-                      size: actionSize,
-                    ),
-                    _PrimaryPlayerButton(
-                      isBusy: playerState.isBusy,
-                      isPlaying: playerState.isPlaying,
-                      size: primarySize,
-                      onTap: () {
-                        if (track == null && playerState.canRetry) {
-                          controller.play();
-                        } else {
-                          controller.togglePlayPause();
-                        }
-                      },
-                    ),
-                    _PlayerActionButton(
-                      icon: Icons.skip_next_rounded,
-                      tooltip: l10n.nextTrackAction,
-                      prominentIcon: true,
-                      onTap: playerState.canPlayNext
-                          ? controller.playNext
-                          : null,
-                      size: actionSize,
-                    ),
-                    _PlayerActionButton(
-                      icon: Icons.playlist_play_rounded,
-                      tooltip: l10n.playlistTitle,
-                      onTap: () => _showPlaylistSheet(context),
-                      size: actionSize,
-                    ),
-                  ],
-                );
-              },
-            ),
-          ],
+                      _PlayerActionButton(
+                        icon: Icons.skip_previous_rounded,
+                        tooltip: l10n.previousTrackAction,
+                        prominentIcon: true,
+                        onTap: playerState.canPlayPrevious
+                            ? controller.playPrevious
+                            : null,
+                        size: actionSize,
+                      ),
+                      _PrimaryPlayerButton(
+                        isBusy: playerState.isBusy,
+                        isPlaying: playerState.isPlaying,
+                        size: primarySize,
+                        onTap: () {
+                          if (track == null && playerState.canRetry) {
+                            controller.play();
+                          } else {
+                            controller.togglePlayPause();
+                          }
+                        },
+                      ),
+                      _PlayerActionButton(
+                        icon: Icons.skip_next_rounded,
+                        tooltip: l10n.nextTrackAction,
+                        prominentIcon: true,
+                        onTap: playerState.canPlayNext
+                            ? controller.playNext
+                            : null,
+                        size: actionSize,
+                      ),
+                      _PlayerActionButton(
+                        icon: Icons.playlist_play_rounded,
+                        tooltip: l10n.playlistTitle,
+                        onTap: () => _showPlaylistSheet(context),
+                        size: actionSize,
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
         );
 
         Widget buildPortraitArtwork({double? fixedSize}) {
@@ -433,13 +440,13 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
           if (fixedSize != null) {
             return Center(
               child: SizedBox(
-                width: fixedSize,
+                width: _showLyrics ? double.infinity : fixedSize,
                 height: fixedSize,
                 child: stage,
               ),
             );
           }
-          return Center(child: stage);
+          return stage;
         }
 
         Widget buildWideStage({double? fixedHeight}) {
@@ -472,6 +479,7 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
               const SizedBox(width: 24),
               Expanded(
                 child: SizedBox(
+                  key: const Key('player-lyrics-region'),
                   height: fixedHeight,
                   child: RepaintBoundary(
                     child: Consumer(
@@ -512,27 +520,11 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
             ],
           );
           return SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: Center(
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: maxPanelWidth),
-                child: Material(
-                  color: colorScheme.surfaceContainerHigh.withValues(
-                    alpha: 0.94,
-                  ),
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(panelRadius),
-                    side: BorderSide(
-                      color: colorScheme.outlineVariant.withValues(alpha: 0.45),
-                      width: 1,
-                    ),
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-                    child: cardContent,
-                  ),
-                ),
+                child: cardContent,
               ),
             ),
           );
@@ -560,7 +552,7 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
                             )
                           : buildPortraitArtwork(
                               fixedSize: math.min(
-                                maxPanelWidth - 40,
+                                maxPanelWidth - 32,
                                 math.max(140.0, availableHeight * 0.32),
                               ),
                             ),
@@ -590,7 +582,7 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
         }
 
         return Padding(
-          padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: Center(
             child: ConstrainedBox(
               constraints: BoxConstraints(
@@ -598,21 +590,7 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
                 minHeight: constraints.maxHeight - 16,
                 maxHeight: constraints.maxHeight - 16,
               ),
-              child: Material(
-                color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.94),
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(panelRadius),
-                  side: BorderSide(
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.45),
-                    width: 1,
-                  ),
-                ),
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-                  child: cardContent,
-                ),
-              ),
+              child: cardContent,
             ),
           ),
         );
@@ -634,6 +612,8 @@ class _PlayerHeader extends StatelessWidget {
     required this.onCollapse,
     required this.onLyricsScrape,
     required this.onMore,
+    this.showLyrics = false,
+    this.onToggleMode,
   });
 
   final String title;
@@ -642,6 +622,8 @@ class _PlayerHeader extends StatelessWidget {
   final VoidCallback onCollapse;
   final VoidCallback onLyricsScrape;
   final VoidCallback onMore;
+  final bool showLyrics;
+  final VoidCallback? onToggleMode;
 
   @override
   Widget build(BuildContext context) {
@@ -697,11 +679,30 @@ class _PlayerHeader extends StatelessWidget {
             ],
           ),
         ),
-        _HeaderCircleButton(
-          icon: Icons.info_outline_rounded,
-          tooltip: AppLocalizations.of(context)!.songDetailsTitle,
-          iconColor: colorScheme.onSurfaceVariant,
-          onTap: onMore,
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (onToggleMode != null) ...[
+              _HeaderCircleButton(
+                icon: showLyrics ? Icons.album_rounded : Icons.lyrics_rounded,
+                tooltip: showLyrics
+                    ? AppLocalizations.of(context)!.showCoverAction
+                    : AppLocalizations.of(context)!.showLyricsAction,
+                iconColor: showLyrics
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
+                filled: showLyrics,
+                onTap: onToggleMode,
+              ),
+              const SizedBox(width: 8),
+            ],
+            _HeaderCircleButton(
+              icon: Icons.info_outline_rounded,
+              tooltip: AppLocalizations.of(context)!.songDetailsTitle,
+              iconColor: colorScheme.onSurfaceVariant,
+              onTap: onMore,
+            ),
+          ],
         ),
       ],
     );
@@ -785,6 +786,11 @@ class _ArtworkStage extends StatelessWidget {
   final VoidCallback? onToggleLyrics;
   final Future<void> Function(Duration position) onSeekToLine;
 
+  static final Animatable<Offset> _stageSlideTween = Tween<Offset>(
+    begin: const Offset(0, 0.02),
+    end: Offset.zero,
+  ).chain(CurveTween(curve: Curves.easeOut));
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -794,151 +800,154 @@ class _ArtworkStage extends StatelessWidget {
         ? Duration.zero
         : const Duration(milliseconds: 180);
 
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(panelRadius),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onToggleLyrics,
-        child: Semantics(
-          button: onToggleLyrics != null,
-          label: onToggleLyrics == null
-              ? title
-              : showLyrics
-              ? AppLocalizations.of(context)!.showCoverAction
-              : tapLyricsLabel,
-          child: AspectRatio(
-            aspectRatio: 1,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final size = constraints.maxWidth;
+    return AnimatedSwitcher(
+      duration: duration,
+      layoutBuilder: (currentChild, previousChildren) =>
+          currentChild ?? const SizedBox.shrink(),
+      transitionBuilder: (child, animation) => SlideTransition(
+        position: animation.drive(_stageSlideTween),
+        child: child,
+      ),
+      child: showLyrics
+          ? RepaintBoundary(
+              key: const ValueKey('lyrics-stage'),
+              child: SizedBox.expand(
+                child: Container(
+                  key: const Key('player-lyrics-region'),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  child: Consumer(
+                    builder: (context, ref, _) {
+                      final activeIndex = ref.watch(
+                        playerControllerProvider.select(
+                          (state) => state.activeLyricIndex,
+                        ),
+                      );
+                      return _LyricsPanel(
+                        lyrics: lyrics,
+                        activeIndex: activeIndex,
+                        emptyLabel: lyricsEmptyLabel,
+                        scrubPlayTooltip: scrubPlayTooltip,
+                        onSeekToLine: onSeekToLine,
+                      );
+                    },
+                  ),
+                ),
+              ),
+            )
+          : RepaintBoundary(
+              key: const ValueKey('cover-stage'),
+              child: Center(
+                child: AspectRatio(
+                  aspectRatio: 1,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final size = constraints.maxWidth;
 
-                return AnimatedSwitcher(
-                  duration: duration,
-                  child: showLyrics
-                      ? RepaintBoundary(
-                          key: const ValueKey('lyrics'),
-                          child: Container(
-                            padding: const EdgeInsets.all(22),
-                            decoration: BoxDecoration(
-                              color: colorScheme.surfaceContainerHigh
-                                  .withValues(alpha: 0.94),
-                              borderRadius: BorderRadius.circular(panelRadius),
-                              border: Border.all(
-                                color: colorScheme.primary.withValues(
-                                  alpha: 0.18,
+                      return Material(
+                        key: const Key('player-artwork-region'),
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(panelRadius),
+                        clipBehavior: Clip.antiAlias,
+                        child: StudioPressable(
+                          borderRadius: BorderRadius.circular(panelRadius),
+                          onTap: onToggleLyrics,
+                          child: Semantics(
+                            button: onToggleLyrics != null,
+                            label: onToggleLyrics == null
+                                ? title
+                                : tapLyricsLabel,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                TrackCoverThumbnail(
+                                  title: title,
+                                  subtitle: subtitle,
+                                  size: size,
+                                  borderRadius: 26,
+                                  localCoverPath: localCoverPath,
+                                  coverUrl: coverUrl,
+                                  trackId: trackId,
+                                  sourceId: sourceId,
+                                  directoryPath: directoryPath,
                                 ),
-                              ),
-                            ),
-                            child: Consumer(
-                              builder: (context, ref, _) {
-                                final activeIndex = ref.watch(
-                                  playerControllerProvider.select(
-                                    (state) => state.activeLyricIndex,
-                                  ),
-                                );
-                                return _LyricsPanel(
-                                  lyrics: lyrics,
-                                  activeIndex: activeIndex,
-                                  emptyLabel: lyricsEmptyLabel,
-                                  scrubPlayTooltip: scrubPlayTooltip,
-                                  onSeekToLine: onSeekToLine,
-                                );
-                              },
-                            ),
-                          ),
-                        )
-                      : RepaintBoundary(
-                          key: const ValueKey('cover'),
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              TrackCoverThumbnail(
-                                title: title,
-                                subtitle: subtitle,
-                                size: size,
-                                borderRadius: 26,
-                                localCoverPath: localCoverPath,
-                                coverUrl: coverUrl,
-                                trackId: trackId,
-                                sourceId: sourceId,
-                                directoryPath: directoryPath,
-                              ),
-                              DecoratedBox(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(
-                                    panelRadius,
-                                  ),
-                                  border: Border.all(
-                                    color: colorScheme.primary.withValues(
-                                      alpha: 0.2,
+                                DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(
+                                      panelRadius,
+                                    ),
+                                    border: Border.all(
+                                      color: colorScheme.primary.withValues(
+                                        alpha: 0.18,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              if (onToggleLyrics != null)
-                                Align(
-                                  alignment: Alignment.bottomCenter,
-                                  child: Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      12,
-                                      0,
-                                      12,
-                                      16,
-                                    ),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 8,
+                                if (onToggleLyrics != null)
+                                  Align(
+                                    alignment: Alignment.bottomCenter,
+                                    child: Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        12,
+                                        0,
+                                        12,
+                                        16,
                                       ),
-                                      decoration: BoxDecoration(
-                                        color: colorScheme.surface.withValues(
-                                          alpha: 0.72,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
                                         ),
-                                        borderRadius: BorderRadius.circular(
-                                          999,
-                                        ),
-                                        border: Border.all(
-                                          color: colorScheme.primary.withValues(
-                                            alpha: 0.2,
+                                        decoration: BoxDecoration(
+                                          color: colorScheme.surface.withValues(
+                                            alpha: 0.72,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            999,
+                                          ),
+                                          border: Border.all(
+                                            color: colorScheme.primary
+                                                .withValues(alpha: 0.2),
                                           ),
                                         ),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.lyrics_rounded,
-                                            color: colorScheme.primary,
-                                            size: 18,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Flexible(
-                                            child: Text(
-                                              tapLyricsLabel,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: _glacierTextStyle(
-                                                color: colorScheme.onSurface,
-                                                size: 12,
-                                                weight: FontWeight.w600,
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.lyrics_rounded,
+                                              color: colorScheme.primary,
+                                              size: 18,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Flexible(
+                                              child: Text(
+                                                tapLyricsLabel,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: _glacierTextStyle(
+                                                  color: colorScheme.onSurface,
+                                                  size: 12,
+                                                  weight: FontWeight.w600,
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
-                );
-              },
+                      );
+                    },
+                  ),
+                ),
+              ),
             ),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -1296,7 +1305,7 @@ class _PlaylistRow extends StatelessWidget {
           ? colorScheme.primary.withValues(alpha: 0.12)
           : colorScheme.surfaceContainerHigh.withValues(alpha: 0.7),
       borderRadius: BorderRadius.circular(22),
-      child: InkWell(
+      child: StudioPressable(
         borderRadius: BorderRadius.circular(22),
         onTap: onTap,
         child: Container(
@@ -1403,7 +1412,7 @@ class _HeaderCircleButton extends StatelessWidget {
           ? colorScheme.primary.withValues(alpha: 0.12)
           : colorScheme.surfaceContainerHigh.withValues(alpha: 0.82),
       borderRadius: BorderRadius.circular(999),
-      child: InkWell(
+      child: StudioPressable(
         borderRadius: BorderRadius.circular(999),
         onTap: onTap,
         child: Container(
@@ -1465,7 +1474,7 @@ class _PlayerActionButton extends StatelessWidget {
     final button = Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(buttonRadius),
-      child: InkWell(
+      child: StudioPressable(
         borderRadius: BorderRadius.circular(buttonRadius),
         onTap: onTap,
         child: SizedBox(
@@ -1518,7 +1527,7 @@ class _PrimaryPlayerButton extends StatelessWidget {
         child: Material(
           color: colorScheme.primary.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(999),
-          child: InkWell(
+          child: StudioPressable(
             borderRadius: BorderRadius.circular(999),
             onTap: onTap,
             child: Container(
@@ -1787,10 +1796,11 @@ class _LyricsPanelState extends State<_LyricsPanel> {
   Timer? _resumeAutoScrollTimer;
   late List<GlobalKey> _lineKeys;
   bool _isUserScrolling = false;
-  bool _isAutoScrolling = false;
+  bool _isProgrammaticScrolling = false;
   bool _showScrubber = false;
   int _lastAutoScrolledIndex = -1;
   int? _scrubberLineIndex;
+  int _programmaticOpId = 0;
 
   @override
   void initState() {
@@ -1803,20 +1813,28 @@ class _LyricsPanelState extends State<_LyricsPanel> {
   @override
   void didUpdateWidget(covariant _LyricsPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.lyrics.length != widget.lyrics.length) {
+    final lyricsChanged =
+        oldWidget.lyrics != widget.lyrics ||
+        oldWidget.lyrics.length != widget.lyrics.length;
+
+    if (lyricsChanged) {
+      _interruptProgrammaticScrollForUser();
       _lineKeys = _buildLineKeys(widget.lyrics.length);
       _lastAutoScrolledIndex = -1;
       _scrubberLineIndex = null;
+      _isUserScrolling = false;
+      _showScrubber = false;
+      _resumeAutoScrollTimer?.cancel();
     }
 
-    if (oldWidget.activeIndex != widget.activeIndex ||
-        oldWidget.lyrics != widget.lyrics) {
-      _scheduleScrollToActive(force: oldWidget.lyrics != widget.lyrics);
+    if (lyricsChanged || oldWidget.activeIndex != widget.activeIndex) {
+      _scheduleScrollToActive(force: lyricsChanged);
     }
   }
 
   @override
   void dispose() {
+    _interruptProgrammaticScrollForUser();
     _resumeAutoScrollTimer?.cancel();
     _scrollController.dispose();
     super.dispose();
@@ -1847,37 +1865,57 @@ class _LyricsPanelState extends State<_LyricsPanel> {
           )
         : Stack(
             children: [
-              NotificationListener<ScrollNotification>(
-                onNotification: _handleScrollNotification,
-                child: ListView.separated(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.symmetric(vertical: 88),
-                  itemCount: widget.lyrics.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
-                  itemBuilder: (context, index) {
-                    final isActive = index == widget.activeIndex;
-                    final line = widget.lyrics[index];
+              Listener(
+                onPointerSignal: (pointerSignal) {
+                  if (pointerSignal is PointerScrollEvent &&
+                      pointerSignal.scrollDelta.dy != 0) {
+                    _interruptProgrammaticScrollForUser();
+                    _markUserScrolling();
+                    _updateScrubberLine();
+                    _scheduleAutoResumeIfNeeded();
+                  }
+                },
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: _handleScrollNotification,
+                  child: ListView.separated(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.symmetric(vertical: 88),
+                    itemCount: widget.lyrics.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final isActive = index == widget.activeIndex;
+                      final line = widget.lyrics[index];
+                      final targetColor = isActive
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant;
 
-                    return KeyedSubtree(
-                      key: _lineKeys[index],
-                      child: AnimatedDefaultTextStyle(
-                        duration: textDuration,
-                        style: _glacierTextStyle(
-                          color: isActive
-                              ? colorScheme.primary
-                              : colorScheme.onSurfaceVariant,
-                          size: isActive ? 23 : 17,
-                          weight: isActive ? FontWeight.w800 : FontWeight.w500,
-                          height: isActive ? 1.24 : 1.38,
-                        ),
+                      return KeyedSubtree(
+                        key: _lineKeys[index],
                         child: AnimatedScale(
                           duration: textDuration,
                           scale: isActive ? 1.03 : 1,
-                          child: Text(line.text, textAlign: TextAlign.center),
+                          child: TweenAnimationBuilder<Color?>(
+                            duration: textDuration,
+                            tween: ColorTween(end: targetColor),
+                            builder: (context, color, _) {
+                              return Text(
+                                line.text,
+                                textAlign: TextAlign.center,
+                                style: _glacierTextStyle(
+                                  color: color ?? targetColor,
+                                  size: isActive ? 23 : 17,
+                                  weight: isActive
+                                      ? FontWeight.w800
+                                      : FontWeight.w500,
+                                  height: isActive ? 1.24 : 1.38,
+                                ),
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
               ),
               if (_isUserScrolling)
@@ -1960,7 +1998,22 @@ class _LyricsPanelState extends State<_LyricsPanel> {
   }
 
   bool _handleScrollNotification(ScrollNotification notification) {
-    if (_isAutoScrolling) {
+    final isUserGesture =
+        (notification is UserScrollNotification &&
+            notification.direction != ScrollDirection.idle) ||
+        (notification is ScrollStartNotification &&
+            notification.dragDetails != null) ||
+        (notification is ScrollUpdateNotification &&
+            notification.dragDetails != null);
+
+    if (isUserGesture) {
+      _interruptProgrammaticScrollForUser();
+      _markUserScrolling();
+      _updateScrubberLine();
+      return false;
+    }
+
+    if (_isProgrammaticScrolling) {
       return false;
     }
 
@@ -1976,7 +2029,9 @@ class _LyricsPanelState extends State<_LyricsPanel> {
 
     final isUserDriven =
         notification is ScrollStartNotification ||
-        notification is ScrollUpdateNotification ||
+        (notification is ScrollUpdateNotification &&
+            notification.scrollDelta != null &&
+            notification.scrollDelta != 0) ||
         notification is OverscrollNotification;
 
     if (isUserDriven) {
@@ -1990,6 +2045,11 @@ class _LyricsPanelState extends State<_LyricsPanel> {
     }
 
     return false;
+  }
+
+  void _interruptProgrammaticScrollForUser() {
+    _programmaticOpId++;
+    _isProgrammaticScrolling = false;
   }
 
   void _markUserScrolling() {
@@ -2047,18 +2107,35 @@ class _LyricsPanelState extends State<_LyricsPanel> {
     return _formatDuration(widget.lyrics[index].time);
   }
 
-  void _scheduleScrollToActive({
-    bool force = false,
-    bool animated = true,
-    int remainingAttempts = 8,
-  }) {
+  void _scheduleScrollToActive({bool force = false, bool animated = true}) {
+    if (_isUserScrolling || widget.lyrics.isEmpty) {
+      return;
+    }
+    final targetIndex = _resolvedActiveIndex;
+    if (targetIndex < 0) {
+      return;
+    }
+    if (!force &&
+        !_isProgrammaticScrolling &&
+        targetIndex == _lastAutoScrolledIndex) {
+      return;
+    }
+
+    final opId = ++_programmaticOpId;
+    _isProgrammaticScrolling = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollToActive(
+      if (!mounted || opId != _programmaticOpId || _isUserScrolling) {
+        return;
+      }
+      _performProgrammaticScroll(
+        opId: opId,
+        targetIndex: targetIndex,
         force: force,
         animated: animated,
-        remainingAttempts: remainingAttempts,
+        attempt: 0,
       );
     });
+    WidgetsBinding.instance.scheduleFrame();
   }
 
   void _updateScrubberLine() {
@@ -2123,82 +2200,118 @@ class _LyricsPanelState extends State<_LyricsPanel> {
     _scheduleScrollToActive(force: true);
   }
 
-  Future<void> _scrollToActive({
-    bool force = false,
-    bool animated = true,
-    int remainingAttempts = 0,
+  Future<void> _performProgrammaticScroll({
+    required int opId,
+    required int targetIndex,
+    required bool force,
+    required bool animated,
+    required int attempt,
   }) async {
-    if (!mounted || _isUserScrolling || widget.lyrics.isEmpty) {
+    if (!mounted ||
+        opId != _programmaticOpId ||
+        _isUserScrolling ||
+        widget.lyrics.isEmpty) {
       return;
     }
 
-    final targetIndex = _resolvedActiveIndex;
     if (targetIndex < 0 || targetIndex >= _lineKeys.length) {
+      if (mounted && opId == _programmaticOpId) {
+        _isProgrammaticScrolling = false;
+      }
       return;
+    }
+
+    if (!force && targetIndex != _resolvedActiveIndex) {
+      if (mounted && opId == _programmaticOpId) {
+        _isProgrammaticScrolling = false;
+      }
+      return;
+    }
+
+    void scheduleRetry() {
+      if (attempt < 8) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || opId != _programmaticOpId || _isUserScrolling) {
+            return;
+          }
+          _performProgrammaticScroll(
+            opId: opId,
+            targetIndex: targetIndex,
+            force: force,
+            animated: animated,
+            attempt: attempt + 1,
+          );
+        });
+        WidgetsBinding.instance.scheduleFrame();
+      } else if (mounted && opId == _programmaticOpId) {
+        _isProgrammaticScrolling = false;
+      }
     }
 
     if (!_scrollController.hasClients) {
-      if (remainingAttempts > 0) {
-        final disableAnimations = MediaQuery.disableAnimationsOf(context);
-        if (disableAnimations) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              _scheduleScrollToActive(
-                force: force,
-                animated: animated,
-                remainingAttempts: remainingAttempts - 1,
-              );
-            }
-          });
-        } else {
-          Future<void>.delayed(const Duration(milliseconds: 60), () {
-            _scheduleScrollToActive(
-              force: force,
-              animated: animated,
-              remainingAttempts: remainingAttempts - 1,
-            );
-          });
-        }
-      }
+      scheduleRetry();
       return;
     }
 
-    if (!force && targetIndex == _lastAutoScrolledIndex) {
+    if (!force &&
+        !_isProgrammaticScrolling &&
+        targetIndex == _lastAutoScrolledIndex) {
       return;
     }
 
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
     final targetContext = _lineKeys[targetIndex].currentContext;
     final renderObj = targetContext?.findRenderObject();
+
+    // 1. If target line is not yet rendered by ListView, perform rough positioning:
     if (targetContext == null || renderObj == null || !renderObj.attached) {
-      _primeScrollNearIndex(targetIndex, animated: animated);
-      if (remainingAttempts > 0) {
-        final disableAnimations = MediaQuery.disableAnimationsOf(context);
-        if (disableAnimations) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              _scheduleScrollToActive(
-                force: force,
-                animated: animated,
-                remainingAttempts: remainingAttempts - 1,
-              );
-            }
-          });
-        } else {
-          Future<void>.delayed(const Duration(milliseconds: 60), () {
-            _scheduleScrollToActive(
-              force: force,
-              animated: animated,
-              remainingAttempts: remainingAttempts - 1,
-            );
-          });
+      final position = _scrollController.position;
+      final maxExtent = position.maxScrollExtent;
+      if (!maxExtent.isFinite || maxExtent <= 0) {
+        scheduleRetry();
+        return;
+      }
+
+      final ratio = widget.lyrics.length > 1
+          ? (targetIndex / (widget.lyrics.length - 1)).clamp(0.0, 1.0)
+          : 0.0;
+      final targetOffset = (maxExtent * ratio).clamp(0.0, maxExtent);
+
+      int? firstRendered;
+      int? lastRendered;
+      for (var i = 0; i < _lineKeys.length; i++) {
+        final ctx = _lineKeys[i].currentContext;
+        if (ctx != null && ctx.findRenderObject()?.attached == true) {
+          firstRendered ??= i;
+          lastRendered = i;
         }
       }
+
+      double jumpOffset = targetOffset;
+      if (attempt > 0 && firstRendered != null && lastRendered != null) {
+        if (targetIndex < firstRendered) {
+          jumpOffset = (position.pixels - position.viewportDimension * 0.7)
+              .clamp(0.0, maxExtent);
+        } else if (targetIndex > lastRendered) {
+          jumpOffset = (position.pixels + position.viewportDimension * 0.7)
+              .clamp(0.0, maxExtent);
+        }
+      }
+
+      _isProgrammaticScrolling = true;
+      if ((position.pixels - jumpOffset).abs() > 4) {
+        _scrollController.jumpTo(jumpOffset);
+        _lastAutoScrolledIndex = -1;
+      }
+
+      scheduleRetry();
       return;
     }
 
+    // 2. Target line is in the tree! Centering with Scrollable.ensureVisible:
+    _isProgrammaticScrolling = true;
     _lastAutoScrolledIndex = targetIndex;
-    _isAutoScrolling = true;
-    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+
     try {
       await Scrollable.ensureVisible(
         targetContext,
@@ -2209,45 +2322,16 @@ class _LyricsPanelState extends State<_LyricsPanel> {
         curve: Curves.easeOutCubic,
       );
     } finally {
-      if (mounted) {
-        if (disableAnimations) {
-          _isAutoScrolling = false;
+      if (mounted && opId == _programmaticOpId) {
+        if (disableAnimations || !animated) {
+          _isProgrammaticScrolling = false;
         } else {
-          Future<void>.delayed(const Duration(milliseconds: 80), () {
-            if (mounted) {
-              _isAutoScrolling = false;
-            }
-          });
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+          if (mounted && opId == _programmaticOpId) {
+            _isProgrammaticScrolling = false;
+          }
         }
-      } else {
-        _isAutoScrolling = false;
       }
-    }
-  }
-
-  void _primeScrollNearIndex(int targetIndex, {required bool animated}) {
-    if (!_scrollController.hasClients || widget.lyrics.length <= 1) {
-      return;
-    }
-    final maxExtent = _scrollController.position.maxScrollExtent;
-    if (!maxExtent.isFinite || maxExtent <= 0) {
-      return;
-    }
-    final ratio = targetIndex / (widget.lyrics.length - 1);
-    final targetOffset = (maxExtent * ratio).clamp(0.0, maxExtent);
-    final currentOffset = _scrollController.offset;
-    if ((currentOffset - targetOffset).abs() < 24) {
-      return;
-    }
-    final disableAnimations = MediaQuery.disableAnimationsOf(context);
-    if (animated && !disableAnimations) {
-      _scrollController.animateTo(
-        targetOffset,
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOutCubic,
-      );
-    } else {
-      _scrollController.jumpTo(targetOffset);
     }
   }
 }

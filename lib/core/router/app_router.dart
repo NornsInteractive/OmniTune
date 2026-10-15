@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart' show CupertinoPage;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' show Ref;
@@ -84,12 +85,20 @@ GoRouter appRouter(Ref ref) {
       ),
       GoRoute(
         path: '/search',
-        builder: (context, state) => const LibrarySearchPage(),
+        pageBuilder: (context, state) => _buildStudioPage(
+          context: context,
+          state: state,
+          child: const LibrarySearchPage(),
+        ),
       ),
       GoRoute(path: '/home', redirect: (context, state) => '/albums'),
       GoRoute(
         path: '/settings',
-        builder: (context, state) => const SettingsPage(),
+        pageBuilder: (context, state) => _buildStudioPage(
+          context: context,
+          state: state,
+          child: const SettingsPage(),
+        ),
       ),
       GoRoute(
         path: '/player',
@@ -131,24 +140,75 @@ GoRouter appRouter(Ref ref) {
       ),
       GoRoute(
         path: '/settings/add-source',
-        builder: (context, state) => const SourceTypeSelectionPage(),
+        pageBuilder: (context, state) => _buildStudioPage(
+          context: context,
+          state: state,
+          child: const SourceTypeSelectionPage(),
+        ),
         routes: [
           GoRoute(
             path: ':protocol',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final protocol = SourceProtocolX.fromStorageValue(
                 state.pathParameters['protocol'] ?? '',
               );
-              return AddSourcePage(initialProtocol: protocol);
+              return _buildStudioPage(
+                context: context,
+                state: state,
+                child: AddSourcePage(initialProtocol: protocol),
+              );
             },
           ),
         ],
       ),
       GoRoute(
         path: '/settings/source/:sourceId',
-        builder: (context, state) =>
-            AddSourcePage(sourceId: state.pathParameters['sourceId']),
+        pageBuilder: (context, state) => _buildStudioPage(
+          context: context,
+          state: state,
+          child: AddSourcePage(sourceId: state.pathParameters['sourceId']),
+        ),
       ),
     ],
+  );
+}
+
+Page<dynamic> _buildStudioPage({
+  required BuildContext context,
+  required GoRouterState state,
+  required Widget child,
+}) {
+  final disableAnimations = MediaQuery.disableAnimationsOf(context);
+  final isApple =
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.macOS);
+  if (isApple) {
+    return CupertinoPage<dynamic>(key: state.pageKey, child: child);
+  }
+  return CustomTransitionPage<dynamic>(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: disableAnimations
+        ? Duration.zero
+        : const Duration(milliseconds: 220),
+    reverseTransitionDuration: disableAnimations
+        ? Duration.zero
+        : const Duration(milliseconds: 180),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      if (disableAnimations) return child;
+      final fadeTween = CurveTween(curve: const Cubic(0.2, 0.0, 0.0, 1.0));
+      final slideTween = Tween<Offset>(
+        begin: const Offset(0, 0.03),
+        end: Offset.zero,
+      ).chain(fadeTween);
+      return FadeTransition(
+        opacity: animation.drive(fadeTween),
+        child: SlideTransition(
+          position: animation.drive(slideTween),
+          child: child,
+        ),
+      );
+    },
   );
 }

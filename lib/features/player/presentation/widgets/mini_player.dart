@@ -15,6 +15,39 @@ class MiniPlayer extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final hasTrack = ref.watch(
+      playerControllerProvider.select((state) => state.currentTrack != null),
+    );
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+
+    return AnimatedSwitcher(
+      duration: disableAnimations
+          ? Duration.zero
+          : const Duration(milliseconds: 200),
+      switchInCurve: const Cubic(0.2, 0.0, 0.0, 1.0),
+      switchOutCurve: const Cubic(0.2, 0.0, 0.0, 1.0),
+      transitionBuilder: (child, animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: SizeTransition(
+            sizeFactor: animation,
+            axisAlignment: -1.0,
+            child: child,
+          ),
+        );
+      },
+      child: hasTrack
+          ? const _MiniPlayerContent(key: ValueKey('mini-player-active'))
+          : const SizedBox.shrink(key: ValueKey('mini-player-idle')),
+    );
+  }
+}
+
+class _MiniPlayerContent extends ConsumerWidget {
+  const _MiniPlayerContent({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final track = ref.watch(
       playerControllerProvider.select((state) => state.currentTrack),
     );
@@ -85,7 +118,8 @@ class MiniPlayer extends ConsumerWidget {
           ),
         ),
         clipBehavior: Clip.antiAlias,
-        child: InkWell(
+        child: StudioPressable(
+          borderRadius: BorderRadius.circular(cardRadius),
           onTap: () => context.push('/player'),
           child: Padding(
             padding: EdgeInsets.fromLTRB(10, innerVertical, 10, innerVertical),
@@ -95,53 +129,73 @@ class MiniPlayer extends ConsumerWidget {
                 Row(
                   children: [
                     RepaintBoundary(
-                      child: TrackCoverThumbnail(
-                        title: displayTitle,
-                        subtitle: subtitle,
-                        size: coverSize,
-                        borderRadius: coverRadius,
-                        localCoverPath: displayLocalCoverPath,
-                        coverUrl: displayCoverUrl,
-                        trackId: displaySong?.id ?? track.id,
-                        sourceId: displaySong?.sourceId ?? track.sourceId,
-                        directoryPath: directoryPath,
+                      child: AnimatedSwitcher(
+                        duration: MediaQuery.disableAnimationsOf(context)
+                            ? Duration.zero
+                            : const Duration(milliseconds: 180),
+                        child: TrackCoverThumbnail(
+                          key: ValueKey(displaySong?.id ?? track.id),
+                          title: displayTitle,
+                          subtitle: subtitle,
+                          size: coverSize,
+                          borderRadius: coverRadius,
+                          localCoverPath: displayLocalCoverPath,
+                          coverUrl: displayCoverUrl,
+                          trackId: displaySong?.id ?? track.id,
+                          sourceId: displaySong?.sourceId ?? track.sourceId,
+                          directoryPath: directoryPath,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            displayTitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.notoSans(
-                              color: colorScheme.onSurface,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                      child: AnimatedSwitcher(
+                        duration: MediaQuery.disableAnimationsOf(context)
+                            ? Duration.zero
+                            : const Duration(milliseconds: 180),
+                        layoutBuilder: (currentChild, previousChildren) =>
+                            Stack(
+                              alignment: Alignment.centerLeft,
+                              children: <Widget>[
+                                ...previousChildren,
+                                ?currentChild,
+                              ],
                             ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            status.$2 != null
-                                ? l10n.retryAction
-                                : status.$1
-                                ? l10n.playbackBufferingLabel
-                                : !isPlaying
-                                ? l10n.playbackPausedLabel
-                                : subtitle.isEmpty
-                                ? track.sourceName
-                                : subtitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.notoSans(
-                              color: colorScheme.onSurfaceVariant,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w400,
+                        child: Column(
+                          key: ValueKey(displaySong?.id ?? track.id),
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              displayTitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.notoSans(
+                                color: colorScheme.onSurface,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 3),
+                            Text(
+                              status.$2 != null
+                                  ? l10n.retryAction
+                                  : status.$1
+                                  ? l10n.playbackBufferingLabel
+                                  : !isPlaying
+                                  ? l10n.playbackPausedLabel
+                                  : subtitle.isEmpty
+                                  ? track.sourceName
+                                  : subtitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.notoSans(
+                                color: colorScheme.onSurfaceVariant,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -250,8 +304,9 @@ class _MiniControlButton extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(itemRadius),
-        child: InkWell(
+        child: StudioPressable(
           borderRadius: BorderRadius.circular(itemRadius),
+          enabled: enabled,
           onTap: onPressed,
           child: SizedBox(
             width: 32,
@@ -285,19 +340,38 @@ class _MiniPlayButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final itemRadius = studioRadiusOf(context, 16);
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
 
     return Tooltip(
       message: tooltip,
       child: Material(
         color: colorScheme.primaryContainer,
         borderRadius: BorderRadius.circular(itemRadius),
-        child: InkWell(
+        child: StudioPressable(
           borderRadius: BorderRadius.circular(itemRadius),
           onTap: onPressed,
           child: SizedBox(
             width: 34,
             height: 34,
-            child: Icon(icon, size: 22, color: colorScheme.onPrimaryContainer),
+            child: Center(
+              child: AnimatedSwitcher(
+                duration: disableAnimations
+                    ? Duration.zero
+                    : const Duration(milliseconds: 160),
+                transitionBuilder: (child, animation) {
+                  return ScaleTransition(
+                    scale: animation,
+                    child: FadeTransition(opacity: animation, child: child),
+                  );
+                },
+                child: Icon(
+                  icon,
+                  key: ValueKey(icon),
+                  size: 22,
+                  color: colorScheme.onPrimaryContainer,
+                ),
+              ),
+            ),
           ),
         ),
       ),

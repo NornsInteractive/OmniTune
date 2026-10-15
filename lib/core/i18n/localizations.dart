@@ -2042,7 +2042,7 @@ abstract class AppLocalizations {
   /// No description provided for @addScanDirectoryDialogTitle.
   ///
   /// In en, this message translates to:
-  /// **'Add scan directory'**
+  /// **'Add directory to scan'**
   String get addScanDirectoryDialogTitle;
 
   /// No description provided for @scanDirectoriesDialogDescription.
@@ -2078,7 +2078,7 @@ abstract class AppLocalizations {
   /// No description provided for @addExcludedScanDirectoryDialogTitle.
   ///
   /// In en, this message translates to:
-  /// **'Add excluded directory'**
+  /// **'Add directory to exclude'**
   String get addExcludedScanDirectoryDialogTitle;
 
   /// No description provided for @excludedScanDirectoriesDialogDescription.
@@ -2596,6 +2596,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show cover'**
   String get showCoverAction;
+
+  /// No description provided for @discardChangesConfirmationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard unsaved changes?'**
+  String get discardChangesConfirmationTitle;
+
+  /// No description provided for @discardChangesConfirmationDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'You have unsaved changes. Are you sure you want to discard them?'**
+  String get discardChangesConfirmationDescription;
+
+  /// No description provided for @discardChangesAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get discardChangesAction;
+
+  /// No description provided for @continueEditingAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue editing'**
+  String get continueEditingAction;
 }
 
 class _AppLocalizationsDelegate

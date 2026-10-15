@@ -5,6 +5,7 @@ import argparse
 import csv
 import io
 import json
+import math
 import os
 import re
 import shlex
@@ -67,6 +68,20 @@ def parse_media_session(stdout: str):
     return state, position_ms, track
 
 
+def parse_foreground_activity(stdout: str) -> str | None:
+    if not stdout:
+        return None
+    for line in stdout.splitlines():
+        m = re.search(
+            r"\b(?:topResumedActivity|mResumedActivity|ResumedActivity)\s*[=:]\s*"
+            r"ActivityRecord\{[^}]*?\s([\w.]+)/",
+            line,
+        )
+        if m:
+            return m.group(1)
+    return None
+
+
 def _vm_get(base_url: str, path: str, params: dict | None = None) -> str | None:
     try:
         url = "%s/%s" % (base_url.rstrip("/"), path)
@@ -95,14 +110,25 @@ def vm_set_flags(base_url: str) -> bool:
     return rpc_result.get("type") == "Success"
 
 
-def vm_get_timeline(base_url: str) -> dict | None:
-    raw = _vm_get(base_url, "getVMTimeline")
+def vm_get_timeline_raw(base_url: str) -> str | None:
+    return _vm_get(base_url, "getVMTimeline")
+
+
+def _timeline_from_raw(raw: str | None) -> dict | None:
     if raw is None:
         return None
     try:
-        return json.loads(raw).get("result")
-    except (json.JSONDecodeError, AttributeError):
+        body = json.loads(raw)
+    except (ValueError, TypeError):
         return None
+    if not isinstance(body, dict):
+        return None
+    result = body.get("result")
+    return result if isinstance(result, dict) else None
+
+
+def vm_get_timeline(base_url: str) -> dict | None:
+    return _timeline_from_raw(vm_get_timeline_raw(base_url))
 
 
 def vm_clear_timeline(base_url: str) -> bool:
@@ -142,6 +168,16 @@ def _stats(vals_ms: list[float]):
     }
 
 
+def _finite_num(value):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        f = float(value)
+    except (TypeError, ValueError):
+        return None
+    return f if math.isfinite(f) else None
+
+
 def parse_timeline_events(trace_events, pending_ui=None, pending_raster=None):
     if pending_ui is None:
         pending_ui = {}
@@ -151,14 +187,18 @@ def parse_timeline_events(trace_events, pending_ui=None, pending_raster=None):
     raster_ms = []
 
     for ev in trace_events or []:
+        if not isinstance(ev, dict):
+            continue
         name = ev.get("name", "")
         phase = ev.get("ph", "")
-        ts = ev.get("ts", 0)
+        ts = _finite_num(ev.get("ts", 0))
+        if ts is None:
+            continue
+        dur = _finite_num(ev.get("dur", 0))
 
         if name == "Frame":
             if phase == "X":
-                dur = ev.get("dur", 0)
-                if dur:
+                if dur and dur > 0:
                     ui_ms.append(dur / 1000.0)
             else:
                 eid = ev.get("id")
@@ -167,11 +207,12 @@ def parse_timeline_events(trace_events, pending_ui=None, pending_raster=None):
                 if phase == "b":
                     pending_ui[eid] = ts
                 elif phase == "e" and eid in pending_ui:
-                    ui_ms.append((ts - pending_ui.pop(eid)) / 1000.0)
+                    delta = ts - pending_ui.pop(eid)
+                    if delta >= 0:
+                        ui_ms.append(delta / 1000.0)
         elif name == "GPURasterizer::Draw":
             if phase == "X":
-                dur = ev.get("dur", 0)
-                if dur:
+                if dur and dur > 0:
                     raster_ms.append(dur / 1000.0)
             else:
                 tid = ev.get("tid")
@@ -180,7 +221,9 @@ def parse_timeline_events(trace_events, pending_ui=None, pending_raster=None):
                 if phase == "B":
                     pending_raster[tid] = ts
                 elif phase == "E" and tid in pending_raster:
-                    raster_ms.append((ts - pending_raster.pop(tid)) / 1000.0)
+                    delta = ts - pending_raster.pop(tid)
+                    if delta >= 0:
+                        raster_ms.append(delta / 1000.0)
 
     return ui_ms, raster_ms, pending_ui, pending_raster
 
@@ -209,6 +252,16 @@ def count_fatal(serial: str | None, pid: str | None):
     if rc != 0:
         return None, False
     return len(re.findall(r"FATAL EXCEPTION", out)), True
+
+
+def _save_raw_timeline(output_dir: str, sample: int, raw: str) -> bool:
+    path = Path(output_dir, "timeline-%d.json" % sample)
+    try:
+        with open(path, "w") as f:
+            f.write(raw)
+        return True
+    except OSError:
+        return False
 
 
 def self_test():
@@ -369,6 +422,228 @@ def self_test():
         else:
             globals().pop("_vm_get", None)
 
+    # Foreground activity parsing (resumed/topResumed only; not stale/last)
+    assert parse_foreground_activity(
+        "  mResumedActivity: ActivityRecord{1f2e u0 %s/.FlutterMainActivity t42}\n" % PKG
+    ) == PKG
+    assert parse_foreground_activity(
+        "    topResumedActivity=ActivityRecord{aa u0a210 com.other.app/.Main t9}\n"
+    ) == "com.other.app"
+    assert parse_foreground_activity(
+        "    ResumedActivity: ActivityRecord{bb u0 %s/.MainActivity t3}\n" % PKG) == PKG
+    assert parse_foreground_activity(
+        "  mLastResumedActivity: ActivityRecord{9 u0 com.stale.app/.Old t1}\n") is None
+    assert parse_foreground_activity("") is None
+    assert parse_foreground_activity("nothing here\n") is None
+    print("  foreground resumed/topResumed activity parsing: OK")
+
+    # Guarded parse: negative/nonfinite/untyped/non-dict events must not corrupt
+    bad_events = [
+        {"name": "Frame", "ph": "X", "ts": 1, "dur": -5},
+        {"name": "Frame", "ph": "X", "ts": 2},
+        {"name": "Frame", "ph": "X", "ts": 3, "dur": "8000"},
+        {"name": "Frame", "ph": "X", "ts": 4, "dur": float("nan")},
+        {"name": "Frame", "ph": "X", "ts": 5, "dur": float("inf")},
+        {"name": "Frame", "ph": "X", "ts": 6, "dur": True},
+        {"name": "GPURasterizer::Draw", "ph": "X", "ts": 7, "dur": -1},
+        {"name": "GPURasterizer::Draw", "ph": "B", "ts": 10, "tid": 3},
+        {"name": "GPURasterizer::Draw", "ph": "E", "ts": 8, "tid": 3},
+        {"name": "Frame", "ph": "b", "id": 5, "ts": 20},
+        {"name": "Frame", "ph": "e", "id": 5, "ts": 15},
+        "not-a-dict", None, 42,
+    ]
+    ui_b, raster_b, pui_b, praster_b = parse_timeline_events(bad_events, {}, {})
+    assert ui_b == [] and raster_b == [] and pui_b == {} and praster_b == {}
+    print("  VM timeline guarded parse (negative/nonfinite/untyped/non-dict): OK")
+
+    # Dropped batch clears pending: a later end event cannot pair across it
+    pui_d = {}
+    praster_d = {}
+    parse_timeline_events([{"name": "Frame", "ph": "b", "id": 7, "ts": 100}], pui_d, praster_d)
+    assert 7 in pui_d
+    pui_d.clear()
+    praster_d.clear()
+    ui_d, raster_d, _, _ = parse_timeline_events(
+        [{"name": "Frame", "ph": "e", "id": 7, "ts": 900}], pui_d, praster_d
+    )
+    assert ui_d == [] and raster_d == []
+    print("  pending cleared after dropped batch (later end cannot pair): OK")
+
+    # VM timeline fetch: valid empty is valid; missing/malformed are not
+    tl_cases = [
+        (json.dumps({"result": {"traceEvents": []}}), {"traceEvents": []}),
+        (json.dumps({"result": {"other": 1}}), {"other": 1}),
+        (json.dumps({"result": {"traceEvents": {}}}), {"traceEvents": {}}),
+        (json.dumps({"result": {"traceEvents": "x"}}), {"traceEvents": "x"}),
+        (json.dumps({"result": "Success"}), None),
+        (json.dumps([1, 2]), None),
+        ("{not json", None),
+        (None, None),
+    ]
+    old_vm_get_tl = globals().get("_vm_get")
+    try:
+        for text, expected in tl_cases:
+            globals()["_vm_get"] = (lambda t: (lambda *a, **k: t))(text)
+            got = vm_get_timeline("http://x")
+            assert got == expected, (text, got)
+        print("  VM timeline fetch valid-empty/missing/malformed: OK")
+    finally:
+        if old_vm_get_tl is not None:
+            globals()["_vm_get"] = old_vm_get_tl
+        else:
+            globals().pop("_vm_get", None)
+
+    # Mocked main runs: raw save, incomplete paths, foreground validation, no leak
+    class _FakeClock:
+        def __init__(self):
+            self.t = 0.0
+
+        def time(self):
+            self.t += SAMPLE_INTERVAL + 1.0
+            return self.t
+
+        def sleep(self, _s):
+            pass
+
+    resumed_ok = ("  mResumedActivity: ActivityRecord{aa11 u0 %s/.FlutterMainActivity t5}\n"
+                  "  mLastResumedActivity: ActivityRecord{bb22 u0 com.stale.app/.Old t6}\n" % PKG)
+    resumed_foreign = "  mResumedActivity: ActivityRecord{cc33 u0 com.other.app/.Main t7}\n"
+
+    def _adb_ok(serial, cmd):
+        if "pidof" in cmd:
+            return ("1234\n", 0)
+        if "meminfo" in cmd:
+            return ("TOTAL PSS: 111 TOTAL RSS: 222\n", 0)
+        if "dumpsys activity activities" in cmd:
+            return (resumed_ok, 0)
+        return ("", 0)
+
+    def _adb_foreign_second(counter):
+        def _fn(serial, cmd):
+            if "pidof" in cmd:
+                return ("1234\n", 0)
+            if "meminfo" in cmd:
+                return ("TOTAL PSS: 111 TOTAL RSS: 222\n", 0)
+            if "dumpsys activity activities" in cmd:
+                counter["n"] += 1
+                return (resumed_ok if counter["n"] == 1 else resumed_foreign, 0)
+            return ("", 0)
+        return _fn
+
+    url = "http://vm.invalid/auth/token123"
+
+    def _run_mocked_main(tmp, seconds, adb_fn, vm_bodies):
+        old_argv2 = sys.argv
+        old_clock = globals()["time"]
+        old_adb2 = globals()["adb"]
+        old_vm2 = globals().get("_vm_get")
+        bodies = iter(vm_bodies)
+
+        def _vm(base, path, params=None):
+            if path == "getVMTimeline":
+                return next(bodies, None)
+            return json.dumps({"result": {"type": "Success"}})
+
+        buf = io.StringIO()
+        globals()["adb"] = adb_fn
+        globals()["_vm_get"] = _vm
+        globals()["time"] = _FakeClock()
+        try:
+            sys.argv = ["measure_android_playback.py", "--seconds", str(seconds),
+                        "--output-dir", tmp, "--vm-service-url", url]
+            with redirect_stdout(buf), redirect_stderr(buf):
+                main()
+        finally:
+            sys.argv = old_argv2
+            globals()["adb"] = old_adb2
+            globals()["time"] = old_clock
+            if old_vm2 is not None:
+                globals()["_vm_get"] = old_vm2
+            else:
+                globals().pop("_vm_get", None)
+        return buf.getvalue()
+
+    def _assert_no_leak(tmp, out):
+        for p in Path(tmp).iterdir():
+            assert "vm.invalid" not in p.read_text() and "token123" not in p.read_text(), p
+        assert "vm.invalid" not in out and "token123" not in out
+
+    frame_pair = [{"name": "Frame", "ph": "b", "id": 1, "ts": 1000000},
+                  {"name": "Frame", "ph": "e", "id": 1, "ts": 1020000},
+                  {"name": "GPURasterizer::Draw", "ph": "X", "ts": 1005000, "dur": 4000}]
+    b_pair = json.dumps({"result": {"traceEvents": frame_pair}})
+    b_empty = json.dumps({"result": {"traceEvents": []}})
+
+    # Case 1: success + valid empty second batch; raw bodies saved verbatim
+    tmp_c1 = tempfile.mkdtemp()
+    out_c1 = _run_mocked_main(tmp_c1, 30, _adb_ok, [b_pair, b_empty])
+    assert Path(tmp_c1, "timeline-1.json").read_text() == b_pair, "FAIL: raw timeline not saved"
+    assert Path(tmp_c1, "timeline-2.json").read_text() == b_empty
+    s1 = json.loads(Path(tmp_c1, "summary.json").read_text())
+    assert s1["samples"] == 2, s1["samples"]
+    assert s1["valid"] is True and s1["reasons"] == []
+    assert s1["foreground_packages"] == [PKG, PKG]
+    assert isinstance(s1["vm"]["ui"], dict) and s1["vm"]["ui"]["count"] == 1
+    assert isinstance(s1["vm"]["raster"], dict) and s1["vm"]["raster"]["count"] == 1
+    _assert_no_leak(tmp_c1, out_c1)
+    print("  mock main VM success + valid empty raw save: OK")
+
+    # Case 2: malformed first batch -> incomplete, raw saved, no further VM fetch
+    tmp_c2 = tempfile.mkdtemp()
+    out_c2 = _run_mocked_main(tmp_c2, 30, _adb_ok, ["{not json", b_pair])
+    assert Path(tmp_c2, "timeline-1.json").read_text() == "{not json"
+    assert not Path(tmp_c2, "timeline-2.json").exists(), "FAIL: VM kept fetching after drop"
+    s2 = json.loads(Path(tmp_c2, "summary.json").read_text())
+    assert s2["vm"]["ui"] == "incomplete" and s2["vm"]["raster"] == "incomplete"
+    assert s2["valid"] is False and len(s2["reasons"]) > 0
+    _assert_no_leak(tmp_c2, out_c2)
+    print("  mock main malformed timeline -> incomplete + raw saved: OK")
+
+    # Case 3: missing traceEvents after a good batch -> incomplete overrides numbers
+    b_missing = json.dumps({"result": {"noTraceEvents": True}})
+    tmp_c3 = tempfile.mkdtemp()
+    out_c3 = _run_mocked_main(tmp_c3, 30, _adb_ok, [b_pair, b_missing])
+    assert Path(tmp_c3, "timeline-2.json").read_text() == b_missing
+    s3 = json.loads(Path(tmp_c3, "summary.json").read_text())
+    assert s3["vm"]["ui"] == "incomplete" and s3["vm"]["raster"] == "incomplete"
+    _assert_no_leak(tmp_c3, out_c3)
+    print("  mock main missing traceEvents -> incomplete overrides numbers: OK")
+
+    # Case 4: other app foreground -> invalid + pending cleared, end cannot pair
+    b_open = json.dumps({"result": {"traceEvents": [
+        {"name": "Frame", "ph": "b", "id": 9, "ts": 500000}]}})
+    b_close = json.dumps({"result": {"traceEvents": [
+        {"name": "Frame", "ph": "e", "id": 9, "ts": 590000}]}})
+    counter = {"n": 0}
+    tmp_c4 = tempfile.mkdtemp()
+    out_c4 = _run_mocked_main(tmp_c4, 30, _adb_foreign_second(counter), [b_open, b_close])
+    s4 = json.loads(Path(tmp_c4, "summary.json").read_text())
+    assert s4["samples"] == 2, s4["samples"]
+    assert s4["valid"] is False
+    assert any("com.other.app" in r for r in s4["reasons"]), s4["reasons"]
+    assert s4["foreground_packages"] == [PKG, "com.other.app"]
+    assert s4["vm"]["ui"] == "incomplete" and s4["vm"]["raster"] == "incomplete"
+    assert Path(tmp_c4, "timeline-2.json").read_text() == b_close
+    _assert_no_leak(tmp_c4, out_c4)
+    print("  mock main other app foreground -> invalid + pending cleared: OK")
+
+    # Case 5: raw timeline write failure -> invalid, reason recorded, no file
+    tmp_c5 = tempfile.mkdtemp()
+    old_save_raw = globals()["_save_raw_timeline"]
+    globals()["_save_raw_timeline"] = lambda output_dir, sample, raw: False
+    try:
+        out_c5 = _run_mocked_main(tmp_c5, 30, _adb_ok, [b_pair])
+    finally:
+        globals()["_save_raw_timeline"] = old_save_raw
+    assert not Path(tmp_c5, "timeline-1.json").exists(), "FAIL: timeline file written on failure"
+    s5 = json.loads(Path(tmp_c5, "summary.json").read_text())
+    assert s5["samples"] == 2, s5["samples"]
+    assert s5["valid"] is False
+    assert s5["vm"]["ui"] == "incomplete" and s5["vm"]["raster"] == "incomplete"
+    assert any("raw timeline save failed" in r for r in s5["reasons"]), s5["reasons"]
+    _assert_no_leak(tmp_c5, out_c5)
+    print("  mock main raw timeline save failure -> invalid + reason + no file: OK")
+
     print("\n=== Self-test PASSED ===")
 
 
@@ -432,8 +707,13 @@ def main():
         "track_artists": [],
         "logcat": {"fatal": "not measured", "anr": "not measured"},
         "network": "not measured",
+        "valid": True,
+        "reasons": [],
+        "foreground_packages": [],
         "vm": {"ui": "not measured", "raster": "not measured"},
     }
+
+    vm_sample = 0
 
     try:
         while time.time() < end_ts:
@@ -444,6 +724,19 @@ def main():
 
             sess_out, _ = adb(args.serial, "shell dumpsys media_session")
             state, position_ms, track = parse_media_session(sess_out)
+
+            act_out, _ = adb(args.serial, "shell dumpsys activity activities")
+            fg_pkg = parse_foreground_activity(act_out)
+            summary["foreground_packages"].append(fg_pkg if fg_pkg else "unknown")
+            if not fg_pkg or fg_pkg != PKG:
+                summary["valid"] = False
+                summary["reasons"].append(
+                    "foreground foreign app: %s at sample %d"
+                    % (fg_pkg if fg_pkg else "unknown", summary["samples"] + 1)
+                )
+                vm_incomplete = True
+                ui_pending.clear()
+                raster_pending.clear()
 
             with open(csv_path, "a", newline="") as f:
                 writer = csv.writer(f)
@@ -472,22 +765,49 @@ def main():
                 summary["track_artists"].append(track["artist"])
 
             if vm_url and vm_available:
-                timeline = vm_get_timeline(vm_url)
-                if timeline and timeline.get("traceEvents"):
+                vm_sample += 1
+                raw = vm_get_timeline_raw(vm_url)
+                if raw is not None:
+                    saved = _save_raw_timeline(args.output_dir, vm_sample, raw)
+                    if not saved:
+                        vm_incomplete = True
+                        vm_available = False
+                        ui_pending.clear()
+                        raster_pending.clear()
+                        summary["valid"] = False
+                        summary["reasons"].append(
+                            "raw timeline save failed at sample %d" % vm_sample
+                        )
+                timeline = _timeline_from_raw(raw)
+                trace_events = timeline.get("traceEvents") if timeline else None
+                if not isinstance(trace_events, list):
+                    vm_incomplete = True
+                    vm_available = False
+                    ui_pending.clear()
+                    raster_pending.clear()
+                else:
                     ui_batch, raster_batch, ui_pending, raster_pending = parse_timeline_events(
-                        timeline["traceEvents"], ui_pending, raster_pending
+                        trace_events, ui_pending, raster_pending
                     )
                     ui_all.extend(ui_batch)
                     raster_all.extend(raster_batch)
                 if not vm_clear_timeline(vm_url):
                     vm_incomplete = True
                     vm_available = False
+                    ui_pending.clear()
+                    raster_pending.clear()
 
             time.sleep(SAMPLE_INTERVAL)
 
     except KeyboardInterrupt:
+        vm_incomplete = True
+        ui_pending.clear()
+        raster_pending.clear()
         print("\nCtrl+C: preserving acquired samples...")
     except Exception:
+        vm_incomplete = True
+        ui_pending.clear()
+        raster_pending.clear()
         print("\nError: measurement interrupted – preserving acquired samples...", file=sys.stderr)
 
     # logcat fatal since sampling start (best-effort; ANR not reliable)
@@ -503,18 +823,24 @@ def main():
         fatal_count = "not measured"
     summary["logcat"] = {"fatal": fatal_count, "anr": "not measured"}
 
-    if vm_url and vm_available:
-        summary["vm"]["ui"] = _stats(ui_all)
-        summary["vm"]["raster"] = _stats(raster_all)
-    elif vm_url and vm_incomplete:
+    if vm_url and vm_incomplete:
         summary["vm"]["ui"] = "incomplete"
         summary["vm"]["raster"] = "incomplete"
+        summary["valid"] = False
+        summary["reasons"].append("vm timeline incomplete")
+    elif vm_url and vm_available:
+        summary["vm"]["ui"] = _stats(ui_all)
+        summary["vm"]["raster"] = _stats(raster_all)
 
     with open(summary_path, "w") as f:
         json.dump(summary, f, indent=2, ensure_ascii=False)
 
     print("\nMeasurement complete.")
     print("  Samples: %d" % summary["samples"])
+    print("  Valid: %s%s" % (
+        summary["valid"],
+        ("" if summary["valid"] else " (%s)" % "; ".join(summary["reasons"][:3])),
+    ))
     print("  CSV: %s" % csv_path)
     print("  Summary: %s" % summary_path)
 

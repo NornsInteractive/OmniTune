@@ -179,10 +179,40 @@ class Cloud189SourceDraft {
   }
 }
 
+class AddSourceOperationCancelled implements Exception {
+  const AddSourceOperationCancelled();
+
+  @override
+  String toString() => 'Add source operation cancelled.';
+}
+
 @riverpod
 class AddSourceController extends _$AddSourceController {
+  int _operationGeneration = 0;
+  bool _disposed = false;
+  bool _isCommitting = false;
+
+  bool get isCommitting => _isCommitting;
+
   @override
-  FutureOr<void> build() {}
+  FutureOr<void> build() {
+    _disposed = false;
+    ref.onDispose(() {
+      _disposed = true;
+      _operationGeneration++;
+    });
+  }
+
+  bool cancelPendingOperation() {
+    if (_isCommitting) {
+      return false;
+    }
+    _operationGeneration++;
+    if (!_disposed) {
+      state = const AsyncData(null);
+    }
+    return true;
+  }
 
   Future<void> testConnection(WebDavSourceDraft draft) {
     return _testProfile(draft.toProfile());
@@ -228,26 +258,32 @@ class AddSourceController extends _$AddSourceController {
     Cloud189QRCodeResolver? qrCodeResolver,
     Cloud189SMSVerificationResolver? smsVerificationResolver,
   }) async {
-    state = const AsyncLoading();
+    final operation = _beginOperation();
 
     MusicSource? source;
     try {
-      final connectionProfile = await _profileForConnection(profile);
+      final connectionProfile = await _profileForConnection(profile, operation);
+      _checkOperation(operation);
       source = _createConnectionSource(
+        operation,
         connectionProfile,
         captchaResolver: captchaResolver,
         qrCodeResolver: qrCodeResolver,
         smsVerificationResolver: smsVerificationResolver,
       );
       await source.connect();
+      _checkOperation(operation);
       await source.listFiles(connectionProfile.effectiveRootPath);
+      _checkOperation(operation);
       state = const AsyncData(null);
     } catch (error, stackTrace) {
+      _checkOperation(operation);
       _appendConnectionErrorToDebugLog(profile, error);
       state = AsyncError(error, stackTrace);
       rethrow;
     } finally {
-      await source?.disconnect();
+      await _disconnectSource(source, operation);
+      _checkOperation(operation);
     }
   }
 
@@ -263,19 +299,27 @@ class AddSourceController extends _$AddSourceController {
       );
     }
 
-    state = const AsyncLoading();
+    final operation = _beginOperation();
 
     MusicSource? source;
+    void Function()? releaseCommit;
     try {
-      final connectionProfile = await _profileForConnection(initialProfile);
+      final connectionProfile = await _profileForConnection(
+        initialProfile,
+        operation,
+      );
+      _checkOperation(operation);
       source = _createConnectionSource(
+        operation,
         connectionProfile,
         captchaResolver: captchaResolver,
         qrCodeResolver: qrCodeResolver,
         smsVerificationResolver: smsVerificationResolver,
       );
       await source.connect();
+      _checkOperation(operation);
       await source.listFiles(connectionProfile.effectiveRootPath);
+      _checkOperation(operation);
 
       final nextRefreshToken = source is Cloud189MusicSource
           ? source.currentRefreshToken
@@ -292,24 +336,123 @@ class AddSourceController extends _$AddSourceController {
             )
           : initialProfile;
 
-      await ref.read(sourcesControllerProvider.notifier).saveProfile(profile);
-      await ref
-          .read(sourceProfileRepositoryProvider)
-          .saveActiveSourceId(profile.id);
-      ref.invalidate(libraryControllerProvider);
+      final sources = ref.read(sourcesControllerProvider.notifier);
+      final repository = ref.read(sourceProfileRepositoryProvider);
+      _checkOperation(operation);
+      final keepAlive = ref.keepAlive();
+      releaseCommit = keepAlive.close;
+      _isCommitting = true;
 
-      state = const AsyncData(null);
+      // Once persistence starts, finish both writes even if the owner disappears.
+      final saveProfile = sources.saveProfile(profile);
+      if (_isCurrentOperation(operation)) {
+        ref.notifyListeners();
+      }
+      await saveProfile;
+      await repository.saveActiveSourceId(profile.id);
+      if (_isCurrentOperation(operation)) {
+        ref.invalidate(libraryControllerProvider);
+        state = const AsyncData(null);
+      }
+
       return profile;
     } catch (error, stackTrace) {
-      _appendConnectionErrorToDebugLog(initialProfile, error);
-      state = AsyncError(error, stackTrace);
+      if (releaseCommit == null) {
+        _checkOperation(operation);
+      }
+      if (_isCurrentOperation(operation)) {
+        _appendConnectionErrorToDebugLog(initialProfile, error);
+        state = AsyncError(error, stackTrace);
+      }
       rethrow;
     } finally {
+      try {
+        await _disconnectSource(source, operation);
+      } finally {
+        if (releaseCommit != null) {
+          _isCommitting = false;
+          if (_isCurrentOperation(operation)) {
+            ref.notifyListeners();
+          }
+          releaseCommit();
+        } else {
+          _checkOperation(operation);
+        }
+      }
+    }
+  }
+
+  int _beginOperation() {
+    if (_disposed) {
+      throw const AddSourceOperationCancelled();
+    }
+    if (_isCommitting) {
+      throw StateError('A source is already being saved.');
+    }
+    final operation = ++_operationGeneration;
+    state = const AsyncLoading();
+    return operation;
+  }
+
+  bool _isCurrentOperation(int operation) {
+    return !_disposed && operation == _operationGeneration;
+  }
+
+  void _checkOperation(int operation) {
+    if (!_isCurrentOperation(operation)) {
+      throw const AddSourceOperationCancelled();
+    }
+  }
+
+  Future<T> _resolveForOperation<T>(
+    int operation,
+    Future<T> Function() resolve,
+  ) async {
+    _checkOperation(operation);
+    final result = await resolve();
+    _checkOperation(operation);
+    return result;
+  }
+
+  Future<void> _disconnectSource(MusicSource? source, int operation) async {
+    try {
       await source?.disconnect();
+    } catch (error) {
+      // Cleanup must not turn a committed save or cancellation into a failure.
+      if (source != null && _isCurrentOperation(operation)) {
+        _appendConnectionErrorToDebugLog(source.profile, error);
+      }
     }
   }
 
   MusicSource _createConnectionSource(
+    int operation,
+    SourceProfile profile, {
+    Cloud189CaptchaResolver? captchaResolver,
+    Cloud189QRCodeResolver? qrCodeResolver,
+    Cloud189SMSVerificationResolver? smsVerificationResolver,
+  }) {
+    return createConnectionSource(
+      profile,
+      captchaResolver: captchaResolver == null
+          ? null
+          : (bytes) =>
+                _resolveForOperation(operation, () => captchaResolver(bytes)),
+      qrCodeResolver: qrCodeResolver == null
+          ? null
+          : (content) =>
+                _resolveForOperation(operation, () => qrCodeResolver(content)),
+      smsVerificationResolver: smsVerificationResolver == null
+          ? null
+          : (hint) => _resolveForOperation(
+              operation,
+              () => smsVerificationResolver(hint),
+            ),
+    );
+  }
+
+  @visibleForOverriding
+  MusicSource createConnectionSource(
     SourceProfile profile, {
     Cloud189CaptchaResolver? captchaResolver,
     Cloud189QRCodeResolver? qrCodeResolver,
@@ -327,7 +470,10 @@ class AddSourceController extends _$AddSourceController {
     return ref.read(musicSourceRegistryProvider).create(profile);
   }
 
-  Future<SourceProfile> _profileForConnection(SourceProfile profile) async {
+  Future<SourceProfile> _profileForConnection(
+    SourceProfile profile,
+    int operation,
+  ) async {
     if (profile.protocol != SourceProtocol.cloudDrive) {
       return profile;
     }
@@ -335,6 +481,7 @@ class AddSourceController extends _$AddSourceController {
     final enableDebugMode =
         (await ref.read(libraryPreferencesRepositoryProvider).load())
             .enableDebugMode;
+    _checkOperation(operation);
     Cloud189DebugLogBuffer.begin(enabled: enableDebugMode);
     if (!enableDebugMode) {
       return profile;
