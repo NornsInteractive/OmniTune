@@ -11,6 +11,7 @@
 
 ## GitHub 发布 1.0.300（2026-10-15）
 
+- 已发布 [GitHub Release 1.0.300](https://github.com/Naruto9Kurama/OmniTune/releases/tag/1.0.300)，确认 Latest、非 draft、非 prerelease；源码标签指向 `3b4cf59cbe017ee80b9e50fbd4c34195df41f43a`。四个附件上传后的 GitHub SHA-256 与本地逐一一致。
 - 发布版本 `1.0.300+301`，汇总自 1.0.295 以来的全局音源弹窗、播放布局、交互动效、歌词定位与 189 下载连接恢复；发布过程仅更新文档和分发产物，复用已验证的 Android 构建。
 - 分发 Android APK／AAB、Linux x86_64 完整压缩包和 `SHA256SUMS`，归档目录 `build/releases/local-1.0.300/`。Android 与已发布 1.0.295 的证书一致；1.0.254 的旧签名升级限制继续保留。
 - 复用当前源码的 252 项测试、静态分析 0 问题、Android 保留数据安装及 Web release 编译结果。Linux release 构建及动态依赖检查通过；Xvfb 启动与附件校验结果保存在 `build/validation/release-1.0.300/`。
