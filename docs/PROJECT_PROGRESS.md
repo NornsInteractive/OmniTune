@@ -4,8 +4,10 @@
 
 - 固定 agy 会话 `6c56397a-e82e-4afe-8ca5-450dbc2571e1` 使用 taste skill 更新“设置 → 关于与更新”：增加 Norns Interactive 和可点击 GitHub 仓库链接，英文／中文均已生成。
 - 核对 Android `namespace`、`applicationId`、Kotlin package 及 Ygg app ID 均已是 `com.norns.omnitune`，因此保持原包名与签名，避免造成不能覆盖升级的应用。
-- `./scripts/build_apk.sh` 将版本升级至 **1.0.309+310**，签名 APK/AAB 构建成功；Linux x86_64 bundle 构建成功并打包。APK 包标识及 versionCode/versionName 核对通过，签名 SHA-256 与原发布证书一致。
-- 本轮未执行自动化测试；用户要求由 OpenCode 免费模型承担测试且 Codex 不自行测试。没有开展新的真机 UI 验收。
+- `./scripts/build_apk.sh` 将版本升级至 **1.0.309+310**，签名 APK/AAB 构建成功；Linux x86_64 bundle 构建成功并打包。APK `applicationId=com.norns.omnitune`、versionCode 310、versionName 1.0.309 核对通过，签名 SHA-256 与原发布证书一致。
+- GitHub Release：[1.0.309](https://github.com/Naruto9Kurama/OmniTune/releases/tag/1.0.309)，源码提交 `235166b`。Android universal 与 Linux x86_64 包已登记到 Ygg，均指向本版 GitHub 附件并启用代理。下载：[Android](https://ygg.norns.cc.cd/d/com.norns.omnitune?platform=android&arch=universal) · [Linux x86_64](https://ygg.norns.cc.cd/d/com.norns.omnitune?platform=linux&arch=x86_64)。
+- 本次产物：APK 69,861,336 字节，SHA-256 `578e2fe19e48e6a282309f4ef31861c89c46113b30bfa4fb02082f26aeef4f2f`；AAB 52,350,336 字节，SHA-256 `290587fe6dfa79aa1d25e63d993d9b780322161fcc9ab7d6fe6544d2fe774672`；Linux tar.gz 49,326,517 字节，SHA-256 `e86181818da022fa82f54006e92e24f23630cd5c4233acac57b679be040b7869`。
+- 本轮未运行自动化或真机测试；用户要求测试由 OpenCode 免费模型执行且 Codex 不自行测试。
 
 
 ## 固定 UI 会话
