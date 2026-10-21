@@ -270,11 +270,13 @@ class LibraryCatalogController extends _$LibraryCatalogController {
   static const Duration _scanTrackPublishInterval = Duration(milliseconds: 250);
 
   int _metadataHydrationGeneration = 0;
+  int _albumIndexGeneration = 0;
   bool _scanRunning = false;
   bool _scanCancelled = false;
 
   @override
   Future<LibraryCatalogState> build() async {
+    ref.onDispose(() => _albumIndexGeneration++);
     DebugLogger.info('LibraryCatalogController.build', '开始加载库');
     ref.listen<AsyncValue<LibraryPreferences>>(appSettingsControllerProvider, (
       previous,
@@ -295,13 +297,14 @@ class LibraryCatalogController extends _$LibraryCatalogController {
         return;
       }
 
-      state = AsyncData(
-        current.copyWith(metadataAlbums: _buildMetadataAlbums(current.tracks)),
-      );
+      _refreshAlbumIndexesFromCurrentTracks();
     });
     final preferences = await ref
         .watch(libraryPreferencesRepositoryProvider)
         .load();
+    final sourceIds = (await ref.read(
+      sourcesControllerProvider.future,
+    )).map((source) => source.id).toSet();
 
     // 加载缓存的扫描结果
     LibraryCatalogState cachedState;
@@ -317,6 +320,7 @@ class LibraryCatalogController extends _$LibraryCatalogController {
       if (allResults.isNotEmpty) {
         var allTracks = <LibrarySong>[];
         for (final source in allResults.entries) {
+          if (!sourceIds.contains(source.key)) continue;
           DebugLogger.info(
             'LibraryCatalogController.build',
             '源 ${source.key}: ${source.value.length} 首歌曲',
@@ -784,40 +788,6 @@ class LibraryCatalogController extends _$LibraryCatalogController {
     return changed ? result : tracks;
   }
 
-  List<LibraryAlbum> _buildFolderAlbums(List<LibrarySong> tracks) {
-    final grouped = <String, List<LibrarySong>>{};
-    for (final track in tracks) {
-      final key = '${track.sourceId}::${track.directoryPath.toLowerCase()}';
-      grouped.putIfAbsent(key, () => []).add(track);
-    }
-    return _toAlbums(
-      grouped,
-      titleOf: (track) => track.folderAlbumTitle,
-      artistOf: (track) => track.folderArtistName,
-    );
-  }
-
-  List<LibraryAlbum> _buildMetadataAlbums(List<LibrarySong> tracks) {
-    final grouped = <String, List<LibrarySong>>{};
-    final groupByArtist =
-        ref
-            .read(appSettingsControllerProvider)
-            .valueOrNull
-            ?.groupMetadataAlbumsByArtist ??
-        false;
-    for (final track in tracks) {
-      final key = groupByArtist
-          ? '${track.sourceId}::${track.metadataArtistName.toLowerCase()}::${track.metadataAlbumTitle.toLowerCase()}'
-          : '${track.sourceId}::${track.metadataAlbumTitle.toLowerCase()}';
-      grouped.putIfAbsent(key, () => []).add(track);
-    }
-    return _toAlbums(
-      grouped,
-      titleOf: (track) => track.metadataAlbumTitle,
-      artistOf: (track) => track.metadataArtistName,
-    );
-  }
-
   Future<List<LibraryAlbum>> _buildFolderAlbumsAsync(
     List<LibrarySong> tracks,
   ) async {
@@ -890,37 +860,6 @@ class LibraryCatalogController extends _$LibraryCatalogController {
     }
   }
 
-  List<LibraryAlbum> _toAlbums(
-    Map<String, List<LibrarySong>> grouped, {
-    required String Function(LibrarySong track) titleOf,
-    required String Function(LibrarySong track) artistOf,
-  }) {
-    final albums =
-        grouped.entries
-            .map(
-              (entry) => LibraryAlbum(
-                id: entry.key,
-                title: titleOf(entry.value.first),
-                artistName: artistOf(entry.value.first),
-                sourceId: entry.value.first.sourceId,
-                sourceName: entry.value.first.sourceName,
-                tracks: [...entry.value]
-                  ..sort(
-                    (left, right) => left.title.toLowerCase().compareTo(
-                      right.title.toLowerCase(),
-                    ),
-                  ),
-              ),
-            )
-            .toList()
-          ..sort(
-            (left, right) =>
-                left.title.toLowerCase().compareTo(right.title.toLowerCase()),
-          );
-
-    return albums;
-  }
-
   Future<List<LibraryAlbum>> _toAlbumsAsync(
     Map<String, List<LibrarySong>> grouped, {
     required String Function(LibrarySong track) titleOf,
@@ -962,73 +901,8 @@ class LibraryCatalogController extends _$LibraryCatalogController {
 
   /// 刷新单个歌曲的元数据（用于刮削完成后的增量更新，避免全列表重新加载）
   void refreshSongMetadata(String songId) {
-    DebugLogger.info(
-      'LibraryCatalogController.refreshSongMetadata',
-      '开始刷新歌曲元数据: $songId',
-    );
     try {
-      final currentState = state.valueOrNull;
-      DebugLogger.info(
-        'LibraryCatalogController.refreshSongMetadata',
-        '当前状态是否为空: ${currentState == null}',
-      );
-      if (currentState == null) {
-        DebugLogger.warning(
-          'LibraryCatalogController.refreshSongMetadata',
-          '⚠️ 当前状态为空，无法更新库列表（但会被缓存到数据库）',
-        );
-        return;
-      }
-
-      final cachedMetadata = IsarManager.getMetadata(songId);
-      DebugLogger.info(
-        'LibraryCatalogController.refreshSongMetadata',
-        '查询缓存元数据: 找到=${cachedMetadata != null}',
-      );
-      if (cachedMetadata != null) {
-        DebugLogger.info(
-          'LibraryCatalogController.refreshSongMetadata',
-          '元数据状态: ${cachedMetadata.status}, 是否有可展示字段: ${_hasSavedScrapingData(cachedMetadata)}',
-        );
-      }
-
-      if (cachedMetadata == null || !_hasSavedScrapingData(cachedMetadata)) {
-        DebugLogger.warning(
-          'LibraryCatalogController.refreshSongMetadata',
-          '缓存元数据不存在或暂无可展示字段',
-        );
-        return;
-      }
-
-      // 仅更新该歌曲，不重新加载整个列表
-      final updatedTracks = currentState.tracks.map((track) {
-        if (track.id != songId) {
-          return track;
-        }
-        DebugLogger.info(
-          'LibraryCatalogController.refreshSongMetadata',
-          '找到要更新的歌曲: ${track.title} -> ${cachedMetadata.autoScrapedTitle}',
-        );
-        return _mergeCachedMetadataIntoSong(track, cachedMetadata);
-      }).toList();
-
-      DebugLogger.success(
-        'LibraryCatalogController.refreshSongMetadata',
-        '构建新状态并触发 UI 更新',
-      );
-
-      state = AsyncData(
-        currentState.copyWith(
-          tracks: updatedTracks,
-          folderAlbums: _buildFolderAlbums(updatedTracks),
-          metadataAlbums: _buildMetadataAlbums(updatedTracks),
-        ),
-      );
-
-      DebugLogger.success(
-        'LibraryCatalogController.refreshSongMetadata',
-        '✅ 已刷新单个歌曲的元数据显示: $songId',
-      );
+      refreshSongsMetadata([songId]);
     } catch (e, stack) {
       DebugLogger.error(
         'LibraryCatalogController.refreshSongMetadata',
@@ -1072,35 +946,46 @@ class LibraryCatalogController extends _$LibraryCatalogController {
       return false;
     }
 
-    state = AsyncData(
-      currentState.copyWith(
-        tracks: updatedTracks,
-        folderAlbums: rebuildAlbums ? _buildFolderAlbums(updatedTracks) : null,
-        metadataAlbums: rebuildAlbums
-            ? _buildMetadataAlbums(updatedTracks)
-            : null,
-      ),
-    );
+    state = AsyncData(currentState.copyWith(tracks: updatedTracks));
+    if (rebuildAlbums) _refreshAlbumIndexesFromCurrentTracks();
     return true;
   }
 
   void _refreshAlbumIndexesFromCurrentTracks() {
-    unawaited(_refreshAlbumIndexesFromCurrentTracksAsync());
+    final generation = ++_albumIndexGeneration;
+    unawaited(
+      Future<void>(() async {
+        if (generation != _albumIndexGeneration) return;
+        await _refreshAlbumIndexesFromCurrentTracksAsync(generation);
+      }).catchError((Object error, StackTrace stack) {
+        DebugLogger.error(
+          'LibraryCatalogController._refreshAlbumIndexesFromCurrentTracks',
+          '刷新专辑索引失败',
+          error.toString(),
+          stack,
+        );
+      }),
+    );
   }
 
-  Future<void> _refreshAlbumIndexesFromCurrentTracksAsync() async {
+  Future<void> _refreshAlbumIndexesFromCurrentTracksAsync(
+    int generation,
+  ) async {
     final currentState = state.valueOrNull;
     if (currentState == null) {
       return;
     }
     final tracks = currentState.tracks;
     final folderAlbums = await _buildFolderAlbumsAsync(tracks);
+    if (generation != _albumIndexGeneration) return;
     final metadataAlbums = await _buildMetadataAlbumsAsync(tracks);
-    if (state.valueOrNull?.tracks != tracks) {
+    if (generation != _albumIndexGeneration) return;
+    final latest = state.valueOrNull;
+    if (latest == null || !identical(latest.tracks, tracks)) {
       return;
     }
     state = AsyncData(
-      currentState.copyWith(
+      latest.copyWith(
         folderAlbums: folderAlbums,
         metadataAlbums: metadataAlbums,
       ),

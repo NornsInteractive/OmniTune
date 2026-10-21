@@ -1354,4 +1354,119 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get continueEditingAction => '继续编辑';
+
+  @override
+  String get aboutAndUpdatesSettingTitle => '关于与更新';
+
+  @override
+  String get appUpdateCurrentVersionLabel => '当前版本';
+
+  @override
+  String get appUpdateCheckAction => '检查更新';
+
+  @override
+  String get appUpdateCheckingStatus => '正在检查更新...';
+
+  @override
+  String get appUpdateUpToDateStatus => '当前已是最新版本';
+
+  @override
+  String get appUpdateAvailableTitle => '发现新版本';
+
+  @override
+  String get appUpdateReleaseNotesTitle => '更新日志';
+
+  @override
+  String get appUpdatePackageSizeLabel => '安装包大小';
+
+  @override
+  String get appUpdateActionDownloadAndInstall => '下载并安装';
+
+  @override
+  String get appUpdateActionDownloadLatest => '下载最新版';
+
+  @override
+  String get appUpdateDownloadingLabel => '正在下载更新...';
+
+  @override
+  String get appUpdateCancelAction => '取消下载';
+
+  @override
+  String get appUpdateAwaitingInstallTitle => '已打开系统安装程序';
+
+  @override
+  String get appUpdateAwaitingInstallDescription =>
+      '系统安装程序已打开，请在系统弹窗中确认并完成安装。如果安装未完成或已关闭，可点击下方重新下载并校验。';
+
+  @override
+  String get appUpdateReopenInstallerAction => '重新下载并校验';
+
+  @override
+  String get appUpdateRetryDownloadAction => '重新下载并校验';
+
+  @override
+  String get appUpdateCheckAgainAction => '重新检查';
+
+  @override
+  String get appUpdateCanceledStatus => '已取消更新下载';
+
+  @override
+  String get appUpdateUnsupportedPlatform => '当前平台或架构暂无适配的安装包。';
+
+  @override
+  String get appUpdateErrorNetwork => '网络连接失败，请检查网络设置后重试。';
+
+  @override
+  String get appUpdateErrorInvalidResponse => '更新服务器返回数据异常。';
+
+  @override
+  String get appUpdateErrorChecksumMissing => '更新包缺少校验哈希，为安全起见无法安装。';
+
+  @override
+  String get appUpdateErrorChecksumMismatch => '安装包校验失败，文件损坏，无法继续安装。';
+
+  @override
+  String get appUpdateErrorDownloadFailed => '下载失败，请检查网络后重试。';
+
+  @override
+  String get appUpdateErrorPermissionDenied => '未授予安装权限，请在系统设置中允许安装应用。';
+
+  @override
+  String get appUpdateErrorInstallationFailed => '启动系统安装器失败。';
+
+  @override
+  String get appUpdateErrorUnknown => '检查或更新过程中发生未知错误。';
+
+  @override
+  String appUpdateVersionFormat(String version, int build) {
+    return 'v$version ($build)';
+  }
+
+  @override
+  String appUpdateVersionOnly(String version) {
+    return 'v$version';
+  }
+
+  @override
+  String get appUpdateVersionUnknown => '未知';
+
+  @override
+  String appUpdateSizeMB(String size) {
+    return '$size MB';
+  }
+
+  @override
+  String appUpdateSizeKB(String size) {
+    return '$size KB';
+  }
+
+  @override
+  String appUpdateSizeB(String size) {
+    return '$size B';
+  }
+
+  @override
+  String appUpdateProgressPercent(int percent) {
+    return '$percent%';
+  }
 }

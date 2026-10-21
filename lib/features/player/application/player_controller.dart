@@ -219,12 +219,13 @@ class PlayerViewState {
     String? requestedSourceName,
     bool canRetry = false,
     bool isResolvingTrack = false,
+    Duration? positionOverride,
   }) {
     return PlayerViewState(
       currentTrack: service.currentTrack,
       isPlaying: service.player.playing,
       processingState: service.player.processingState,
-      position: service.player.position,
+      position: positionOverride ?? service.player.position,
       bufferedPosition: service.player.bufferedPosition,
       duration: service.player.duration,
       playlist: playlist,
@@ -294,6 +295,7 @@ class PlayerController extends _$PlayerController {
   SourceProfile? _requestedProfile;
   RemoteEntry? _requestedEntry;
   bool _isResolvingTrack = false;
+  bool _playWhenReady = false;
   Duration _targetPosition = Duration.zero;
   String? _lastSystemCurrentItemKey = '__uninitialized__';
   final Set<String> _inFlightAutoScrapeSongIds = <String>{};
@@ -362,8 +364,13 @@ class PlayerController extends _$PlayerController {
   Future<void> playEntry({
     required SourceProfile profile,
     required RemoteEntry entry,
+    Duration initialPosition = Duration.zero,
   }) async {
-    final requestSerial = _beginPlaybackRequest(profile: profile, entry: entry);
+    final requestSerial = _beginPlaybackRequest(
+      profile: profile,
+      entry: entry,
+      initialPosition: initialPosition,
+    );
     _replacePlaylist(const [], currentIndex: -1);
     try {
       unawaited(_sessionRepository.clear());
@@ -539,14 +546,19 @@ class PlayerController extends _$PlayerController {
     if (_isResolvingTrack) return;
     final retry = _playbackError != null;
     if (_service.currentTrack == null || retry) {
+      final initialPosition = _targetPosition;
       final profile = _requestedProfile;
       final entry = _requestedEntry;
       if (_requestedSong == null && profile != null && entry != null) {
-        await playEntry(profile: profile, entry: entry);
+        await playEntry(
+          profile: profile,
+          entry: entry,
+          initialPosition: initialPosition,
+        );
         return;
       }
       if (_currentIndex >= 0 && _currentIndex < _playlist.length) {
-        await _playQueueIndex(_currentIndex);
+        await _playQueueIndex(_currentIndex, initialPosition: initialPosition);
       }
       return;
     }
@@ -588,6 +600,7 @@ class PlayerController extends _$PlayerController {
     try {
       await _service.seek(position);
       if (!_isCurrentRequest(requestSerial)) return;
+      _targetPosition = position;
       _syncState(forceSystem: true);
       unawaited(_persistSession(positionOverride: position));
     } catch (error) {
@@ -603,6 +616,7 @@ class PlayerController extends _$PlayerController {
       if (!_isCurrentRequest(requestSerial) || pauseSerial != _pauseSerial) {
         return;
       }
+      _targetPosition = position;
       if (!_service.isPlaying) await _service.play();
       if (!_isCurrentRequest(requestSerial)) return;
       _scheduleAutoScrapeForCurrentTrack();
@@ -615,7 +629,11 @@ class PlayerController extends _$PlayerController {
 
   Future<void> stop() async {
     final requestSerial = ++_playRequestSerial;
-    if (_service.currentTrack != null) _targetPosition = _service.position;
+    if (!_isResolvingTrack &&
+        _playbackError == null &&
+        _service.currentTrack != null) {
+      _targetPosition = _service.position;
+    }
     _isResolvingTrack = false;
     _playbackError = null;
     _playbackCache.setActivePlaybackTrack(null);
@@ -669,12 +687,14 @@ class PlayerController extends _$PlayerController {
 
   void _syncState({String? errorMessage, bool forceSystem = false}) {
     if (_disposed) return;
-    if (!_isResolvingTrack &&
+    _playbackError = errorMessage ?? _playbackError;
+    // Loading and error events can reset the engine's reported position.
+    if (_playbackError == null &&
+        !_isResolvingTrack &&
         _service.currentTrack != null &&
         _service.currentTrack?.id == _requestedEntry?.uniqueId) {
       _targetPosition = _service.position;
     }
-    _playbackError = errorMessage ?? _playbackError;
     _progressSyncTimer?.cancel();
     _progressSyncTimer = null;
     _lastProgressStateSyncedAt = DateTime.now();
@@ -695,6 +715,9 @@ class PlayerController extends _$PlayerController {
           _playbackError != null &&
           (_requestedSong != null || _requestedEntry != null),
       isResolvingTrack: _isResolvingTrack,
+      positionOverride: _isResolvingTrack || _playbackError != null
+          ? _targetPosition
+          : null,
     );
     state = nextState;
     _syncSystemAudioState(nextState, force: forceSystem);
@@ -757,13 +780,16 @@ class PlayerController extends _$PlayerController {
     LibrarySong? song,
     SourceProfile? profile,
     required RemoteEntry entry,
+    Duration initialPosition = Duration.zero,
+    bool playWhenReady = true,
   }) {
     final requestSerial = ++_playRequestSerial;
     _requestedSong = song;
     _requestedProfile = profile;
     _requestedEntry = entry;
     _isResolvingTrack = true;
-    _targetPosition = Duration.zero;
+    _playWhenReady = playWhenReady;
+    _targetPosition = initialPosition;
     _playbackError = null;
     _handlingCompletion = false;
     _clearLyrics();
@@ -811,7 +837,10 @@ class PlayerController extends _$PlayerController {
       );
     }
 
-    final playFuture = _service.playTrack(track);
+    final playFuture = _service.playTrack(
+      track,
+      initialPosition: _targetPosition,
+    );
     _syncState();
     onTrackStarted?.call();
     await playFuture;
@@ -823,14 +852,21 @@ class PlayerController extends _$PlayerController {
     unawaited(_loadSidecarLyrics(source, entry.path, track.id, requestSerial));
   }
 
-  Future<void> _playQueueIndex(int index) async {
+  Future<void> _playQueueIndex(
+    int index, {
+    Duration initialPosition = Duration.zero,
+  }) async {
     if (index < 0 || index >= _playlist.length) {
       return;
     }
 
     final song = _playlist[index];
     final entry = song.toRemoteEntry();
-    final requestSerial = _beginPlaybackRequest(song: song, entry: entry);
+    final requestSerial = _beginPlaybackRequest(
+      song: song,
+      entry: entry,
+      initialPosition: initialPosition,
+    );
     _currentIndex = index;
     try {
       final stopped = _service.stop();
@@ -860,6 +896,7 @@ class PlayerController extends _$PlayerController {
     final requestSerial = _beginPlaybackRequest(
       song: song,
       entry: song.toRemoteEntry(),
+      playWhenReady: false,
     );
     _targetPosition = initialPosition;
     _currentIndex = index;
@@ -1111,7 +1148,9 @@ class PlayerController extends _$PlayerController {
     if (!isSystemAudioHandlerInitialized) {
       return;
     }
-    final retryEntry = nextState.canRetry && nextState.currentTrack == null
+    final retryEntry =
+        nextState.currentTrack == null &&
+            (nextState.canRetry || nextState.isResolvingTrack)
         ? _requestedEntry
         : null;
     final currentSong =
@@ -1235,8 +1274,11 @@ class PlayerController extends _$PlayerController {
               .contains(currentItemId) ??
           false,
       errorMessage: nextState.errorMessage,
-      playing: nextState.isPlaying,
-      processingState: _audioProcessingState(nextState.processingState),
+      // Keep hardware pause/click routed to a user-requested pending play.
+      playing: nextState.isPlaying || (_isResolvingTrack && _playWhenReady),
+      processingState: nextState.isResolvingTrack
+          ? AudioProcessingState.loading
+          : _audioProcessingState(nextState.processingState),
       position: currentTrack == null ? _targetPosition : nextState.position,
       bufferedPosition: currentTrack == null
           ? Duration.zero
@@ -1559,7 +1601,9 @@ class PlayerController extends _$PlayerController {
         playbackMode: _playbackMode.name,
         position:
             positionOverride ??
-            (_service.currentTrack?.id == _playlist[_currentIndex].id
+            (!_isResolvingTrack &&
+                    _playbackError == null &&
+                    _service.currentTrack?.id == _playlist[_currentIndex].id
                 ? _service.position
                 : _targetPosition),
       ),

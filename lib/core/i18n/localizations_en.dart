@@ -1416,4 +1416,128 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get continueEditingAction => 'Continue editing';
+
+  @override
+  String get aboutAndUpdatesSettingTitle => 'About & updates';
+
+  @override
+  String get appUpdateCurrentVersionLabel => 'Current version';
+
+  @override
+  String get appUpdateCheckAction => 'Check for updates';
+
+  @override
+  String get appUpdateCheckingStatus => 'Checking for updates...';
+
+  @override
+  String get appUpdateUpToDateStatus => 'You are on the latest version';
+
+  @override
+  String get appUpdateAvailableTitle => 'New version available';
+
+  @override
+  String get appUpdateReleaseNotesTitle => 'Release notes';
+
+  @override
+  String get appUpdatePackageSizeLabel => 'Package size';
+
+  @override
+  String get appUpdateActionDownloadAndInstall => 'Download and install';
+
+  @override
+  String get appUpdateActionDownloadLatest => 'Download latest version';
+
+  @override
+  String get appUpdateDownloadingLabel => 'Downloading update...';
+
+  @override
+  String get appUpdateCancelAction => 'Cancel download';
+
+  @override
+  String get appUpdateAwaitingInstallTitle => 'System installer opened';
+
+  @override
+  String get appUpdateAwaitingInstallDescription =>
+      'The system package installer has opened. Please confirm installation in the system prompt. If the installer was closed or dismissed, tap below to re-download and verify.';
+
+  @override
+  String get appUpdateReopenInstallerAction => 'Re-download & verify';
+
+  @override
+  String get appUpdateRetryDownloadAction => 'Re-download & verify';
+
+  @override
+  String get appUpdateCheckAgainAction => 'Check again';
+
+  @override
+  String get appUpdateCanceledStatus => 'Update download was canceled';
+
+  @override
+  String get appUpdateUnsupportedPlatform =>
+      'No compatible update package found for your platform or architecture.';
+
+  @override
+  String get appUpdateErrorNetwork =>
+      'Network error while checking for updates. Please verify your connection.';
+
+  @override
+  String get appUpdateErrorInvalidResponse =>
+      'Invalid response received from the update server.';
+
+  @override
+  String get appUpdateErrorChecksumMissing =>
+      'The update package is missing security checksum and cannot be installed safely.';
+
+  @override
+  String get appUpdateErrorChecksumMismatch =>
+      'Package checksum verification failed. The update file cannot be installed.';
+
+  @override
+  String get appUpdateErrorDownloadFailed =>
+      'Download failed. Please check your network and try again.';
+
+  @override
+  String get appUpdateErrorPermissionDenied =>
+      'Install permission was denied. Please allow unknown apps installation in system settings.';
+
+  @override
+  String get appUpdateErrorInstallationFailed =>
+      'System package installer failed to start.';
+
+  @override
+  String get appUpdateErrorUnknown =>
+      'An unexpected error occurred during update.';
+
+  @override
+  String appUpdateVersionFormat(String version, int build) {
+    return 'v$version ($build)';
+  }
+
+  @override
+  String appUpdateVersionOnly(String version) {
+    return 'v$version';
+  }
+
+  @override
+  String get appUpdateVersionUnknown => 'Unknown';
+
+  @override
+  String appUpdateSizeMB(String size) {
+    return '$size MB';
+  }
+
+  @override
+  String appUpdateSizeKB(String size) {
+    return '$size KB';
+  }
+
+  @override
+  String appUpdateSizeB(String size) {
+    return '$size B';
+  }
+
+  @override
+  String appUpdateProgressPercent(int percent) {
+    return '$percent%';
+  }
 }

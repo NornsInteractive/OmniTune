@@ -379,7 +379,7 @@ def self_test():
         sys.argv = ["measure_android_playback.py", "--seconds", "0", "--output-dir", tmp,
                     "--vm-service-url", url]
         with redirect_stdout(buf), redirect_stderr(buf):
-            main()
+            assert main() == 0
     finally:
         sys.argv = old_argv
         globals()["adb"] = old_adb
@@ -532,7 +532,7 @@ def self_test():
 
     url = "http://vm.invalid/auth/token123"
 
-    def _run_mocked_main(tmp, seconds, adb_fn, vm_bodies):
+    def _run_mocked_main(tmp, seconds, adb_fn, vm_bodies, extra_args=None):
         old_argv2 = sys.argv
         old_clock = globals()["time"]
         old_adb2 = globals()["adb"]
@@ -545,14 +545,16 @@ def self_test():
             return json.dumps({"result": {"type": "Success"}})
 
         buf = io.StringIO()
+        rc = 0
         globals()["adb"] = adb_fn
         globals()["_vm_get"] = _vm
         globals()["time"] = _FakeClock()
         try:
             sys.argv = ["measure_android_playback.py", "--seconds", str(seconds),
                         "--output-dir", tmp, "--vm-service-url", url]
+            sys.argv.extend(extra_args or [])
             with redirect_stdout(buf), redirect_stderr(buf):
-                main()
+                rc = main()
         finally:
             sys.argv = old_argv2
             globals()["adb"] = old_adb2
@@ -561,7 +563,7 @@ def self_test():
                 globals()["_vm_get"] = old_vm2
             else:
                 globals().pop("_vm_get", None)
-        return buf.getvalue()
+        return buf.getvalue(), rc
 
     def _assert_no_leak(tmp, out):
         for p in Path(tmp).iterdir():
@@ -576,7 +578,8 @@ def self_test():
 
     # Case 1: success + valid empty second batch; raw bodies saved verbatim
     tmp_c1 = tempfile.mkdtemp()
-    out_c1 = _run_mocked_main(tmp_c1, 30, _adb_ok, [b_pair, b_empty])
+    out_c1, rc_c1 = _run_mocked_main(tmp_c1, 30, _adb_ok, [b_pair, b_empty])
+    assert rc_c1 == 0, rc_c1
     assert Path(tmp_c1, "timeline-1.json").read_text() == b_pair, "FAIL: raw timeline not saved"
     assert Path(tmp_c1, "timeline-2.json").read_text() == b_empty
     s1 = json.loads(Path(tmp_c1, "summary.json").read_text())
@@ -590,7 +593,8 @@ def self_test():
 
     # Case 2: malformed first batch -> incomplete, raw saved, no further VM fetch
     tmp_c2 = tempfile.mkdtemp()
-    out_c2 = _run_mocked_main(tmp_c2, 30, _adb_ok, ["{not json", b_pair])
+    out_c2, rc_c2 = _run_mocked_main(tmp_c2, 30, _adb_ok, ["{not json", b_pair])
+    assert rc_c2 == 0, rc_c2
     assert Path(tmp_c2, "timeline-1.json").read_text() == "{not json"
     assert not Path(tmp_c2, "timeline-2.json").exists(), "FAIL: VM kept fetching after drop"
     s2 = json.loads(Path(tmp_c2, "summary.json").read_text())
@@ -602,7 +606,8 @@ def self_test():
     # Case 3: missing traceEvents after a good batch -> incomplete overrides numbers
     b_missing = json.dumps({"result": {"noTraceEvents": True}})
     tmp_c3 = tempfile.mkdtemp()
-    out_c3 = _run_mocked_main(tmp_c3, 30, _adb_ok, [b_pair, b_missing])
+    out_c3, rc_c3 = _run_mocked_main(tmp_c3, 30, _adb_ok, [b_pair, b_missing])
+    assert rc_c3 == 0, rc_c3
     assert Path(tmp_c3, "timeline-2.json").read_text() == b_missing
     s3 = json.loads(Path(tmp_c3, "summary.json").read_text())
     assert s3["vm"]["ui"] == "incomplete" and s3["vm"]["raster"] == "incomplete"
@@ -616,7 +621,8 @@ def self_test():
         {"name": "Frame", "ph": "e", "id": 9, "ts": 590000}]}})
     counter = {"n": 0}
     tmp_c4 = tempfile.mkdtemp()
-    out_c4 = _run_mocked_main(tmp_c4, 30, _adb_foreign_second(counter), [b_open, b_close])
+    out_c4, rc_c4 = _run_mocked_main(tmp_c4, 30, _adb_foreign_second(counter), [b_open, b_close])
+    assert rc_c4 == 0, rc_c4
     s4 = json.loads(Path(tmp_c4, "summary.json").read_text())
     assert s4["samples"] == 2, s4["samples"]
     assert s4["valid"] is False
@@ -632,9 +638,10 @@ def self_test():
     old_save_raw = globals()["_save_raw_timeline"]
     globals()["_save_raw_timeline"] = lambda output_dir, sample, raw: False
     try:
-        out_c5 = _run_mocked_main(tmp_c5, 30, _adb_ok, [b_pair])
+        out_c5, rc_c5 = _run_mocked_main(tmp_c5, 30, _adb_ok, [b_pair])
     finally:
         globals()["_save_raw_timeline"] = old_save_raw
+    assert rc_c5 == 0, rc_c5
     assert not Path(tmp_c5, "timeline-1.json").exists(), "FAIL: timeline file written on failure"
     s5 = json.loads(Path(tmp_c5, "summary.json").read_text())
     assert s5["samples"] == 2, s5["samples"]
@@ -643,6 +650,185 @@ def self_test():
     assert any("raw timeline save failed" in r for r in s5["reasons"]), s5["reasons"]
     _assert_no_leak(tmp_c5, out_c5)
     print("  mock main raw timeline save failure -> invalid + reason + no file: OK")
+
+    # Gated playback/title validation via real mocked main runs
+    def _session(state_word, state_num, title):
+        return (
+            "package=%s\n"
+            "state=PlaybackState {state=%s(%d), position=1000, ...}\n"
+            "metadata: size=1, description=%s, Artist\n"
+            % (PKG, state_word, state_num, title)
+        )
+
+    def _adb_session(session_out):
+        def _fn(serial, cmd):
+            if "media_session" in cmd:
+                return (session_out, 0)
+            return _adb_ok(serial, cmd)
+        return _fn
+
+    def _adb_session_sequence(sessions):
+        counter = {"n": 0}
+
+        def _fn(serial, cmd):
+            if "media_session" in cmd:
+                index = min(counter["n"], len(sessions) - 1)
+                counter["n"] += 1
+                return (sessions[index], 0)
+            return _adb_ok(serial, cmd)
+        return _fn
+
+    playing_title = _session("PLAYING", 3, "以父之名")
+    paused_title = _session("PAUSED", 2, "以父之名")
+
+    # Gated: matching PLAYING state + exact unicode title succeeds
+    tmp_c6 = tempfile.mkdtemp()
+    out_c6, rc_c6 = _run_mocked_main(
+        tmp_c6, 30, _adb_session(playing_title), [b_pair, b_empty],
+        ["--require-playing", "--expected-track-title", "以父之名"],
+    )
+    s6 = json.loads(Path(tmp_c6, "summary.json").read_text())
+    assert s6["valid"] is True and s6["reasons"] == [], s6["reasons"]
+    assert s6["samples"] == 2, s6["samples"]
+    assert rc_c6 == 0, rc_c6
+    print("  gated main matching PLAYING + exact title -> valid/exit 0: OK")
+
+    # Gated: wrong unicode title with PLAYING invalid
+    tmp_c7 = tempfile.mkdtemp()
+    out_c7, rc_c7 = _run_mocked_main(
+        tmp_c7, 30, _adb_session(playing_title), [b_pair, b_empty],
+        ["--require-playing", "--expected-track-title", "另一个标题"],
+    )
+    s7 = json.loads(Path(tmp_c7, "summary.json").read_text())
+    assert s7["valid"] is False
+    assert any("expected-track-title" in r and "sample 1" in r for r in s7["reasons"]), s7["reasons"]
+    assert rc_c7 == 1, rc_c7
+    print("  gated main wrong title + PLAYING -> invalid/exit 1: OK")
+
+    # Gated: correct title but PAUSED invalid
+    tmp_c8 = tempfile.mkdtemp()
+    out_c8, rc_c8 = _run_mocked_main(
+        tmp_c8, 30, _adb_session(paused_title), [b_pair, b_empty],
+        ["--require-playing", "--expected-track-title", "以父之名"],
+    )
+    s8 = json.loads(Path(tmp_c8, "summary.json").read_text())
+    assert s8["valid"] is False
+    assert any("require-playing" in r and "sample 1" in r and "state=2" in r
+               for r in s8["reasons"]), s8["reasons"]
+    assert rc_c8 == 1, rc_c8
+    print("  gated main correct title + PAUSED -> invalid/exit 1: OK")
+
+    # Gated: later sample failure invalidates whole summary
+    tmp_c9 = tempfile.mkdtemp()
+    out_c9, rc_c9 = _run_mocked_main(
+        tmp_c9, 30, _adb_session_sequence([playing_title, paused_title]),
+        [b_pair, b_empty],
+        ["--require-playing", "--expected-track-title", "以父之名"],
+    )
+    s9 = json.loads(Path(tmp_c9, "summary.json").read_text())
+    assert s9["samples"] == 2, s9["samples"]
+    assert s9["valid"] is False
+    assert any("require-playing" in r and "sample 2" in r and "state=2" in r
+               for r in s9["reasons"]), s9["reasons"]
+    assert rc_c9 == 1, rc_c9
+    print("  gated main later-sample failure -> invalid/exit 1: OK")
+
+    # Gated: missing state and title invalid
+    tmp_c10 = tempfile.mkdtemp()
+    out_c10, rc_c10 = _run_mocked_main(
+        tmp_c10, 30, _adb_session("package=%s\n" % PKG), [b_pair, b_empty],
+        ["--require-playing", "--expected-track-title", "以父之名"],
+    )
+    s10 = json.loads(Path(tmp_c10, "summary.json").read_text())
+    assert s10["valid"] is False
+    assert any("require-playing" in r and "sample 1" in r and "missing" in r
+               for r in s10["reasons"]), s10["reasons"]
+    assert any("expected-track-title" in r and "sample 1" in r
+               for r in s10["reasons"]), s10["reasons"]
+    assert rc_c10 == 1, rc_c10
+    print("  gated main missing state/title -> invalid/exit 1: OK")
+
+    # Gated: no samples invalid
+    tmp_c11 = tempfile.mkdtemp()
+    out_c11, rc_c11 = _run_mocked_main(
+        tmp_c11, 0, _adb_session(playing_title), [],
+        ["--require-playing"],
+    )
+    s11 = json.loads(Path(tmp_c11, "summary.json").read_text())
+    assert s11["samples"] == 0, s11["samples"]
+    assert s11["valid"] is False
+    assert any("no samples" in r for r in s11["reasons"]), s11["reasons"]
+    assert rc_c11 == 1, rc_c11
+    print("  gated main no samples -> invalid/exit 1: OK")
+
+    # Ungated: paused state keeps legacy valid behavior and exit 0
+    tmp_c12 = tempfile.mkdtemp()
+    out_c12, rc_c12 = _run_mocked_main(
+        tmp_c12, 30, _adb_session(paused_title), [b_pair, b_empty],
+    )
+    s12 = json.loads(Path(tmp_c12, "summary.json").read_text())
+    assert s12["valid"] is True and s12["reasons"] == [], s12["reasons"]
+    assert s12["samples"] == 2, s12["samples"]
+    assert rc_c12 == 0, rc_c12
+    print("  ungated paused state -> legacy valid/exit 0: OK")
+
+    # Gated: expected title only, matching title with PAUSED state succeeds
+    tmp_c13 = tempfile.mkdtemp()
+    out_c13, rc_c13 = _run_mocked_main(
+        tmp_c13, 30, _adb_session(paused_title), [b_pair, b_empty],
+        ["--expected-track-title", "以父之名"],
+    )
+    s13 = json.loads(Path(tmp_c13, "summary.json").read_text())
+    assert s13["valid"] is True and s13["reasons"] == [], s13["reasons"]
+    assert s13["samples"] == 2, s13["samples"]
+    assert rc_c13 == 0, rc_c13
+    _assert_no_leak(tmp_c13, out_c13)
+    print("  gated main expected-title-only + PAUSED matching -> valid/exit 0: OK")
+
+    # Gated: require-playing only, PLAYING with any title succeeds
+    wrong_title_playing = _session("PLAYING", 3, "Wrong Title")
+    tmp_c14 = tempfile.mkdtemp()
+    out_c14, rc_c14 = _run_mocked_main(
+        tmp_c14, 30, _adb_session(wrong_title_playing), [b_pair, b_empty],
+        ["--require-playing"],
+    )
+    s14 = json.loads(Path(tmp_c14, "summary.json").read_text())
+    assert s14["valid"] is True and s14["reasons"] == [], s14["reasons"]
+    assert s14["samples"] == 2, s14["samples"]
+    assert rc_c14 == 0, rc_c14
+    _assert_no_leak(tmp_c14, out_c14)
+    print("  gated main require-playing-only + PLAYING wrong title -> valid/exit 0: OK")
+
+    # Gated: expected title only, second sample wrong title invalidates at sample 2
+    tmp_c15 = tempfile.mkdtemp()
+    out_c15, rc_c15 = _run_mocked_main(
+        tmp_c15, 30,
+        _adb_session_sequence([playing_title, wrong_title_playing]),
+        [b_pair, b_empty],
+        ["--expected-track-title", "以父之名"],
+    )
+    s15 = json.loads(Path(tmp_c15, "summary.json").read_text())
+    assert s15["samples"] == 2, s15["samples"]
+    assert s15["valid"] is False
+    assert any("expected-track-title" in r and "sample 2" in r
+               for r in s15["reasons"]), s15["reasons"]
+    assert rc_c15 == 1, rc_c15
+    _assert_no_leak(tmp_c15, out_c15)
+    print("  gated main expected-title-only second wrong title -> invalid/exit 1: OK")
+
+    # Gated: expected title only with no samples invalid
+    tmp_c16 = tempfile.mkdtemp()
+    out_c16, rc_c16 = _run_mocked_main(
+        tmp_c16, 0, _adb_session(playing_title), [],
+        ["--expected-track-title", "以父之名"],
+    )
+    s16 = json.loads(Path(tmp_c16, "summary.json").read_text())
+    assert s16["samples"] == 0, s16["samples"]
+    assert s16["valid"] is False
+    assert any("no samples" in r for r in s16["reasons"]), s16["reasons"]
+    assert rc_c16 == 1, rc_c16
+    _assert_no_leak(tmp_c16, out_c16)
+    print("  gated main expected-title-only no samples -> invalid/exit 1: OK")
 
     print("\n=== Self-test PASSED ===")
 
@@ -653,12 +839,16 @@ def main():
     ap.add_argument("--seconds", type=int, default=DEFAULT_SECONDS)
     ap.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR)
     ap.add_argument("--vm-service-url", default=None)
+    ap.add_argument("--require-playing", action="store_true",
+                    help="Require every sample to report PlaybackState PLAYING(3)")
+    ap.add_argument("--expected-track-title", default=None,
+                    help="Require every sample's track title to match exactly")
     ap.add_argument("--self-test", action="store_true")
     args = ap.parse_args()
 
     if args.self_test:
         self_test()
-        return
+        return 0
 
     os.makedirs(args.output_dir, exist_ok=True)
     csv_path = os.path.join(args.output_dir, "measurement.csv")
@@ -764,6 +954,23 @@ def main():
             if track.get("artist"):
                 summary["track_artists"].append(track["artist"])
 
+            sample_index = summary["samples"]
+            if args.require_playing and state != 3:
+                summary["valid"] = False
+                summary["reasons"].append(
+                    "require-playing: sample %d state=%s"
+                    % (sample_index, state if state is not None else "missing")
+                )
+            if args.expected_track_title is not None:
+                actual_title = track.get("title", "")
+                if not actual_title or actual_title != args.expected_track_title:
+                    summary["valid"] = False
+                    summary["reasons"].append(
+                        "expected-track-title: sample %d expected %r got %r"
+                        % (sample_index, args.expected_track_title,
+                           actual_title if actual_title else None)
+                    )
+
             if vm_url and vm_available:
                 vm_sample += 1
                 raw = vm_get_timeline_raw(vm_url)
@@ -832,6 +1039,11 @@ def main():
         summary["vm"]["ui"] = _stats(ui_all)
         summary["vm"]["raster"] = _stats(raster_all)
 
+    gates_enabled = args.require_playing or args.expected_track_title is not None
+    if gates_enabled and summary["samples"] == 0:
+        summary["valid"] = False
+        summary["reasons"].append("no samples collected")
+
     with open(summary_path, "w") as f:
         json.dump(summary, f, indent=2, ensure_ascii=False)
 
@@ -844,6 +1056,10 @@ def main():
     print("  CSV: %s" % csv_path)
     print("  Summary: %s" % summary_path)
 
+    if gates_enabled and not summary["valid"]:
+        return 1
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main() or 0)

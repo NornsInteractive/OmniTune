@@ -36,7 +36,7 @@ class _MusicAppShellState extends ConsumerState<MusicAppShell> {
     _notificationClicks = AudioService.notificationClicked.listen((clicked) {
       if (!clicked ||
           !mounted ||
-          !ref.read(playerControllerProvider).hasTrack) {
+          !hasRecoverablePlayerState(ref.read(playerControllerProvider))) {
         return;
       }
       final router = ref.read(appRouterProvider);

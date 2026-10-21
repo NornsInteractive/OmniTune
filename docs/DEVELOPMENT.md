@@ -14,6 +14,10 @@
 
 ## 数据与兼容性
 
+应用更新位于 `lib/features/updates/`，从 Ygg `https://ygg.norns.cc.cd` 的公开更新／下载接口读取 `com.norns.omnitune`、`default` 渠道，按平台与运行时 ABI 筛包；安装版本由 package_info_plus 读取。Android 使用 ota_update 校验平台提供的 SHA-256，再交给系统安装器确认，不提供静默安装。桌面端打开对应 Ygg 下载入口；Web／iOS 不执行 APK 更新。发布管理通过 MCP `/api/mcp` 完成，包源为 GitHub Release，管理凭证不得进入客户端。
+
+用户最新分工：测试代码及测试执行、静态检查、ADB 验收均由 OpenCode 免费模型负责；Codex 只实现、审查结果与发布。测试修改仍在隔离副本交付，不能操作共享工作区的 Git 恢复命令。
+
 保留现有音源键、扫描缓存字段、手动/自动刮削优先级及播放器会话格式。性能改动不要丢失元数据、收藏、播放队列和已保存认证。
 天翼密码登录支持验证码回调，应用授权支持 code/refreshToken；cloudTV 模式尚未实现目录和音频读取。
 

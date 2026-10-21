@@ -2620,6 +2620,210 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Continue editing'**
   String get continueEditingAction;
+
+  /// No description provided for @aboutAndUpdatesSettingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'About & updates'**
+  String get aboutAndUpdatesSettingTitle;
+
+  /// No description provided for @appUpdateCurrentVersionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Current version'**
+  String get appUpdateCurrentVersionLabel;
+
+  /// No description provided for @appUpdateCheckAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates'**
+  String get appUpdateCheckAction;
+
+  /// No description provided for @appUpdateCheckingStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking for updates...'**
+  String get appUpdateCheckingStatus;
+
+  /// No description provided for @appUpdateUpToDateStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'You are on the latest version'**
+  String get appUpdateUpToDateStatus;
+
+  /// No description provided for @appUpdateAvailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New version available'**
+  String get appUpdateAvailableTitle;
+
+  /// No description provided for @appUpdateReleaseNotesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Release notes'**
+  String get appUpdateReleaseNotesTitle;
+
+  /// No description provided for @appUpdatePackageSizeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Package size'**
+  String get appUpdatePackageSizeLabel;
+
+  /// No description provided for @appUpdateActionDownloadAndInstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Download and install'**
+  String get appUpdateActionDownloadAndInstall;
+
+  /// No description provided for @appUpdateActionDownloadLatest.
+  ///
+  /// In en, this message translates to:
+  /// **'Download latest version'**
+  String get appUpdateActionDownloadLatest;
+
+  /// No description provided for @appUpdateDownloadingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading update...'**
+  String get appUpdateDownloadingLabel;
+
+  /// No description provided for @appUpdateCancelAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel download'**
+  String get appUpdateCancelAction;
+
+  /// No description provided for @appUpdateAwaitingInstallTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'System installer opened'**
+  String get appUpdateAwaitingInstallTitle;
+
+  /// No description provided for @appUpdateAwaitingInstallDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'The system package installer has opened. Please confirm installation in the system prompt. If the installer was closed or dismissed, tap below to re-download and verify.'**
+  String get appUpdateAwaitingInstallDescription;
+
+  /// No description provided for @appUpdateReopenInstallerAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-download & verify'**
+  String get appUpdateReopenInstallerAction;
+
+  /// No description provided for @appUpdateRetryDownloadAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-download & verify'**
+  String get appUpdateRetryDownloadAction;
+
+  /// No description provided for @appUpdateCheckAgainAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Check again'**
+  String get appUpdateCheckAgainAction;
+
+  /// No description provided for @appUpdateCanceledStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Update download was canceled'**
+  String get appUpdateCanceledStatus;
+
+  /// No description provided for @appUpdateUnsupportedPlatform.
+  ///
+  /// In en, this message translates to:
+  /// **'No compatible update package found for your platform or architecture.'**
+  String get appUpdateUnsupportedPlatform;
+
+  /// No description provided for @appUpdateErrorNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Network error while checking for updates. Please verify your connection.'**
+  String get appUpdateErrorNetwork;
+
+  /// No description provided for @appUpdateErrorInvalidResponse.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid response received from the update server.'**
+  String get appUpdateErrorInvalidResponse;
+
+  /// No description provided for @appUpdateErrorChecksumMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'The update package is missing security checksum and cannot be installed safely.'**
+  String get appUpdateErrorChecksumMissing;
+
+  /// No description provided for @appUpdateErrorChecksumMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Package checksum verification failed. The update file cannot be installed.'**
+  String get appUpdateErrorChecksumMismatch;
+
+  /// No description provided for @appUpdateErrorDownloadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Download failed. Please check your network and try again.'**
+  String get appUpdateErrorDownloadFailed;
+
+  /// No description provided for @appUpdateErrorPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Install permission was denied. Please allow unknown apps installation in system settings.'**
+  String get appUpdateErrorPermissionDenied;
+
+  /// No description provided for @appUpdateErrorInstallationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'System package installer failed to start.'**
+  String get appUpdateErrorInstallationFailed;
+
+  /// No description provided for @appUpdateErrorUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'An unexpected error occurred during update.'**
+  String get appUpdateErrorUnknown;
+
+  /// No description provided for @appUpdateVersionFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'v{version} ({build})'**
+  String appUpdateVersionFormat(String version, int build);
+
+  /// No description provided for @appUpdateVersionOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'v{version}'**
+  String appUpdateVersionOnly(String version);
+
+  /// No description provided for @appUpdateVersionUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get appUpdateVersionUnknown;
+
+  /// No description provided for @appUpdateSizeMB.
+  ///
+  /// In en, this message translates to:
+  /// **'{size} MB'**
+  String appUpdateSizeMB(String size);
+
+  /// No description provided for @appUpdateSizeKB.
+  ///
+  /// In en, this message translates to:
+  /// **'{size} KB'**
+  String appUpdateSizeKB(String size);
+
+  /// No description provided for @appUpdateSizeB.
+  ///
+  /// In en, this message translates to:
+  /// **'{size} B'**
+  String appUpdateSizeB(String size);
+
+  /// No description provided for @appUpdateProgressPercent.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}%'**
+  String appUpdateProgressPercent(int percent);
 }
 
 class _AppLocalizationsDelegate

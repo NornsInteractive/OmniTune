@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -267,6 +268,164 @@ class _DelayedLoadRepository implements LibraryPreferencesRepository {
     _saved = transform(_saved);
     return _saved;
   }
+}
+
+Future<void> _runActiveLyricOverflowTest(
+  WidgetTester tester,
+  Size viewportSize,
+  double fontScale,
+) async {
+  tester.view.physicalSize = viewportSize;
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(() => tester.view.reset());
+
+  final sampleTrack = _createSampleTrack();
+  final sampleLyrics = [
+    const LyricLine(time: Duration(seconds: 0), text: 'M'),
+    const LyricLine(time: Duration(seconds: 10), text: 'Second line'),
+  ];
+  final fakeController = _FakePlayerController(
+    _createSampleState(
+      track: sampleTrack,
+      lyrics: sampleLyrics,
+      position: Duration.zero,
+      duration: const Duration(minutes: 3),
+      isPlaying: false,
+    ),
+  );
+
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        sourceProfileRepositoryProvider.overrideWithValue(
+          _FakeSourceProfileRepository(),
+        ),
+        libraryPreferencesRepositoryProvider.overrideWithValue(
+          _FakeLibraryPreferencesRepository(
+            LibraryPreferences(fontScaleFactor: fontScale),
+          ),
+        ),
+        playerControllerProvider.overrideWith(() => fakeController),
+        folderArtworkProvider.overrideWith((ref, request) async => null),
+      ],
+      child: MediaQuery(
+        data: MediaQueryData(
+          disableAnimations: true,
+          textScaler: TextScaler.linear(fontScale),
+        ),
+        child: const MusicApp(),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  await tester.tap(find.byIcon(Icons.expand_less_rounded));
+  await tester.pumpAndSettle();
+
+  await tester.tap(find.byKey(const Key('player-artwork-region')));
+  await tester.pumpAndSettle();
+
+  final lyricsRegionFinder = find.byKey(const Key('player-lyrics-region'));
+  expect(lyricsRegionFinder, findsOneWidget);
+  final viewportFinder = find.descendant(
+    of: lyricsRegionFinder,
+    matching: find.byType(Viewport),
+  );
+  expect(viewportFinder, findsOneWidget);
+  final viewportRect = tester.getRect(viewportFinder);
+  final viewportWidth = viewportRect.width;
+
+  final probeFinder = find.text('M');
+  expect(probeFinder, findsOneWidget);
+  final probeParagraph = tester.renderObject<RenderParagraph>(probeFinder);
+
+  expect(
+    MediaQuery.textScalerOf(tester.element(probeFinder)).scale(23),
+    equals(23 * fontScale),
+  );
+
+  final probeBoxes = probeParagraph.getBoxesForSelection(
+    TextSelection(baseOffset: 0, extentOffset: 1),
+  );
+  expect(probeBoxes, isNotEmpty);
+  final glyphAdvance = probeBoxes.first.right - probeBoxes.first.left;
+
+  final availableWidth = viewportWidth / 1.03;
+  final repeatCount = (availableWidth / glyphAdvance).ceil();
+  final calibratedText = 'M' * repeatCount;
+
+  expect(
+    glyphAdvance * repeatCount,
+    greaterThan(availableWidth),
+    reason: 'calibrated text must exceed availableWidth/1.03',
+  );
+  expect(
+    glyphAdvance * repeatCount,
+    lessThanOrEqualTo(viewportWidth),
+    reason: 'calibrated text must fit within raw viewport width',
+  );
+
+  fakeController.emitState(
+    _createSampleState(
+      track: sampleTrack,
+      lyrics: [
+        LyricLine(time: Duration.zero, text: calibratedText),
+        const LyricLine(time: Duration(seconds: 10), text: 'Second line'),
+      ],
+      position: Duration.zero,
+      duration: const Duration(minutes: 3),
+      isPlaying: false,
+    ),
+  );
+  await tester.pumpAndSettle();
+
+  final activeLineFinder = find.text(calibratedText);
+  expect(activeLineFinder, findsOneWidget);
+  final activeParagraph = tester.renderObject<RenderParagraph>(
+    activeLineFinder,
+  );
+
+  expect(activeParagraph.text.style!.fontSize, 23.0);
+  expect(activeParagraph.text.style!.fontWeight, FontWeight.w800);
+
+  final lineBoxes = activeParagraph.getBoxesForSelection(
+    TextSelection(baseOffset: 0, extentOffset: calibratedText.length),
+  );
+  expect(lineBoxes, isNotEmpty);
+
+  final transform = activeParagraph.getTransformTo(null);
+  double minGlobalX = double.infinity;
+  double maxGlobalX = -double.infinity;
+  for (final box in lineBoxes) {
+    final boxRect = Rect.fromLTRB(box.left, box.top, box.right, box.bottom);
+    final globalRect = MatrixUtils.transformRect(transform, boxRect);
+    minGlobalX = min(minGlobalX, globalRect.left);
+    maxGlobalX = max(maxGlobalX, globalRect.right);
+  }
+
+  final lineWidth = maxGlobalX - minGlobalX;
+  final fillRatio = lineWidth / viewportWidth;
+  expect(
+    fillRatio,
+    greaterThanOrEqualTo(0.975),
+    reason:
+        'active line must fill >=97.5% of viewport width (actual ${(fillRatio * 100).toStringAsFixed(1)}%)',
+  );
+
+  expect(
+    minGlobalX,
+    greaterThanOrEqualTo(viewportRect.left - 0.5),
+    reason:
+        'line left edge must not overflow viewport left (minGlobalX=$minGlobalX, viewportLeft=${viewportRect.left})',
+  );
+  expect(
+    maxGlobalX,
+    lessThanOrEqualTo(viewportRect.right + 0.5),
+    reason:
+        'line right edge must not overflow viewport right (maxGlobalX=$maxGlobalX, viewportRight=${viewportRect.right})',
+  );
+
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump();
 }
 
 void main() {
@@ -1110,6 +1269,30 @@ void main() {
         expect(line1After.text.style!.fontWeight, FontWeight.w500);
       },
     );
+
+    testWidgets('18. Active lyric stays within viewport (fontScale 1.0)', (
+      tester,
+    ) async {
+      // 374 wide => inner viewport 326px; test font glyph steps must fill
+      // it (14*23 or 7*46 = 322px => 97.5-100%). At 360 (312px) no such
+      // count exists.
+      const viewportSize = Size(374, 760);
+      const fontScale = 1.0;
+
+      await _runActiveLyricOverflowTest(tester, viewportSize, fontScale);
+    });
+
+    testWidgets('18b. Active lyric stays within viewport (fontScale 2.0)', (
+      tester,
+    ) async {
+      // 374 wide => inner viewport 326px; test font glyph steps must fill
+      // it (14*23 or 7*46 = 322px => 97.5-100%). At 360 (312px) no such
+      // count exists.
+      const viewportSize = Size(374, 760);
+      const fontScale = 2.0;
+
+      await _runActiveLyricOverflowTest(tester, viewportSize, fontScale);
+    });
 
     testWidgets(
       '9. Directional navigation mode enforces minimum 18sp font size on small text',
@@ -2696,6 +2879,277 @@ void main() {
         expect(recheckedGrouping.selected, {LibraryAlbumGroupingMode.folder});
       },
     );
+
+    Future<void> pumpMiniPlayer(
+      WidgetTester tester,
+      _FakePlayerController controller, {
+      bool disableAnimations = false,
+    }) async {
+      tester.view.physicalSize = const Size(412, 915);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.reset());
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            playerControllerProvider.overrideWith(() => controller),
+            appSettingsControllerProvider.overrideWith(
+              () => _SyncAppSettingsController(const LibraryPreferences()),
+            ),
+            folderArtworkProvider.overrideWith((ref, request) async => null),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: MediaQuery(
+              data: MediaQueryData(disableAnimations: disableAnimations),
+              child: const Scaffold(body: MiniPlayer()),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    PlayerViewState recoverableState({
+      String? title = 'Recovered Song',
+      String? artist = 'Recovered Artist',
+      String? source = 'Recovered Source',
+      String? error = 'Playback failed',
+      bool canRetry = true,
+      bool isResolvingTrack = false,
+      bool isPlaying = false,
+    }) {
+      return PlayerViewState(
+        currentTrack: null,
+        isPlaying: isPlaying,
+        processingState: ProcessingState.idle,
+        position: Duration.zero,
+        bufferedPosition: Duration.zero,
+        duration: null,
+        playlist: const [],
+        currentIndex: -1,
+        playbackMode: PlayerPlaybackMode.list,
+        lyrics: const [],
+        lyricsSource: PlayerLyricsSource.none,
+        cacheSegments: const [],
+        errorMessage: error,
+        requestedTitle: title,
+        requestedArtist: artist,
+        requestedSourceName: source,
+        canRetry: canRetry,
+        isResolvingTrack: isResolvingTrack,
+      );
+    }
+
+    testWidgets(
+      'MiniPlayer shows requested title and retry for recoverable error',
+      (tester) async {
+        final fakeController = _FakePlayerController(
+          recoverableState(
+            title: 'Recovered Song',
+            artist: 'Recovered Artist',
+            source: 'Recovered Source',
+            error: 'Playback failed',
+            canRetry: true,
+          ),
+        );
+
+        await pumpMiniPlayer(tester, fakeController);
+
+        expect(find.byType(MiniPlayer), findsOneWidget);
+        expect(find.text('Recovered Song'), findsOneWidget);
+
+        final l10n = AppLocalizations.of(
+          tester.element(find.byType(MiniPlayer)),
+        )!;
+        expect(find.text(l10n.retryAction), findsOneWidget);
+        expect(find.byIcon(Icons.refresh_rounded), findsOneWidget);
+
+        await tester.tap(find.byIcon(Icons.refresh_rounded));
+        await tester.pump();
+
+        expect(fakeController.playPauseCallCount, 1);
+      },
+    );
+
+    testWidgets('MiniPlayer open player button routes to /player', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(412, 915);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.reset());
+
+      final fakeController = _FakePlayerController(
+        recoverableState(
+          title: 'Recovered Song',
+          canRetry: true,
+          error: 'Playback failed',
+        ),
+      );
+      final router = GoRouter(
+        initialLocation: '/test',
+        routes: [
+          GoRoute(
+            path: '/test',
+            builder: (context, state) => const Scaffold(body: MiniPlayer()),
+          ),
+          GoRoute(
+            path: '/player',
+            builder: (context, state) =>
+                const Scaffold(body: Text('player-route-target')),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            playerControllerProvider.overrideWith(() => fakeController),
+            appSettingsControllerProvider.overrideWith(
+              () => _SyncAppSettingsController(const LibraryPreferences()),
+            ),
+            folderArtworkProvider.overrideWith((ref, request) async => null),
+          ],
+          child: MaterialApp.router(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            routerConfig: router,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(MiniPlayer), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.expand_less_rounded));
+      await tester.pumpAndSettle();
+
+      expect(find.text('player-route-target'), findsOneWidget);
+    });
+
+    testWidgets('MiniPlayer shows buffering for resolving requested title', (
+      tester,
+    ) async {
+      final fakeController = _FakePlayerController(
+        recoverableState(
+          title: 'Buffering Song',
+          error: null,
+          canRetry: false,
+          isResolvingTrack: true,
+        ),
+      );
+
+      await pumpMiniPlayer(tester, fakeController);
+
+      expect(find.byType(MiniPlayer), findsOneWidget);
+      expect(find.text('Buffering Song'), findsOneWidget);
+
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(MiniPlayer)),
+      )!;
+      expect(find.text(l10n.playbackBufferingLabel), findsOneWidget);
+      expect(find.byIcon(Icons.refresh_rounded), findsNothing);
+    });
+
+    testWidgets('MiniPlayer is hidden for truly idle empty state', (
+      tester,
+    ) async {
+      final fakeController = _FakePlayerController(PlayerViewState.initial());
+
+      await pumpMiniPlayer(tester, fakeController);
+
+      expect(find.byType(MiniPlayer), findsOneWidget);
+      expect(find.byIcon(Icons.play_arrow_rounded), findsNothing);
+      expect(find.byIcon(Icons.pause_rounded), findsNothing);
+      expect(find.byIcon(Icons.refresh_rounded), findsNothing);
+      expect(find.byIcon(Icons.expand_less_rounded), findsNothing);
+      expect(find.byIcon(Icons.skip_previous_rounded), findsNothing);
+      expect(find.byIcon(Icons.skip_next_rounded), findsNothing);
+    });
+
+    testWidgets(
+      'MiniPlayer is hidden for blank requested title while resolving',
+      (tester) async {
+        final fakeController = _FakePlayerController(
+          recoverableState(
+            title: '   ',
+            error: null,
+            canRetry: false,
+            isResolvingTrack: true,
+          ),
+        );
+
+        await pumpMiniPlayer(tester, fakeController);
+
+        expect(find.byType(MiniPlayer), findsOneWidget);
+        expect(find.byIcon(Icons.play_arrow_rounded), findsNothing);
+        expect(find.byIcon(Icons.refresh_rounded), findsNothing);
+        expect(find.byIcon(Icons.expand_less_rounded), findsNothing);
+
+        final l10n = AppLocalizations.of(
+          tester.element(find.byType(MiniPlayer)),
+        )!;
+        expect(find.text(l10n.playbackBufferingLabel), findsNothing);
+      },
+    );
+
+    for (final disableAnimations in [false, true]) {
+      testWidgets('MiniPlayer error -> resolving -> loaded -> idle switch '
+          '(reduced motion: $disableAnimations)', (tester) async {
+        final fakeController = _FakePlayerController(PlayerViewState.initial());
+
+        await pumpMiniPlayer(
+          tester,
+          fakeController,
+          disableAnimations: disableAnimations,
+        );
+
+        final l10n = AppLocalizations.of(
+          tester.element(find.byType(MiniPlayer)),
+        )!;
+        expect(find.byType(MiniPlayer), findsOneWidget);
+        expect(find.byIcon(Icons.play_arrow_rounded), findsNothing);
+
+        fakeController.emitState(
+          recoverableState(
+            title: 'Recovered Song',
+            error: 'Playback failed',
+            canRetry: true,
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Recovered Song'), findsOneWidget);
+        expect(find.text(l10n.retryAction), findsOneWidget);
+
+        fakeController.emitState(
+          recoverableState(
+            title: 'Resolving Song',
+            error: null,
+            canRetry: false,
+            isResolvingTrack: true,
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Resolving Song'), findsOneWidget);
+        expect(find.text(l10n.playbackBufferingLabel), findsOneWidget);
+
+        fakeController.emitState(
+          _createSampleState(track: _createSampleTrack(), isPlaying: true),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Starfall'), findsOneWidget);
+        expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
+        expect(find.text(l10n.retryAction), findsNothing);
+
+        fakeController.emitState(PlayerViewState.initial());
+        await tester.pumpAndSettle();
+        expect(find.byIcon(Icons.play_arrow_rounded), findsNothing);
+        expect(find.byIcon(Icons.pause_rounded), findsNothing);
+        expect(find.byIcon(Icons.expand_less_rounded), findsNothing);
+        expect(tester.takeException(), isNull);
+      });
+    }
 
     testWidgets(
       '17. AlbumsPage grouping mode loading preference does not override saved value during async init',

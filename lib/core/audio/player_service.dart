@@ -64,8 +64,11 @@ class PlayerService {
     _currentTrack = track;
   }
 
-  Future<void> playTrack(PlayableTrack track) async {
-    final load = loadTrack(track);
+  Future<void> playTrack(
+    PlayableTrack track, {
+    Duration initialPosition = Duration.zero,
+  }) async {
+    final load = loadTrack(track, initialPosition: initialPosition);
     final requestSerial = _requestSerial;
     await load;
     if (!_disposed && requestSerial == _requestSerial) await play();

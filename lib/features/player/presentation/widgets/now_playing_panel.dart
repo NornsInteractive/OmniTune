@@ -1891,27 +1891,23 @@ class _LyricsPanelState extends State<_LyricsPanel> {
 
                       return KeyedSubtree(
                         key: _lineKeys[index],
-                        child: AnimatedScale(
+                        child: TweenAnimationBuilder<Color?>(
                           duration: textDuration,
-                          scale: isActive ? 1.03 : 1,
-                          child: TweenAnimationBuilder<Color?>(
-                            duration: textDuration,
-                            tween: ColorTween(end: targetColor),
-                            builder: (context, color, _) {
-                              return Text(
-                                line.text,
-                                textAlign: TextAlign.center,
-                                style: _glacierTextStyle(
-                                  color: color ?? targetColor,
-                                  size: isActive ? 23 : 17,
-                                  weight: isActive
-                                      ? FontWeight.w800
-                                      : FontWeight.w500,
-                                  height: isActive ? 1.24 : 1.38,
-                                ),
-                              );
-                            },
-                          ),
+                          tween: ColorTween(end: targetColor),
+                          builder: (context, color, _) {
+                            return Text(
+                              line.text,
+                              textAlign: TextAlign.center,
+                              style: _glacierTextStyle(
+                                color: color ?? targetColor,
+                                size: isActive ? 23 : 17,
+                                weight: isActive
+                                    ? FontWeight.w800
+                                    : FontWeight.w500,
+                                height: isActive ? 1.24 : 1.38,
+                              ),
+                            );
+                          },
                         ),
                       );
                     },

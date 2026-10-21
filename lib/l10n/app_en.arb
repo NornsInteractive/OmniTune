@@ -567,5 +567,70 @@
   "discardChangesConfirmationTitle": "Discard unsaved changes?",
   "discardChangesConfirmationDescription": "You have unsaved changes. Are you sure you want to discard them?",
   "discardChangesAction": "Discard",
-  "continueEditingAction": "Continue editing"
+  "continueEditingAction": "Continue editing",
+  "aboutAndUpdatesSettingTitle": "About & updates",
+  "appUpdateCurrentVersionLabel": "Current version",
+  "appUpdateCheckAction": "Check for updates",
+  "appUpdateCheckingStatus": "Checking for updates...",
+  "appUpdateUpToDateStatus": "You are on the latest version",
+  "appUpdateAvailableTitle": "New version available",
+  "appUpdateReleaseNotesTitle": "Release notes",
+  "appUpdatePackageSizeLabel": "Package size",
+  "appUpdateActionDownloadAndInstall": "Download and install",
+  "appUpdateActionDownloadLatest": "Download latest version",
+  "appUpdateDownloadingLabel": "Downloading update...",
+  "appUpdateCancelAction": "Cancel download",
+  "appUpdateAwaitingInstallTitle": "System installer opened",
+  "appUpdateAwaitingInstallDescription": "The system package installer has opened. Please confirm installation in the system prompt. If the installer was closed or dismissed, tap below to re-download and verify.",
+  "appUpdateReopenInstallerAction": "Re-download & verify",
+  "appUpdateRetryDownloadAction": "Re-download & verify",
+  "appUpdateCheckAgainAction": "Check again",
+  "appUpdateCanceledStatus": "Update download was canceled",
+  "appUpdateUnsupportedPlatform": "No compatible update package found for your platform or architecture.",
+  "appUpdateErrorNetwork": "Network error while checking for updates. Please verify your connection.",
+  "appUpdateErrorInvalidResponse": "Invalid response received from the update server.",
+  "appUpdateErrorChecksumMissing": "The update package is missing security checksum and cannot be installed safely.",
+  "appUpdateErrorChecksumMismatch": "Package checksum verification failed. The update file cannot be installed.",
+  "appUpdateErrorDownloadFailed": "Download failed. Please check your network and try again.",
+  "appUpdateErrorPermissionDenied": "Install permission was denied. Please allow unknown apps installation in system settings.",
+  "appUpdateErrorInstallationFailed": "System package installer failed to start.",
+  "appUpdateErrorUnknown": "An unexpected error occurred during update.",
+  "appUpdateVersionFormat": "v{version} ({build})",
+  "@appUpdateVersionFormat": {
+    "placeholders": {
+      "version": {"type": "String"},
+      "build": {"type": "int"}
+    }
+  },
+  "appUpdateVersionOnly": "v{version}",
+  "@appUpdateVersionOnly": {
+    "placeholders": {
+      "version": {"type": "String"}
+    }
+  },
+  "appUpdateVersionUnknown": "Unknown",
+  "appUpdateSizeMB": "{size} MB",
+  "@appUpdateSizeMB": {
+    "placeholders": {
+      "size": {"type": "String"}
+    }
+  },
+  "appUpdateSizeKB": "{size} KB",
+  "@appUpdateSizeKB": {
+    "placeholders": {
+      "size": {"type": "String"}
+    }
+  },
+  "appUpdateSizeB": "{size} B",
+  "@appUpdateSizeB": {
+    "placeholders": {
+      "size": {"type": "String"}
+    }
+  },
+  "appUpdateProgressPercent": "{percent}%",
+  "@appUpdateProgressPercent": {
+    "placeholders": {
+      "percent": {"type": "int"}
+    }
+  }
 }

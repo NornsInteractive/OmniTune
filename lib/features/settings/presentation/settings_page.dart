@@ -22,6 +22,7 @@ import '../../sources/application/sources_controller.dart';
 import '../../sources/data/webdav/webdav_playback_cache_base.dart';
 import '../../sources/data/webdav/webdav_playback_cache_provider.dart';
 import '../application/app_settings_controller.dart';
+import '../../updates/presentation/app_update_panel.dart';
 import 'add_source_page.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
@@ -42,6 +43,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       l10n.appearanceSettingsTitle,
       l10n.scraperPipelineLabel,
       l10n.advancedSettingsTitle,
+      l10n.aboutAndUpdatesSettingTitle,
     ];
     const sectionIcons = [
       Icons.cloud_outlined,
@@ -49,6 +51,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       Icons.palette_outlined,
       Icons.lyrics_outlined,
       Icons.tune_rounded,
+      Icons.info_outline_rounded,
     ];
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -1220,6 +1223,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                 },
                               ),
                             ],
+                          ),
+                        if (_section != null) const SizedBox(height: 8),
+                        if (_section == 5)
+                          section(
+                            title: l10n.aboutAndUpdatesSettingTitle,
+                            children: const [AppUpdatePanel()],
                           ),
                       ],
                     ),

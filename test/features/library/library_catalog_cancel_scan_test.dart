@@ -367,9 +367,9 @@ void main() {
     'cancel after partial discovery preserves old and newly found tracks',
     () async {
       const oldSong = LibrarySong(
-        id: 'src-old::/Music/old.flac',
-        sourceId: 'src-old',
-        sourceName: 'Old Source',
+        id: 'src-2::/Music/old.flac',
+        sourceId: 'src-2',
+        sourceName: 'Source 2',
         title: 'Old Song',
         fileName: 'old.flac',
         remotePath: '/Music/old.flac',
@@ -380,7 +380,7 @@ void main() {
         folderArtistName: 'Artist',
       );
       final seedRepo = JsonFileScanCacheRepository(tempDir);
-      await seedRepo.saveScanResults('src-old', [oldSong]);
+      await seedRepo.saveScanResults('src-2', [oldSong]);
 
       final source1 = _FakeMusicSource(_source1, delay: Duration.zero);
       final source2 = _FakeMusicSource(

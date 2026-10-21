@@ -10,13 +10,20 @@ import '../../application/player_controller.dart';
 import 'playback_timeline.dart';
 import 'track_cover_thumbnail.dart';
 
+bool hasRecoverablePlayerState(PlayerViewState state) {
+  if (state.currentTrack != null) return true;
+  if (state.canRetry) return true;
+  return state.isResolvingTrack &&
+      (state.requestedTitle?.trim().isNotEmpty == true);
+}
+
 class MiniPlayer extends ConsumerWidget {
   const MiniPlayer({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final hasTrack = ref.watch(
-      playerControllerProvider.select((state) => state.currentTrack != null),
+    final isVisible = ref.watch(
+      playerControllerProvider.select(hasRecoverablePlayerState),
     );
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
 
@@ -36,7 +43,7 @@ class MiniPlayer extends ConsumerWidget {
           ),
         );
       },
-      child: hasTrack
+      child: isVisible
           ? const _MiniPlayerContent(key: ValueKey('mini-player-active'))
           : const SizedBox.shrink(key: ValueKey('mini-player-idle')),
     );
@@ -51,9 +58,30 @@ class _MiniPlayerContent extends ConsumerWidget {
     final track = ref.watch(
       playerControllerProvider.select((state) => state.currentTrack),
     );
-    if (track == null) {
+    final recoveryInfo = ref.watch(
+      playerControllerProvider.select(
+        (state) => (
+          requestedTitle: state.requestedTitle,
+          requestedArtist: state.requestedArtist,
+          requestedSourceName: state.requestedSourceName,
+          canRetry: state.canRetry,
+          isResolvingTrack: state.isResolvingTrack,
+          isBusy: state.isBusy,
+          errorMessage: state.errorMessage,
+        ),
+      ),
+    );
+
+    final isRecoverable =
+        track != null ||
+        recoveryInfo.canRetry ||
+        (recoveryInfo.isResolvingTrack &&
+            (recoveryInfo.requestedTitle?.trim().isNotEmpty == true));
+
+    if (!isRecoverable) {
       return const SizedBox.shrink();
     }
+
     final displaySong = ref.watch(
       playerControllerProvider.select((state) {
         if (state.hasPlaylist &&
@@ -74,29 +102,41 @@ class _MiniPlayerContent extends ConsumerWidget {
       playerControllerProvider.select((state) => state.canPlayNext),
     );
 
-    final status = ref.watch(
-      playerControllerProvider.select(
-        (state) => (state.isBusy, state.errorMessage),
-      ),
-    );
     final controller = ref.read(playerControllerProvider.notifier);
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
 
-    final displayTitle = displaySong?.displayTitle ?? track.displayTitle;
-    final displayArtist = displaySong?.displayArtist ?? track.displayArtist;
-    final displayAlbum = displaySong?.displayAlbum ?? track.displayAlbum;
+    final displayTitle =
+        displaySong?.displayTitle ??
+        track?.displayTitle ??
+        (recoveryInfo.requestedTitle?.trim().isNotEmpty == true
+            ? recoveryInfo.requestedTitle!.trim()
+            : null) ??
+        (recoveryInfo.errorMessage != null
+            ? l10n.playbackFailedMessage
+            : l10n.playerTitle);
+    final displayArtist =
+        displaySong?.displayArtist ??
+        track?.displayArtist ??
+        recoveryInfo.requestedArtist ??
+        '';
+    final displayAlbum = displaySong?.displayAlbum ?? track?.displayAlbum ?? '';
     final displayLocalCoverPath =
-        displaySong?.displayLocalCoverPath ?? track.localCoverPath;
+        displaySong?.displayLocalCoverPath ?? track?.localCoverPath;
     final displayCoverUrl =
-        displaySong?.displayCoverUrl ?? track.autoScrapedCoverUrl;
+        displaySong?.displayCoverUrl ?? track?.autoScrapedCoverUrl;
     final directoryPath =
-        displaySong?.directoryPath ?? _directoryPath(track.remotePath);
+        displaySong?.directoryPath ??
+        (track != null ? _directoryPath(track.remotePath) : null);
+
+    final sourceName = (displaySong?.sourceName.isNotEmpty == true)
+        ? displaySong!.sourceName
+        : (track?.sourceName ?? recoveryInfo.requestedSourceName ?? '');
 
     final subtitle = [
       displayArtist,
       displayAlbum,
-      track.sourceName,
+      sourceName,
     ].whereType<String>().where((value) => value.isNotEmpty).join(' · ');
 
     final cardRadius = studioRadiusOf(context, 18);
@@ -104,6 +144,10 @@ class _MiniPlayerContent extends ConsumerWidget {
     final coverSize = studioListSpacingOf(context, 44).clamp(40.0, 52.0);
     final outerBottom = studioSpacingOf(context, 4).clamp(2.0, 8.0);
     final innerVertical = studioSpacingOf(context, 8).clamp(6.0, 10.0);
+
+    final hasError = recoveryInfo.canRetry || recoveryInfo.errorMessage != null;
+    final isBusyOrResolving =
+        recoveryInfo.isBusy || recoveryInfo.isResolvingTrack;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(12, 0, 12, outerBottom),
@@ -134,15 +178,19 @@ class _MiniPlayerContent extends ConsumerWidget {
                             ? Duration.zero
                             : const Duration(milliseconds: 180),
                         child: TrackCoverThumbnail(
-                          key: ValueKey(displaySong?.id ?? track.id),
+                          key: ValueKey(
+                            displaySong?.id ??
+                                track?.id ??
+                                'mini-cover-thumbnail',
+                          ),
                           title: displayTitle,
                           subtitle: subtitle,
                           size: coverSize,
                           borderRadius: coverRadius,
                           localCoverPath: displayLocalCoverPath,
                           coverUrl: displayCoverUrl,
-                          trackId: displaySong?.id ?? track.id,
-                          sourceId: displaySong?.sourceId ?? track.sourceId,
+                          trackId: displaySong?.id ?? track?.id,
+                          sourceId: displaySong?.sourceId ?? track?.sourceId,
                           directoryPath: directoryPath,
                         ),
                       ),
@@ -162,7 +210,9 @@ class _MiniPlayerContent extends ConsumerWidget {
                               ],
                             ),
                         child: Column(
-                          key: ValueKey(displaySong?.id ?? track.id),
+                          key: ValueKey(
+                            displaySong?.id ?? track?.id ?? 'mini-title-column',
+                          ),
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
@@ -177,19 +227,21 @@ class _MiniPlayerContent extends ConsumerWidget {
                             ),
                             const SizedBox(height: 3),
                             Text(
-                              status.$2 != null
+                              hasError
                                   ? l10n.retryAction
-                                  : status.$1
+                                  : isBusyOrResolving
                                   ? l10n.playbackBufferingLabel
                                   : !isPlaying
                                   ? l10n.playbackPausedLabel
                                   : subtitle.isEmpty
-                                  ? track.sourceName
+                                  ? sourceName
                                   : subtitle,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.notoSans(
-                                color: colorScheme.onSurfaceVariant,
+                                color: hasError
+                                    ? colorScheme.error
+                                    : colorScheme.onSurfaceVariant,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w400,
                               ),
@@ -208,8 +260,12 @@ class _MiniPlayerContent extends ConsumerWidget {
                     ),
                     const SizedBox(width: 4),
                     _MiniPlayButton(
-                      tooltip: isPlaying ? l10n.pauseAction : l10n.playAction,
-                      icon: status.$2 != null
+                      tooltip: hasError
+                          ? l10n.retryAction
+                          : isPlaying
+                          ? l10n.pauseAction
+                          : l10n.playAction,
+                      icon: hasError
                           ? Icons.refresh_rounded
                           : isPlaying
                           ? Icons.pause_rounded
