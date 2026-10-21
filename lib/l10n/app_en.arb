@@ -632,5 +632,9 @@
     "placeholders": {
       "percent": {"type": "int"}
     }
-  }
+  },
+  "aboutOrganizationLabel": "Organization",
+  "aboutOrganizationValue": "Norns Interactive",
+  "aboutRepositoryLabel": "Repository",
+  "aboutRepositoryAction": "GitHub"
 }

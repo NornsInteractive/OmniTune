@@ -1540,4 +1540,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String appUpdateProgressPercent(int percent) {
     return '$percent%';
   }
+
+  @override
+  String get aboutOrganizationLabel => 'Organization';
+
+  @override
+  String get aboutOrganizationValue => 'Norns Interactive';
+
+  @override
+  String get aboutRepositoryLabel => 'Repository';
+
+  @override
+  String get aboutRepositoryAction => 'GitHub';
 }

@@ -1469,4 +1469,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String appUpdateProgressPercent(int percent) {
     return '$percent%';
   }
+
+  @override
+  String get aboutOrganizationLabel => '开发团队';
+
+  @override
+  String get aboutOrganizationValue => 'Norns Interactive';
+
+  @override
+  String get aboutRepositoryLabel => '源码仓库';
+
+  @override
+  String get aboutRepositoryAction => 'GitHub';
 }

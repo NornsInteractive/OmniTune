@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.309+310 — 2026-10-21
+
+- About & updates now shows the Norns Interactive organization name and links to the GitHub repository.
+- Confirmed Android application ID remains `com.norns.omnitune`; rebuilt signed Android APK/AAB and Linux x86_64 bundle.
+
+
 ## 1.0.308+309 — 2026-10-21
 
 - 接入 Ygg 分发平台，在“设置 → 关于与更新”检查版本、查看日志、下载更新；Android 校验 SHA-256 后调起系统安装确认，支持进度、取消与重试。

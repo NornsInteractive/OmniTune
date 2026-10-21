@@ -615,5 +615,9 @@
   "appUpdateSizeMB": "{size} MB",
   "appUpdateSizeKB": "{size} KB",
   "appUpdateSizeB": "{size} B",
-  "appUpdateProgressPercent": "{percent}%"
+  "appUpdateProgressPercent": "{percent}%",
+  "aboutOrganizationLabel": "开发团队",
+  "aboutOrganizationValue": "Norns Interactive",
+  "aboutRepositoryLabel": "源码仓库",
+  "aboutRepositoryAction": "GitHub"
 }

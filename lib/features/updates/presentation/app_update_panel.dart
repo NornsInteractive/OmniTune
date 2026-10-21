@@ -1,18 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music/core/i18n/localizations.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/widgets/studio_chrome.dart';
 import '../application/app_update_controller.dart';
 
 class AppUpdatePanel extends ConsumerStatefulWidget {
-  const AppUpdatePanel({super.key});
+  const AppUpdatePanel({super.key, this.onLaunchUrl});
+
+  final Future<bool> Function(Uri uri)? onLaunchUrl;
 
   @override
   ConsumerState<AppUpdatePanel> createState() => _AppUpdatePanelState();
 }
 
 class _AppUpdatePanelState extends ConsumerState<AppUpdatePanel> {
+  static final Uri _repositoryUri = Uri.parse(
+    'https://github.com/Naruto9Kurama/OmniTune',
+  );
+
+  Future<void> _launchRepositoryUrl() async {
+    final launcher = widget.onLaunchUrl;
+    if (launcher != null) {
+      await launcher(_repositoryUri);
+      return;
+    }
+    try {
+      await launchUrl(_repositoryUri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      // Prevent unhandled exception in environments without launcher.
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -62,6 +82,19 @@ class _AppUpdatePanelState extends ConsumerState<AppUpdatePanel> {
             theme: theme,
             isAndroid: isAndroid,
             disableAnimations: disableAnimations,
+          ),
+          if (state.phase != AppUpdatePhase.idle) const SizedBox(height: 12),
+          Divider(
+            height: 1,
+            thickness: 1,
+            color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+          ),
+          const SizedBox(height: 14),
+          _buildIdentitySection(
+            context: context,
+            l10n: l10n,
+            colorScheme: colorScheme,
+            theme: theme,
           ),
         ],
       ),
@@ -454,6 +487,106 @@ class _AppUpdatePanelState extends ConsumerState<AppUpdatePanel> {
               : l10n.appUpdateActionDownloadLatest,
         ),
       ),
+    );
+  }
+
+  Widget _buildIdentitySection({
+    required BuildContext context,
+    required AppLocalizations l10n,
+    required ColorScheme colorScheme,
+    required ThemeData theme,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 6,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.corporate_fare_rounded,
+                  color: colorScheme.onSurfaceVariant,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    l10n.aboutOrganizationLabel,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Text(
+              l10n.aboutOrganizationValue,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSurface,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 6,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.code_rounded,
+                  color: colorScheme.onSurfaceVariant,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    l10n.aboutRepositoryLabel,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Tooltip(
+              message: _repositoryUri.toString(),
+              child: OutlinedButton.icon(
+                onPressed: _launchRepositoryUrl,
+                icon: const Icon(Icons.open_in_new_rounded, size: 14),
+                label: Text(l10n.aboutRepositoryAction),
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  minimumSize: const Size(0, 32),
+                  side: BorderSide(
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.7),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(
+                      studioRadiusOf(context, 8),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 

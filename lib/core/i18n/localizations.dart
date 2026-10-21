@@ -2824,6 +2824,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{percent}%'**
   String appUpdateProgressPercent(int percent);
+
+  /// No description provided for @aboutOrganizationLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Organization'**
+  String get aboutOrganizationLabel;
+
+  /// No description provided for @aboutOrganizationValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Norns Interactive'**
+  String get aboutOrganizationValue;
+
+  /// No description provided for @aboutRepositoryLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Repository'**
+  String get aboutRepositoryLabel;
+
+  /// No description provided for @aboutRepositoryAction.
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub'**
+  String get aboutRepositoryAction;
 }
 
 class _AppLocalizationsDelegate

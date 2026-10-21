@@ -1,5 +1,13 @@
 # OmniTune 项目进度与路线图
 
+## About 页组织信息与 1.0.309+310 发布
+
+- 固定 agy 会话 `6c56397a-e82e-4afe-8ca5-450dbc2571e1` 使用 taste skill 更新“设置 → 关于与更新”：增加 Norns Interactive 和可点击 GitHub 仓库链接，英文／中文均已生成。
+- 核对 Android `namespace`、`applicationId`、Kotlin package 及 Ygg app ID 均已是 `com.norns.omnitune`，因此保持原包名与签名，避免造成不能覆盖升级的应用。
+- `./scripts/build_apk.sh` 将版本升级至 **1.0.309+310**，签名 APK/AAB 构建成功；Linux x86_64 bundle 构建成功并打包。APK 包标识及 versionCode/versionName 核对通过，签名 SHA-256 与原发布证书一致。
+- 本轮未执行自动化测试；用户要求由 OpenCode 免费模型承担测试且 Codex 不自行测试。没有开展新的真机 UI 验收。
+
+
 ## 固定 UI 会话
 
 - 工具：Antigravity CLI（agy）
