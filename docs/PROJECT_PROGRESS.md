@@ -17,7 +17,25 @@
 - Android 仅新增普通侧载安装请求权限，移除插件额外声明的系统静默安装权限与外部存储写权限；FileProvider 仅暴露应用内部 `ota_update/`。固定 APK 缓存文件避免每个版本残留一个安装包。保留原 AudioServiceActivity、ranchu 输出兼容修复、所有已有音乐源及存储格式。
 - OpenCode 免费模型新增 39 项业务回归和 10 项 UI 回归。UI 回归发现桌面按钮误用默认 UI 平台的问题，由 agy 改为按安装包平台决定按钮，未弱化断言。用户随后明确要求所有测试执行也交给 OpenCode 免费模型，后续自动测试、静态分析、ADB 升级验收均按新分工执行；Codex 仅实现、审查、构建与发布。最终结果由 OpenCode 写入隔离目录的 `validation-result.json`，原始资料位于 `build/validation/ygg-update/`。
 - OpenCode 最终执行：静态检查零问题；首次整套有 1 项既有列表用例波动且报告器未提供异常细节，隔离该文件及两次整套复跑均通过 **332／332**，未修改其断言。汇总已复制到 `build/validation/ygg-update/opencode-validation-result.json`。
-- 正式 APK／AAB、Linux x86_64、Web 构建完成，源码版本 **1.0.308+309**，发布附件位于 `build/releases/1.0.308/`。GitHub 与 Ygg 新版正在交付；旧版本号 308 的同签名更新测试包已保留数据安装，用于发布后由 OpenCode 验证实际升级到 309。尚未宣称系统安装验收完成。
+- 正式 APK／AAB、Linux x86_64、Web 构建完成，源码版本 **1.0.308+309**，发布附件位于 `build/releases/1.0.308/`。GitHub [1.0.308 Release](https://github.com/Naruto9Kurama/OmniTune/releases/tag/1.0.308) 已发布，源码提交 `ca32d42`；Android APK／AAB、Linux x86_64 完整 bundle 与 SHA256SUMS 已上传。Ygg 新版 `ver_mvi4qijtnonj`／code 309 已发布，Android universal 包 `pkg_mvi4quyb4r3y`、Linux x86_64 包 `pkg_mvi4qw9ds8v0` 均使用本次 GitHub 附件地址及 SHA-256，开启代理；仅删除本次平台自动生成的无 SHA 默认包。OpenCode 已独占设备完成实际应用内升级：308 → 309，经 Ygg 下载、正常未知来源授权、Android 系统“更新”确认后显示安装成功；没有使用 adb install 替代应用内流程。
+
+### OpenCode 设备升级验收
+
+- 执行模型 `opencode/deepseek-v4.1-flash-free`，输入／输出／缓存费用均为 0；用户要求全部测试交给 OpenCode 后，Codex 未执行本轮最终自动测试、静态分析和 ADB 验收，只审查结果、构建与发布。设备为 `127.0.0.1:14251`／Android 14／ranchu x86_64／1440×3040。
+- 应用内从 1.0.307（308）检测到 1.0.308（309）及 66.6 MB 包，下载后通过正常系统界面开启安装来源授权并确认更新，系统显示安装成功。升级后显示当前 1.0.308（309），重新检查得到“已是最新版”。未卸载、清除数据或更换签名；证书 SHA-256 与项目原证书一致。
+- 首次安装时间 `2026-10-11 16:17:15`、数据目录 inode `344329`、原扫描缓存 SHA-256 均保持；189 音源仍为 176 首／19 专辑，按专辑字段分类与 11 首队列保留。《跨时代》短时播放后暂停。
+- Ygg 308 查询返回更新、309 查询不更新；Android x86_64 正确回退 universal，Linux 返回 x86_64 包。Android Range 请求返回 206／1024 字节；设备完整 APK 缓存和 Linux 完整代理下载的大小、SHA-256 与正式发布附件一致。私有 GitHub 源由 Ygg 既有服务端配置代理，应用无管理令牌。
+- 汇总 `build/validation/ygg-update/opencode-adb-acceptance.json`；截图与接口证据 `build/validation/ygg-update/device-acceptance/`。下载较快，未在设备强制取消；取消已有单元回归。实体机、Android TV、iOS、其他桌面系统安装及长时间播放不在本轮设备验证范围。
+
+### 1.0.308 发布附件校验记录
+
+| 附件 | 字节数 | SHA-256 |
+| --- | ---: | --- |
+| Android APK | 69844796 | `1a69fd3694748064e9c1e42e0ed0135609f9317f43eac7938e1674b306c7d510` |
+| Android AAB | 52342722 | `b5e2d23e2f30945fb6813d7cacf71e362be8069b3afac66c77ae12c99c7877ae` |
+| Linux x86_64 tar.gz | 48863934 | `5080b7cbc69bf0943c959985495c95a70e91fb22e7c5a37ff02791710d336bfb` |
+
+GitHub 附件上传回执的大小、SHA-256 与本地产物一致。Android 下载：[Ygg](https://ygg.norns.cc.cd/d/com.norns.omnitune?platform=android&arch=universal)；Linux 下载：[Ygg](https://ygg.norns.cc.cd/d/com.norns.omnitune?platform=linux&arch=x86_64)。没有配置本项目官网部署，本轮未部署网站。
 
 ### 后续发版接口
 
