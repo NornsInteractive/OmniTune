@@ -968,6 +968,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'No synced lyrics were found for this track yet.';
 
   @override
+  String get untimedLyricsNotice => 'Timed lyrics unavailable';
+
+  @override
   String get showLyricsAction => 'Show lyrics';
 
   @override

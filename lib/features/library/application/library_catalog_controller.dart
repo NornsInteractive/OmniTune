@@ -276,7 +276,10 @@ class LibraryCatalogController extends _$LibraryCatalogController {
 
   @override
   Future<LibraryCatalogState> build() async {
-    ref.onDispose(() => _albumIndexGeneration++);
+    ref.onDispose(() {
+      _albumIndexGeneration++;
+      _metadataHydrationGeneration++;
+    });
     DebugLogger.info('LibraryCatalogController.build', '开始加载库');
     ref.listen<AsyncValue<LibraryPreferences>>(appSettingsControllerProvider, (
       previous,
@@ -302,9 +305,8 @@ class LibraryCatalogController extends _$LibraryCatalogController {
     final preferences = await ref
         .watch(libraryPreferencesRepositoryProvider)
         .load();
-    final sourceIds = (await ref.read(
-      sourcesControllerProvider.future,
-    )).map((source) => source.id).toSet();
+    final sources = await ref.read(sourcesControllerProvider.future);
+    final sourceIds = sources.map((source) => source.id).toSet();
 
     // 加载缓存的扫描结果
     LibraryCatalogState cachedState;
@@ -381,6 +383,23 @@ class LibraryCatalogController extends _$LibraryCatalogController {
       );
     }
 
+    final pendingMp4 = cachedState.tracks
+        .where((track) {
+          final extension = p.extension(track.fileName).toLowerCase();
+          return (extension == '.m4a' ||
+                  extension == '.mp4' ||
+                  extension == '.alac') &&
+              _shouldHydrateEmbeddedMetadata(track);
+        })
+        .toList(growable: false);
+    if (pendingMp4.isNotEmpty) {
+      final timer = Timer(Duration.zero, () {
+        if (!_scanRunning) {
+          unawaited(_hydrateEmbeddedMetadataInBackground(sources, pendingMp4));
+        }
+      });
+      ref.onDispose(timer.cancel);
+    }
     return cachedState;
   }
 
@@ -846,9 +865,33 @@ class LibraryCatalogController extends _$LibraryCatalogController {
         length: _embeddedMetadataReadLength,
       );
       if (bytes == null || bytes.isEmpty) {
+        throw StateError('Embedded metadata prefix could not be read');
+      }
+      final parsed = AudioEmbeddedMetadataReader.parse(
+        bytes,
+        fileName: entry.name,
+      );
+      if (parsed != null) return parsed;
+      final extension = p.extension(entry.name).toLowerCase();
+      if (extension != '.m4a' && extension != '.mp4' && extension != '.alac') {
         return null;
       }
-      return AudioEmbeddedMetadataReader.parse(bytes, fileName: entry.name);
+      final requiredLength = AudioEmbeddedMetadataReader.requiredMp4HeadBytes(
+        bytes,
+        maxBytes: 4 * 1024 * 1024,
+      );
+      if (requiredLength == null ||
+          (entry.size != null && requiredLength > entry.size!)) {
+        return null;
+      }
+      final expanded = await session.readBinaryFileHead(
+        entry.path,
+        length: requiredLength,
+      );
+      if (expanded == null || expanded.length < requiredLength) {
+        throw StateError('Embedded metadata prefix was incomplete');
+      }
+      return AudioEmbeddedMetadataReader.parse(expanded, fileName: entry.name);
     } catch (e, stack) {
       DebugLogger.error(
         'LibraryCatalogController._readEmbeddedMetadata',
@@ -856,7 +899,7 @@ class LibraryCatalogController extends _$LibraryCatalogController {
         e.toString(),
         stack,
       );
-      return null;
+      rethrow;
     }
   }
 
@@ -1091,6 +1134,10 @@ class LibraryCatalogController extends _$LibraryCatalogController {
     if (cachedMetadata == null) {
       return true;
     }
+    final extension = p.extension(track.fileName).toLowerCase();
+    if (extension == '.m4a' || extension == '.mp4' || extension == '.alac') {
+      return cachedMetadata.embeddedMetadataReadVersion != 1;
+    }
     return cachedMetadata.embeddedMetadataReadAt == null;
   }
 
@@ -1114,10 +1161,12 @@ class LibraryCatalogController extends _$LibraryCatalogController {
           originalFileName: track.fileName,
           originalArtist: track.artistName,
         );
-    if (existing.embeddedMetadataReadAt != null) {
+    if (existing.embeddedMetadataReadAt != null &&
+        existing.embeddedMetadataReadVersion == 1) {
       return;
     }
     existing.embeddedMetadataReadAt = DateTime.now();
+    existing.embeddedMetadataReadVersion = 1;
     existing.updatedAt = DateTime.now();
     existing.lastAttemptAt = existing.embeddedMetadataReadAt;
     await IsarManager.saveMetadata(existing);
@@ -1250,11 +1299,13 @@ class LibraryCatalogController extends _$LibraryCatalogController {
     }
 
     if (!changed) {
+      await _markEmbeddedMetadataAttempted(track);
       return false;
     }
 
     existing.autoScrapedAt = DateTime.now();
     existing.embeddedMetadataReadAt = DateTime.now();
+    existing.embeddedMetadataReadVersion = 1;
     existing.updatedAt = DateTime.now();
     existing.lastAttemptAt = DateTime.now();
     if (!_needsAdditionalAutoScrape(existing)) {

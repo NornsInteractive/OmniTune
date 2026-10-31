@@ -1769,6 +1769,12 @@ abstract class AppLocalizations {
   /// **'No synced lyrics were found for this track yet.'**
   String get lyricsEmptyLabel;
 
+  /// No description provided for @untimedLyricsNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Timed lyrics unavailable'**
+  String get untimedLyricsNotice;
+
   /// No description provided for @showLyricsAction.
   ///
   /// In en, this message translates to:

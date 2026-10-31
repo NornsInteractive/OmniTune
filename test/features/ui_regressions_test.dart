@@ -45,6 +45,7 @@ class _FakePlayerController extends PlayerController {
   int playPauseCallCount = 0;
   int playCallCount = 0;
   int seekAndPlayCallCount = 0;
+  int seekCallCount = 0;
   Duration? lastSeekPosition;
 
   @override
@@ -58,6 +59,12 @@ class _FakePlayerController extends PlayerController {
   @override
   Future<void> play() async {
     playCallCount++;
+  }
+
+  @override
+  Future<void> seek(Duration position) async {
+    seekCallCount++;
+    lastSeekPosition = position;
   }
 
   @override
@@ -2908,7 +2915,10 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      // Bounded pump: a resolving/buffering MiniPlayer renders an infinite
+      // CircularProgressIndicator, so pumpAndSettle would never settle.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
     }
 
     PlayerViewState recoverableState({
@@ -2963,7 +2973,11 @@ void main() {
         final l10n = AppLocalizations.of(
           tester.element(find.byType(MiniPlayer)),
         )!;
-        expect(find.text(l10n.retryAction), findsOneWidget);
+        // Subtitle now surfaces the specific error (errorMessage) rather than
+        // the generic "Retry" label.
+        expect(find.text('Playback failed'), findsOneWidget);
+        // Retry button semantics are checked independently of the subtitle.
+        expect(find.byTooltip(l10n.retryAction), findsOneWidget);
         expect(find.byIcon(Icons.refresh_rounded), findsOneWidget);
 
         await tester.tap(find.byIcon(Icons.refresh_rounded));
@@ -3120,7 +3134,10 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(find.text('Recovered Song'), findsOneWidget);
-        expect(find.text(l10n.retryAction), findsOneWidget);
+        // Specific error text replaces the old "Retry" subtitle.
+        expect(find.text('Playback failed'), findsOneWidget);
+        // Retry button is still present (refresh icon) for a recoverable error.
+        expect(find.byIcon(Icons.refresh_rounded), findsOneWidget);
 
         fakeController.emitState(
           recoverableState(
@@ -3130,7 +3147,10 @@ void main() {
             isResolvingTrack: true,
           ),
         );
-        await tester.pumpAndSettle();
+        // Resolving state shows an infinite buffering spinner; bounded pump
+        // instead of pumpAndSettle (which would time out).
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
         expect(find.text('Resolving Song'), findsOneWidget);
         expect(find.text(l10n.playbackBufferingLabel), findsOneWidget);
 
@@ -3140,7 +3160,8 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Starfall'), findsOneWidget);
         expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
-        expect(find.text(l10n.retryAction), findsNothing);
+        // Loaded state no longer shows the retry affordance.
+        expect(find.byIcon(Icons.refresh_rounded), findsNothing);
 
         fakeController.emitState(PlayerViewState.initial());
         await tester.pumpAndSettle();
@@ -3233,4 +3254,171 @@ void main() {
       },
     );
   });
+  group('Seekbar semantics (enabled/disabled, increase/decrease boundaries)', () {
+    PlayerViewState seekState({
+      required Duration position,
+      Duration? duration,
+    }) {
+      return PlayerViewState(
+        currentTrack: _createSampleTrack(),
+        isPlaying: true,
+        processingState: ProcessingState.ready,
+        position: position,
+        bufferedPosition: position,
+        duration: duration,
+        playlist: const [],
+        currentIndex: 0,
+        playbackMode: PlayerPlaybackMode.list,
+        lyrics: const [],
+        lyricsSource: PlayerLyricsSource.none,
+        cacheSegments: const [],
+        errorMessage: null,
+        requestedTitle: null,
+        requestedArtist: null,
+        requestedSourceName: null,
+        canRetry: false,
+        isResolvingTrack: false,
+      );
+    }
+
+    Future<_FakePlayerController> pumpSeekPanel(
+      WidgetTester tester,
+      PlayerViewState state,
+    ) async {
+      tester.view.physicalSize = const Size(412, 915);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.reset());
+
+      final controller = _FakePlayerController(state);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sourceProfileRepositoryProvider.overrideWithValue(
+              _FakeSourceProfileRepository(),
+            ),
+            libraryPreferencesRepositoryProvider.overrideWithValue(
+              _FakeLibraryPreferencesRepository(),
+            ),
+            playerControllerProvider.overrideWith(() => controller),
+            folderArtworkProvider.overrideWith((ref, request) async => null),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const Scaffold(body: NowPlayingPanel()),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      return controller;
+    }
+
+    Finder sliderNode() => find.byWidgetPredicate(
+      (widget) => widget is Semantics && (widget.properties.slider ?? false),
+    );
+
+    testWidgets('enabled seekbar exposes increase/decrease and steps by 5%', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+
+      final controller = await pumpSeekPanel(
+        tester,
+        seekState(
+          position: const Duration(seconds: 30),
+          duration: const Duration(minutes: 3),
+        ),
+      );
+
+      final node = tester.getSemantics(sliderNode());
+      final data = node.getSemanticsData();
+      expect(data.hasFlag(SemanticsFlag.isEnabled), isTrue);
+      expect(data.hasAction(SemanticsAction.increase), isTrue);
+      expect(data.hasAction(SemanticsAction.decrease), isTrue);
+
+      tester.binding.pipelineOwner.semanticsOwner!.performAction(
+        node.id,
+        SemanticsAction.increase,
+      );
+      await tester.pump();
+
+      // 5% of 180 s = 9 s, so 30 s -> 39 s.
+      expect(controller.seekCallCount, 1);
+      expect(controller.lastSeekPosition, const Duration(milliseconds: 39000));
+      handle.dispose();
+    });
+
+    testWidgets('increase clamps at the track duration boundary', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+
+      final controller = await pumpSeekPanel(
+        tester,
+        seekState(
+          position: const Duration(milliseconds: 178000),
+          duration: const Duration(milliseconds: 180000),
+        ),
+      );
+
+      final node = tester.getSemantics(sliderNode());
+      tester.binding.pipelineOwner.semanticsOwner!.performAction(
+        node.id,
+        SemanticsAction.increase,
+      );
+      await tester.pump();
+
+      // 178 s + 9 s would overshoot; the seekbar must clamp to 180 s.
+      expect(controller.seekCallCount, 1);
+      expect(controller.lastSeekPosition, const Duration(milliseconds: 180000));
+      handle.dispose();
+    });
+
+    testWidgets('decrease clamps at the zero boundary', (tester) async {
+      final handle = tester.ensureSemantics();
+
+      final controller = await pumpSeekPanel(
+        tester,
+        seekState(
+          position: const Duration(seconds: 2),
+          duration: const Duration(minutes: 3),
+        ),
+      );
+
+      final node = tester.getSemantics(sliderNode());
+      tester.binding.pipelineOwner.semanticsOwner!.performAction(
+        node.id,
+        SemanticsAction.decrease,
+      );
+      await tester.pump();
+
+      // 2 s - 9 s would go negative; the seekbar must clamp to 0.
+      expect(controller.seekCallCount, 1);
+      expect(controller.lastSeekPosition, Duration.zero);
+      handle.dispose();
+    });
+
+    testWidgets('disabled seekbar drops increase/decrease actions', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+
+      // No duration yet -> seeking is not possible.
+      final controller = await pumpSeekPanel(
+        tester,
+        seekState(position: Duration.zero),
+      );
+
+      final node = tester.getSemantics(sliderNode());
+      final data = node.getSemanticsData();
+      expect(data.hasFlag(SemanticsFlag.isEnabled), isFalse);
+      expect(data.hasAction(SemanticsAction.increase), isFalse);
+      expect(data.hasAction(SemanticsAction.decrease), isFalse);
+      expect(controller.seekCallCount, 0);
+      expect(controller.lastSeekPosition, isNull);
+      handle.dispose();
+    });
+  });
+
 }

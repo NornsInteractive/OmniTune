@@ -419,6 +419,7 @@
   "playerEmptyTitle": "还没有选择歌曲",
   "playerEmptyDescription": "请先从音源浏览器中选择一个音乐文件开始播放。",
   "lyricsEmptyLabel": "当前还没有找到这首歌对应的同步歌词。",
+  "untimedLyricsNotice": "暂无时间轴歌词",
   "showLyricsAction": "显示歌词",
   "hideLyricsAction": "收起歌词",
   "lyricsSourceSidecarLabel": "本地 LRC",

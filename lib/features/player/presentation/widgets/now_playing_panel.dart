@@ -264,11 +264,28 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
                           ),
                         ),
                       ],
-                      if (lyricsSourceLabel != null) ...[
+                      if (lyricsSourceLabel != null ||
+                          (playerState.isBusy &&
+                              playerState.errorMessage == null &&
+                              !playerState.canRetry)) ...[
                         const SizedBox(height: 8),
-                        _NowPlayingMetaChip(
-                          icon: Icons.lyrics_rounded,
-                          label: lyricsSourceLabel,
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
+                            if (lyricsSourceLabel != null)
+                              _NowPlayingMetaChip(
+                                icon: Icons.lyrics_rounded,
+                                label: lyricsSourceLabel,
+                              ),
+                            if (playerState.isBusy &&
+                                playerState.errorMessage == null &&
+                                !playerState.canRetry)
+                              _NowPlayingMetaChip(
+                                icon: Icons.sync_rounded,
+                                label: l10n.playbackBufferingLabel,
+                              ),
+                          ],
                         ),
                       ],
                     ],
@@ -302,32 +319,53 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
             ),
             if (playerState.errorMessage != null || playerState.canRetry) ...[
               const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      playerState.errorMessage ?? l10n.playbackFailedMessage,
-                      style: _glacierTextStyle(
-                        color: colorScheme.error,
-                        size: 13,
-                        weight: FontWeight.w600,
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: colorScheme.errorContainer.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(
+                    studioRadiusOf(context, 12),
+                  ),
+                  border: Border.all(
+                    color: colorScheme.error.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.error_outline_rounded,
+                      color: colorScheme.error,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        playerState.errorMessage ?? l10n.playbackFailedMessage,
+                        style: _glacierTextStyle(
+                          color: colorScheme.error,
+                          size: 13,
+                          weight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton.tonal(
-                    onPressed: controller.play,
-                    style: FilledButton.styleFrom(
-                      visualDensity: VisualDensity.standard,
-                      minimumSize: const Size(48, 48),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
+                    const SizedBox(width: 8),
+                    FilledButton.tonal(
+                      onPressed: controller.play,
+                      style: FilledButton.styleFrom(
+                        visualDensity: VisualDensity.standard,
+                        minimumSize: const Size(48, 48),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
                       ),
+                      child: Text(l10n.retryAction),
                     ),
-                    child: Text(l10n.retryAction),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ],
@@ -386,6 +424,9 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
                       _PrimaryPlayerButton(
                         isBusy: playerState.isBusy,
                         isPlaying: playerState.isPlaying,
+                        hasError:
+                            playerState.errorMessage != null ||
+                            playerState.canRetry,
                         size: primarySize,
                         onTap: () {
                           if (track == null && playerState.canRetry) {
@@ -431,6 +472,7 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
             directoryPath: directoryPath,
             lyrics: playerState.lyrics,
             lyricsEmptyLabel: l10n.lyricsEmptyLabel,
+            untimedLyricsNotice: l10n.untimedLyricsNotice,
             scrubPlayTooltip: l10n.playAction,
             onToggleLyrics: () {
               setState(() => _showLyrics = !_showLyrics);
@@ -469,6 +511,7 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
                       directoryPath: directoryPath,
                       lyrics: playerState.lyrics,
                       lyricsEmptyLabel: l10n.lyricsEmptyLabel,
+                      untimedLyricsNotice: l10n.untimedLyricsNotice,
                       scrubPlayTooltip: l10n.playAction,
                       onToggleLyrics: null,
                       onSeekToLine: controller.seekAndPlay,
@@ -491,6 +534,7 @@ class _NowPlayingPanelState extends ConsumerState<NowPlayingPanel> {
                           ),
                         ),
                         emptyLabel: l10n.lyricsEmptyLabel,
+                        untimedNoticeLabel: l10n.untimedLyricsNotice,
                         scrubPlayTooltip: l10n.playAction,
                         onSeekToLine: controller.seekAndPlay,
                       ),
@@ -766,6 +810,7 @@ class _ArtworkStage extends StatelessWidget {
     required this.directoryPath,
     required this.lyrics,
     required this.lyricsEmptyLabel,
+    required this.untimedLyricsNotice,
     required this.scrubPlayTooltip,
     required this.onToggleLyrics,
     required this.onSeekToLine,
@@ -782,6 +827,7 @@ class _ArtworkStage extends StatelessWidget {
   final String directoryPath;
   final List<LyricLine> lyrics;
   final String lyricsEmptyLabel;
+  final String untimedLyricsNotice;
   final String scrubPlayTooltip;
   final VoidCallback? onToggleLyrics;
   final Future<void> Function(Duration position) onSeekToLine;
@@ -829,6 +875,7 @@ class _ArtworkStage extends StatelessWidget {
                         lyrics: lyrics,
                         activeIndex: activeIndex,
                         emptyLabel: lyricsEmptyLabel,
+                        untimedNoticeLabel: untimedLyricsNotice,
                         scrubPlayTooltip: scrubPlayTooltip,
                         onSeekToLine: onSeekToLine,
                       );
@@ -1505,11 +1552,13 @@ class _PrimaryPlayerButton extends StatelessWidget {
     required this.isBusy,
     required this.isPlaying,
     required this.onTap,
+    this.hasError = false,
     this.size = 64.0,
   });
 
   final bool isBusy;
   final bool isPlaying;
+  final bool hasError;
   final VoidCallback onTap;
   final double size;
 
@@ -1517,15 +1566,27 @@ class _PrimaryPlayerButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
     final indicatorSize = (size <= 52.0 ? 22.0 : 26.0);
     final iconSize = (size * (36.0 / 64.0)).clamp(26.0, 36.0);
+
+    final tooltip = hasError
+        ? l10n.retryAction
+        : isBusy
+        ? l10n.playbackBufferingLabel
+        : isPlaying
+        ? l10n.pauseAction
+        : l10n.playAction;
+
+    final tintColor = hasError ? colorScheme.error : colorScheme.primary;
+
     return Tooltip(
-      message: isPlaying ? l10n.pauseAction : l10n.playAction,
+      message: tooltip,
       child: Semantics(
         button: true,
-        label: isPlaying ? l10n.pauseAction : l10n.playAction,
+        label: tooltip,
         child: Material(
-          color: colorScheme.primary.withValues(alpha: 0.12),
+          color: tintColor.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(999),
           child: StudioPressable(
             borderRadius: BorderRadius.circular(999),
@@ -1536,27 +1597,39 @@ class _PrimaryPlayerButton extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: colorScheme.primary.withValues(alpha: 0.3),
+                  color: tintColor.withValues(alpha: hasError ? 0.45 : 0.3),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: colorScheme.primary.withValues(alpha: 0.13),
+                    color: tintColor.withValues(alpha: 0.13),
                     blurRadius: 22,
                     offset: const Offset(0, 4),
                   ),
                 ],
               ),
               child: Center(
-                child: isBusy
+                child: hasError
+                    ? Icon(
+                        Icons.refresh_rounded,
+                        color: colorScheme.error,
+                        size: iconSize,
+                      )
+                    : isBusy
                     ? SizedBox(
                         width: indicatorSize,
                         height: indicatorSize,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.4,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            colorScheme.primary,
-                          ),
-                        ),
+                        child: disableAnimations
+                            ? Icon(
+                                Icons.hourglass_empty_rounded,
+                                color: colorScheme.primary,
+                                size: indicatorSize,
+                              )
+                            : CircularProgressIndicator(
+                                strokeWidth: 2.4,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  colorScheme.primary,
+                                ),
+                              ),
                       )
                     : Icon(
                         isPlaying
@@ -1718,50 +1791,90 @@ class _SeekbarState extends State<_Seekbar> {
           return fraction * normalizedMax;
         }
 
-        return GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTapDown: widget.enabled
-              ? (details) {
-                  final value = valueFromDx(details.localPosition.dx);
-                  _lastInteractionValue = value;
-                  widget.onChanged(value);
-                  widget.onChangeEnd(value);
+        final step = math.max(1000.0, normalizedMax * 0.05);
+        final nextIncreased = (widget.value + step).clamp(0.0, normalizedMax);
+        final nextDecreased = (widget.value - step).clamp(0.0, normalizedMax);
+        final increasedProgress = (nextIncreased / normalizedMax).clamp(
+          0.0,
+          1.0,
+        );
+        final decreasedProgress = (nextDecreased / normalizedMax).clamp(
+          0.0,
+          1.0,
+        );
+
+        return Semantics(
+          slider: true,
+          enabled: widget.enabled,
+          value: '${(progress * 100).round()}%',
+          increasedValue: widget.enabled
+              ? '${(increasedProgress * 100).round()}%'
+              : null,
+          decreasedValue: widget.enabled
+              ? '${(decreasedProgress * 100).round()}%'
+              : null,
+          onIncrease: widget.enabled
+              ? () {
+                  widget.onChanged(nextIncreased);
+                  widget.onChangeEnd(nextIncreased);
                 }
               : null,
-          onHorizontalDragStart: widget.enabled
-              ? (details) {
-                  final value = valueFromDx(details.localPosition.dx);
-                  _lastInteractionValue = value;
-                  widget.onChanged(value);
+          onDecrease: widget.enabled
+              ? () {
+                  widget.onChanged(nextDecreased);
+                  widget.onChangeEnd(nextDecreased);
                 }
               : null,
-          onHorizontalDragUpdate: widget.enabled
-              ? (details) {
-                  final value = valueFromDx(details.localPosition.dx);
-                  _lastInteractionValue = value;
-                  widget.onChanged(value);
-                }
-              : null,
-          onHorizontalDragEnd: widget.enabled
-              ? (_) {
-                  final value = _lastInteractionValue;
-                  if (value != null) {
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapDown: widget.enabled
+                ? (details) {
+                    final value = valueFromDx(details.localPosition.dx);
+                    _lastInteractionValue = value;
+                    widget.onChanged(value);
                     widget.onChangeEnd(value);
                   }
-                  _lastInteractionValue = null;
-                }
-              : null,
-          child: RepaintBoundary(
-            child: PlaybackTimeline(
-              progress: progress,
-              cacheSegments: widget.cacheSegments,
-              showThumb: true,
-              thumbFraction: progress,
-              height: 6,
-              backgroundColor: colorScheme.surfaceContainerHighest,
-              cacheColor: colorScheme.outline.withValues(alpha: 0.32),
-              progressColor: colorScheme.primary,
-              thumbColor: colorScheme.primary,
+                : null,
+            onHorizontalDragStart: widget.enabled
+                ? (details) {
+                    final value = valueFromDx(details.localPosition.dx);
+                    _lastInteractionValue = value;
+                    widget.onChanged(value);
+                  }
+                : null,
+            onHorizontalDragUpdate: widget.enabled
+                ? (details) {
+                    final value = valueFromDx(details.localPosition.dx);
+                    _lastInteractionValue = value;
+                    widget.onChanged(value);
+                  }
+                : null,
+            onHorizontalDragEnd: widget.enabled
+                ? (_) {
+                    final value = _lastInteractionValue;
+                    if (value != null) {
+                      widget.onChangeEnd(value);
+                    }
+                    _lastInteractionValue = null;
+                  }
+                : null,
+            child: SizedBox(
+              height: 36,
+              child: Center(
+                child: RepaintBoundary(
+                  child: PlaybackTimeline(
+                    progress: progress,
+                    cacheSegments: widget.cacheSegments,
+                    showThumb: true,
+                    thumbFraction: progress,
+                    height: 6,
+                    backgroundColor: colorScheme.surfaceContainerHighest,
+                    cacheColor: colorScheme.outline.withValues(alpha: 0.32),
+                    progressColor: colorScheme.primary,
+                    thumbColor: colorScheme.primary,
+                  ),
+                ),
+              ),
             ),
           ),
         );
@@ -1775,6 +1888,7 @@ class _LyricsPanel extends StatefulWidget {
     required this.lyrics,
     required this.activeIndex,
     required this.emptyLabel,
+    required this.untimedNoticeLabel,
     required this.scrubPlayTooltip,
     required this.onSeekToLine,
   });
@@ -1782,6 +1896,7 @@ class _LyricsPanel extends StatefulWidget {
   final List<LyricLine> lyrics;
   final int activeIndex;
   final String emptyLabel;
+  final String untimedNoticeLabel;
   final String scrubPlayTooltip;
   final Future<void> Function(Duration position) onSeekToLine;
 
@@ -1802,12 +1917,18 @@ class _LyricsPanelState extends State<_LyricsPanel> {
   int? _scrubberLineIndex;
   int _programmaticOpId = 0;
 
+  bool get _isWhollyUntimed =>
+      widget.lyrics.isNotEmpty &&
+      !widget.lyrics.any((line) => line.time > Duration.zero);
+
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
     _lineKeys = _buildLineKeys(widget.lyrics.length);
-    _scheduleScrollToActive(force: true, animated: false);
+    if (!_isWhollyUntimed) {
+      _scheduleScrollToActive(force: true, animated: false);
+    }
   }
 
   @override
@@ -1825,9 +1946,13 @@ class _LyricsPanelState extends State<_LyricsPanel> {
       _isUserScrolling = false;
       _showScrubber = false;
       _resumeAutoScrollTimer?.cancel();
+      if (_isWhollyUntimed && _scrollController.hasClients) {
+        _scrollController.jumpTo(0);
+      }
     }
 
-    if (lyricsChanged || oldWidget.activeIndex != widget.activeIndex) {
+    if (!_isWhollyUntimed &&
+        (lyricsChanged || oldWidget.activeIndex != widget.activeIndex)) {
       _scheduleScrollToActive(force: lyricsChanged);
     }
   }
@@ -1870,9 +1995,11 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                   if (pointerSignal is PointerScrollEvent &&
                       pointerSignal.scrollDelta.dy != 0) {
                     _interruptProgrammaticScrollForUser();
-                    _markUserScrolling();
-                    _updateScrubberLine();
-                    _scheduleAutoResumeIfNeeded();
+                    if (!_isWhollyUntimed) {
+                      _markUserScrolling();
+                      _updateScrubberLine();
+                      _scheduleAutoResumeIfNeeded();
+                    }
                   }
                 },
                 child: NotificationListener<ScrollNotification>(
@@ -1883,11 +2010,14 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                     itemCount: widget.lyrics.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
-                      final isActive = index == widget.activeIndex;
+                      final isActive =
+                          !_isWhollyUntimed && index == widget.activeIndex;
                       final line = widget.lyrics[index];
                       final targetColor = isActive
                           ? colorScheme.primary
-                          : colorScheme.onSurfaceVariant;
+                          : (_isWhollyUntimed
+                                ? colorScheme.onSurface.withValues(alpha: 0.88)
+                                : colorScheme.onSurfaceVariant);
 
                       return KeyedSubtree(
                         key: _lineKeys[index],
@@ -1914,7 +2044,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                   ),
                 ),
               ),
-              if (_isUserScrolling)
+              if (!_isWhollyUntimed && _isUserScrolling)
                 Positioned(
                   right: 0,
                   bottom: 0,
@@ -1933,52 +2063,112 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                     ),
                   ),
                 ),
-              Positioned.fill(
-                child: IgnorePointer(
-                  ignoring: !_showScrubber,
-                  child: AnimatedOpacity(
-                    duration: opacityDuration,
-                    opacity: _showScrubber ? 1 : 0,
-                    child: Align(
-                      alignment: Alignment.center,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                        child: Row(
-                          children: [
-                            SizedBox(
-                              width: 52,
-                              child: Text(
-                                _scrubberTimestampLabel,
-                                textAlign: TextAlign.center,
-                                style: _glacierTextStyle(
-                                  color: colorScheme.primary,
-                                  size: 12,
-                                  weight: FontWeight.w700,
+              if (!_isWhollyUntimed)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    ignoring: !_showScrubber,
+                    child: AnimatedOpacity(
+                      duration: opacityDuration,
+                      opacity: _showScrubber ? 1 : 0,
+                      child: Align(
+                        alignment: Alignment.center,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 52,
+                                child: Text(
+                                  _scrubberTimestampLabel,
+                                  textAlign: TextAlign.center,
+                                  style: _glacierTextStyle(
+                                    color: colorScheme.primary,
+                                    size: 12,
+                                    weight: FontWeight.w700,
+                                  ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Container(
-                                height: 1,
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Container(
+                                  height: 1,
+                                  color: colorScheme.primary.withValues(
+                                    alpha: 0.42,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Material(
                                 color: colorScheme.primary.withValues(
-                                  alpha: 0.42,
+                                  alpha: 0.12,
+                                ),
+                                shape: const CircleBorder(),
+                                child: IconButton(
+                                  tooltip: widget.scrubPlayTooltip,
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed: _handleScrubberPlay,
+                                  icon: Icon(
+                                    Icons.play_arrow_rounded,
+                                    color: colorScheme.primary,
+                                  ),
                                 ),
                               ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              if (_isWhollyUntimed)
+                Positioned(
+                  top: 10,
+                  left: 16,
+                  right: 16,
+                  child: IgnorePointer(
+                    ignoringSemantics: false,
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest.withValues(
+                            alpha: 0.94,
+                          ),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: colorScheme.outlineVariant.withValues(
+                              alpha: 0.5,
                             ),
-                            const SizedBox(width: 8),
-                            Material(
-                              color: colorScheme.primary.withValues(
-                                alpha: 0.12,
-                              ),
-                              shape: const CircleBorder(),
-                              child: IconButton(
-                                tooltip: widget.scrubPlayTooltip,
-                                visualDensity: VisualDensity.compact,
-                                onPressed: _handleScrubberPlay,
-                                icon: Icon(
-                                  Icons.play_arrow_rounded,
-                                  color: colorScheme.primary,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: colorScheme.shadow.withValues(alpha: 0.08),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.info_outline_rounded,
+                              size: 13,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                widget.untimedNoticeLabel,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: _glacierTextStyle(
+                                  color: colorScheme.onSurfaceVariant,
+                                  size: 11.5,
+                                  weight: FontWeight.w500,
                                 ),
                               ),
                             ),
@@ -1988,12 +2178,15 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                     ),
                   ),
                 ),
-              ),
             ],
           );
   }
 
   bool _handleScrollNotification(ScrollNotification notification) {
+    if (_isWhollyUntimed) {
+      return false;
+    }
+
     final isUserGesture =
         (notification is UserScrollNotification &&
             notification.direction != ScrollDirection.idle) ||
@@ -2049,6 +2242,10 @@ class _LyricsPanelState extends State<_LyricsPanel> {
   }
 
   void _markUserScrolling() {
+    if (_isWhollyUntimed) {
+      return;
+    }
+
     final fallbackIndex = _resolvedActiveIndex;
     if (!_isUserScrolling || !_showScrubber || _scrubberLineIndex == null) {
       setState(() {
@@ -2063,7 +2260,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
   }
 
   void _scheduleAutoResumeIfNeeded() {
-    if (!_isUserScrolling) {
+    if (_isWhollyUntimed || !_isUserScrolling) {
       return;
     }
 
@@ -2086,7 +2283,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
   }
 
   int get _resolvedActiveIndex {
-    if (widget.lyrics.isEmpty) {
+    if (widget.lyrics.isEmpty || _isWhollyUntimed) {
       return -1;
     }
     if (widget.activeIndex >= 0 && widget.activeIndex < widget.lyrics.length) {
@@ -2104,7 +2301,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
   }
 
   void _scheduleScrollToActive({bool force = false, bool animated = true}) {
-    if (_isUserScrolling || widget.lyrics.isEmpty) {
+    if (_isWhollyUntimed || _isUserScrolling || widget.lyrics.isEmpty) {
       return;
     }
     final targetIndex = _resolvedActiveIndex;
@@ -2135,7 +2332,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
   }
 
   void _updateScrubberLine() {
-    if (!mounted || widget.lyrics.isEmpty) {
+    if (_isWhollyUntimed || !mounted || widget.lyrics.isEmpty) {
       return;
     }
 
@@ -2182,6 +2379,9 @@ class _LyricsPanelState extends State<_LyricsPanel> {
   }
 
   Future<void> _handleScrubberPlay() async {
+    if (_isWhollyUntimed) {
+      return;
+    }
     final index = _scrubberLineIndex;
     if (index == null || index < 0 || index >= widget.lyrics.length) {
       return;
@@ -2205,6 +2405,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
   }) async {
     if (!mounted ||
         opId != _programmaticOpId ||
+        _isWhollyUntimed ||
         _isUserScrolling ||
         widget.lyrics.isEmpty) {
       return;

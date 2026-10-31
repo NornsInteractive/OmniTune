@@ -19,6 +19,9 @@ class _FakeCloud189RemoteClient implements Cloud189RemoteClient {
   int? openedStart;
   int? openedEnd;
 
+  /// Content-Type the fake 189 download endpoint reports back to the client.
+  String responseContentType = 'audio/flac';
+
   @override
   String? get currentRefreshToken => _nextRefreshToken;
 
@@ -43,7 +46,7 @@ class _FakeCloud189RemoteClient implements Cloud189RemoteClient {
       stream: Stream.value(const [1, 2, 3]),
       offset: start ?? 0,
       contentLength: 3,
-      contentType: 'audio/flac',
+      contentType: responseContentType,
       sourceLength: 1024,
     );
   }
@@ -240,5 +243,103 @@ void main() {
     expect(second, first);
     expect(client.connectCount, 1);
     expect(client.readTextCount, 1);
+  });
+
+  // Exercises the real playback path: Cloud189MusicSource.buildPlayableTrack
+  // produces the stream source, and StreamAudioSource.request() decides the
+  // Content-Type handed to just_audio. This is what the AppleMusic版本 M4A
+  // tracks go through, so the assertions are on the actual response object.
+  group('playback content type through buildPlayableTrack', () {
+    Future<StreamAudioResponse> requestFor({
+      required String name,
+      required String path,
+      String? entryMimeType,
+      required String responseContentType,
+    }) async {
+      client.responseContentType = responseContentType;
+      final source = Cloud189MusicSource(
+        profile,
+        clientFactory: (_) => client,
+        playbackCacheFactory: () => _FakePlaybackCache(),
+      );
+      final track = await source.buildPlayableTrack(
+        RemoteEntry(
+          sourceId: 'cloud189-1',
+          name: name,
+          path: path,
+          kind: RemoteEntryKind.audio,
+          mimeType: entryMimeType,
+          size: 1024,
+        ),
+      );
+      expect(track.audioSource, isA<StreamAudioSource>());
+      return (track.audioSource as StreamAudioSource).request(0, 3);
+    }
+
+    test('M4A with generic response header stays audio/mp4', () async {
+      final response = await requestFor(
+        name: '01. 太阳之子.m4a',
+        path: '/Music/AppleMusic版本/01. 太阳之子.m4a',
+        entryMimeType: 'application/octet-stream',
+        responseContentType: 'application/octet-stream',
+      );
+
+      expect(response.contentType, 'audio/mp4');
+    });
+
+    test('FLAC with generic response header stays audio/flac', () async {
+      final response = await requestFor(
+        name: '01. 夜曲.flac',
+        path: '/Music/杰伦/01. 夜曲.flac',
+        entryMimeType: 'application/octet-stream',
+        responseContentType: 'binary/octet-stream',
+      );
+
+      expect(response.contentType, 'audio/flac');
+    });
+
+    test('absent header and absent entry MIME fall back to the extension',
+        () async {
+      final m4a = await requestFor(
+        name: '02. 西西里.m4a',
+        path: '/Music/AppleMusic版本/02. 西西里.m4a',
+        responseContentType: '',
+      );
+      expect(m4a.contentType, 'audio/mp4');
+
+      final flac = await requestFor(
+        name: '02. 以父之名.flac',
+        path: '/Music/叶惠美/02. 以父之名.flac',
+        responseContentType: '',
+      );
+      expect(flac.contentType, 'audio/flac');
+    });
+
+    test('explicit audio MIME from the response is preserved', () async {
+      final m4a = await requestFor(
+        name: '03. 那天下雨了.m4a',
+        path: '/Music/AppleMusic版本/03. 那天下雨了.m4a',
+        responseContentType: 'audio/mp4',
+      );
+      expect(m4a.contentType, 'audio/mp4');
+
+      final flac = await requestFor(
+        name: '03. 晴天.flac',
+        path: '/Music/叶惠美/03. 晴天.flac',
+        responseContentType: 'audio/flac',
+      );
+      expect(flac.contentType, 'audio/flac');
+    });
+
+    test('explicit entry MIME survives a generic response header', () async {
+      final response = await requestFor(
+        name: '04. 湘女多情.m4a',
+        path: '/Music/AppleMusic版本/04. 湘女多情.m4a',
+        entryMimeType: 'audio/mp4',
+        responseContentType: 'application/octet-stream',
+      );
+
+      expect(response.contentType, 'audio/mp4');
+    });
   });
 }

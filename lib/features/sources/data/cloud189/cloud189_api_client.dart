@@ -12,6 +12,8 @@ import 'package:path/path.dart' as p;
 import 'package:pointycastle/export.dart' as pc;
 import 'package:xml/xml.dart';
 
+import '../../../../core/utils/debug_logger.dart';
+
 class Cloud189Constants {
   const Cloud189Constants._();
 
@@ -172,6 +174,16 @@ Cloud189ReadResult cloud189ReadResponse(
   }
   try {
     final status = response.statusCode;
+    if (kDebugMode && DebugLogger.isDebugEnabled) {
+      DebugLogger.log(
+        'Cloud189 stream host=${response.requestOptions.uri.host} '
+        'status=$status type=$contentType '
+        'length=${response.headers.value(Headers.contentLengthHeader)} '
+        'acceptRanges=${response.headers.value('accept-ranges')} '
+        'contentRange=${response.headers.value('content-range')} '
+        'requestedStart=$start requestedEnd=$end',
+      );
+    }
     if (status != 200 && status != 206) {
       throw StateError('Unexpected Cloud189 stream status: $status.');
     }
@@ -426,6 +438,18 @@ class DioOpenListCloud189RemoteClient implements Cloud189RemoteClient {
 
     final entry = await _entryForPath(path);
     final downloadUrl = await _downloadUrlForFile(entry.id);
+    if (kDebugMode &&
+        DebugLogger.isDebugEnabled &&
+        (start == null || start == 0) &&
+        end == null) {
+      unawaited(
+        _probeCloud189Range(
+          _dio,
+          downloadUrl,
+          Cloud189Constants.openListUserAgent,
+        ),
+      );
+    }
     final response = await _getCloud189Download(
       _dio,
       downloadUrl,
@@ -1086,6 +1110,12 @@ class DioCloud189RemoteClient implements Cloud189RemoteClient {
 
     final entry = await _entryForPath(path);
     final downloadUrl = await _downloadUrlForFile(entry.id);
+    if (kDebugMode &&
+        DebugLogger.isDebugEnabled &&
+        (start == null || start == 0) &&
+        end == null) {
+      unawaited(_probeCloud189Range(_dio, downloadUrl, 'Mozilla/5.0'));
+    }
     final response = await _getCloud189Download(
       _dio,
       downloadUrl,
@@ -1680,61 +1710,27 @@ void _attachCloud189DebugInterceptor(Dio dio, bool enabled) {
     InterceptorsWrapper(
       onRequest: (options, handler) {
         Cloud189DebugLogBuffer.add(
-          '[Cloud189][request] ${options.method} ${_debugUri(options.uri)} '
-          'query=${_shortDebugValue(_sanitizeDebugValue(_debugQueryParameters(options)))} '
-          'data=${_shortDebugValue(_sanitizeDebugValue(options.data))}',
+          '[Cloud189][request] ${options.method} host=${options.uri.host}',
         );
         handler.next(options);
       },
       onResponse: (response, handler) {
         Cloud189DebugLogBuffer.add(
           '[Cloud189][response] ${response.requestOptions.method} '
-          '${_debugUri(response.requestOptions.uri)} status=${response.statusCode} '
-          'data=${_shortDebugValue(_sanitizeDebugValue(response.data))}',
+          'host=${response.requestOptions.uri.host} status=${response.statusCode}',
         );
         handler.next(response);
       },
       onError: (error, handler) {
         Cloud189DebugLogBuffer.add(
           '[Cloud189][error] ${error.requestOptions.method} '
-          '${_debugUri(error.requestOptions.uri)} error=${error.message} '
-          'data=${_shortDebugValue(_sanitizeDebugValue(error.response?.data))}',
+          'host=${error.requestOptions.uri.host} status=${error.response?.statusCode} '
+          'type=${error.type}',
         );
         handler.next(error);
       },
     ),
   );
-}
-
-String _debugUri(Uri uri) {
-  if (!uri.hasQuery) {
-    return uri.toString();
-  }
-
-  final query = uri.queryParametersAll.entries.expand((entry) {
-    return entry.value.map((value) {
-      final sanitizedValue = _shouldRedactDebugKey(entry.key)
-          ? _redactedDebugValue(value)
-          : value;
-      return MapEntry(entry.key, sanitizedValue);
-    });
-  });
-  final queryText = query
-      .map(
-        (entry) =>
-            '${Uri.encodeQueryComponent(entry.key)}=${Uri.encodeQueryComponent(entry.value)}',
-      )
-      .join('&');
-  return uri.replace(query: queryText).toString();
-}
-
-Object _debugQueryParameters(RequestOptions options) {
-  if (options.uri.queryParametersAll.isNotEmpty) {
-    return options.uri.queryParametersAll.map((key, value) {
-      return MapEntry(key, value.length == 1 ? value.first : value);
-    });
-  }
-  return options.queryParameters;
 }
 
 Object? _sanitizeDebugValue(Object? value) {
@@ -1772,6 +1768,7 @@ Object? _sanitizeDebugValue(Object? value) {
 bool _shouldRedactDebugKey(String key) {
   final normalizedKey = key.toLowerCase();
   return normalizedKey.contains('password') ||
+      normalizedKey.contains('session') ||
       normalizedKey == 'epd' ||
       normalizedKey == 'username' ||
       normalizedKey == 'username'.toLowerCase() ||
@@ -1864,6 +1861,32 @@ String? _downloadUrlFromXml(String text) {
     return XmlDocument.parse(text).rootElement.innerText.trim();
   } catch (_) {
     return null;
+  }
+}
+
+Future<void> _probeCloud189Range(Dio dio, String url, String userAgent) async {
+  try {
+    final response = await dio.get<ResponseBody>(
+      url,
+      options: Options(
+        responseType: ResponseType.stream,
+        receiveTimeout: const Duration(seconds: 5),
+        headers: {'User-Agent': userAgent, 'Range': 'bytes=0-1'},
+      ),
+    );
+    DebugLogger.log(
+      'Cloud189 range probe host=${response.requestOptions.uri.host} '
+      'status=${response.statusCode} '
+      'type=${response.headers.value(Headers.contentTypeHeader)} '
+      'length=${response.headers.value(Headers.contentLengthHeader)} '
+      'acceptRanges=${response.headers.value('accept-ranges')} '
+      'contentRange=${response.headers.value('content-range')}',
+    );
+    await response.data?.stream.listen(null).cancel();
+  } on DioException catch (error) {
+    DebugLogger.log('Cloud189 range probe failed type=${error.type}');
+  } catch (_) {
+    DebugLogger.log('Cloud189 range probe failed');
   }
 }
 

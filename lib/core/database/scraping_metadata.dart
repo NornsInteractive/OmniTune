@@ -61,6 +61,7 @@ class ScrapingMetadata {
   int? autoScrapedDiscTotal;
   DateTime? autoScrapedAt;
   DateTime? embeddedMetadataReadAt;
+  int? embeddedMetadataReadVersion;
 
   // ===== 刮削状态 =====
   /// 当前刮削状态
@@ -128,6 +129,7 @@ class ScrapingMetadata {
     this.autoScrapedDiscTotal,
     this.autoScrapedAt,
     this.embeddedMetadataReadAt,
+    this.embeddedMetadataReadVersion,
     this.status = ScrapingStatus.pending,
     this.errorMessage,
     this.retryCount = 0,
@@ -177,6 +179,7 @@ class ScrapingMetadata {
     'autoScrapedDiscTotal': autoScrapedDiscTotal,
     'autoScrapedAt': autoScrapedAt?.toIso8601String(),
     'embeddedMetadataReadAt': embeddedMetadataReadAt?.toIso8601String(),
+    'embeddedMetadataReadVersion': embeddedMetadataReadVersion,
     'status': status.toString().split('.').last,
     'errorMessage': errorMessage,
     'retryCount': retryCount,
@@ -229,6 +232,7 @@ class ScrapingMetadata {
       embeddedMetadataReadAt: json['embeddedMetadataReadAt'] != null
           ? DateTime.parse(json['embeddedMetadataReadAt'] as String)
           : null,
+      embeddedMetadataReadVersion: json['embeddedMetadataReadVersion'] as int?,
       status: _parseScrapingStatus(json['status'] as String?),
       errorMessage: json['errorMessage'] as String?,
       retryCount: json['retryCount'] as int? ?? 0,

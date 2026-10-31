@@ -918,6 +918,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lyricsEmptyLabel => '当前还没有找到这首歌对应的同步歌词。';
 
   @override
+  String get untimedLyricsNotice => '暂无时间轴歌词';
+
+  @override
   String get showLyricsAction => '显示歌词';
 
   @override

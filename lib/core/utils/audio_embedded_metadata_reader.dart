@@ -61,6 +61,29 @@ class EmbeddedAudioMetadata {
 }
 
 class AudioEmbeddedMetadataReader {
+  /// Returns the bounded prefix needed to include a top-level MP4 moov box.
+  static int? requiredMp4HeadBytes(Uint8List bytes, {required int maxBytes}) {
+    var offset = 0;
+    while (offset + 8 <= bytes.length) {
+      var size = _uint32Be(bytes, offset);
+      final type = latin1.decode(bytes.sublist(offset + 4, offset + 8));
+      var headerSize = 8;
+      if (size == 1) {
+        if (offset + 16 > bytes.length) return null;
+        size = _uint64Be(bytes, offset + 8);
+        headerSize = 16;
+      }
+      if (size < headerSize) return null;
+      final end = offset + size;
+      if (type == 'moov') {
+        return end > bytes.length && end <= maxBytes ? end : null;
+      }
+      if (end > bytes.length) return null;
+      offset = end;
+    }
+    return null;
+  }
+
   static EmbeddedAudioMetadata? parse(
     Uint8List bytes, {
     required String fileName,

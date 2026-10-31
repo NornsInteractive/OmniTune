@@ -9,6 +9,7 @@ import '../../../../core/models/remote_entry.dart';
 import '../../../../core/models/source_profile.dart';
 import '../../../../core/models/source_protocol.dart';
 import '../../domain/music_source.dart';
+import '../remote_source_utils.dart';
 import 'cloud189_api_client.dart';
 import '../webdav/webdav_playback_cache_base.dart';
 import '../webdav/webdav_remote_client.dart';
@@ -411,15 +412,11 @@ class _Cloud189CachedStreamAudioSource extends StreamAudioSource {
   }
 
   String _resolvePlaybackContentType(String headerContentType) {
-    final normalizedHeader = headerContentType.trim().toLowerCase();
-    if (normalizedHeader.startsWith('audio/')) {
-      return normalizedHeader.split(';').first;
-    }
-    final normalizedMime = (entry.mimeType ?? '').trim().toLowerCase();
-    if (normalizedMime.startsWith('audio/')) {
-      return normalizedMime.split(';').first;
-    }
-    return 'audio/mpeg';
+    return resolveAudioContentType(
+      fileName: entry.name,
+      fallbackMimeType: entry.mimeType,
+      headerContentType: headerContentType,
+    );
   }
 
   Stream<List<int>> _concatStreams(

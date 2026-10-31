@@ -228,7 +228,8 @@ class _MiniPlayerContent extends ConsumerWidget {
                             const SizedBox(height: 3),
                             Text(
                               hasError
-                                  ? l10n.retryAction
+                                  ? (recoveryInfo.errorMessage ??
+                                        l10n.playbackFailedMessage)
                                   : isBusyOrResolving
                                   ? l10n.playbackBufferingLabel
                                   : !isPlaying
@@ -258,10 +259,12 @@ class _MiniPlayerContent extends ConsumerWidget {
                           ? controller.playPrevious
                           : null,
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 2),
                     _MiniPlayButton(
                       tooltip: hasError
                           ? l10n.retryAction
+                          : isBusyOrResolving
+                          ? l10n.playbackBufferingLabel
                           : isPlaying
                           ? l10n.pauseAction
                           : l10n.playAction,
@@ -270,15 +273,17 @@ class _MiniPlayerContent extends ConsumerWidget {
                           : isPlaying
                           ? Icons.pause_rounded
                           : Icons.play_arrow_rounded,
+                      isBusy: isBusyOrResolving && !hasError,
+                      hasError: hasError,
                       onPressed: controller.togglePlayPause,
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 2),
                     _MiniControlButton(
                       tooltip: l10n.nextTrackAction,
                       icon: Icons.skip_next_rounded,
                       onPressed: canPlayNext ? controller.playNext : null,
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 2),
                     _MiniControlButton(
                       tooltip: l10n.openPlayerAction,
                       icon: Icons.expand_less_rounded,
@@ -357,22 +362,32 @@ class _MiniControlButton extends StatelessWidget {
 
     return Tooltip(
       message: tooltip,
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(itemRadius),
-        child: StudioPressable(
+      child: Semantics(
+        button: true,
+        label: tooltip,
+        enabled: enabled,
+        child: Material(
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(itemRadius),
-          enabled: enabled,
-          onTap: onPressed,
-          child: SizedBox(
-            width: 32,
-            height: 32,
-            child: Icon(
-              icon,
-              size: 20,
-              color: enabled
-                  ? colorScheme.onSurface
-                  : colorScheme.onSurfaceVariant.withValues(alpha: 0.38),
+          child: StudioPressable(
+            borderRadius: BorderRadius.circular(itemRadius),
+            enabled: enabled,
+            onTap: onPressed,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 44),
+              child: Center(
+                child: SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: Icon(
+                    icon,
+                    size: 20,
+                    color: enabled
+                        ? colorScheme.onSurface
+                        : colorScheme.onSurfaceVariant.withValues(alpha: 0.38),
+                  ),
+                ),
+              ),
             ),
           ),
         ),
@@ -386,45 +401,88 @@ class _MiniPlayButton extends StatelessWidget {
     required this.tooltip,
     required this.icon,
     required this.onPressed,
+    this.isBusy = false,
+    this.hasError = false,
   });
 
   final String tooltip;
   final IconData icon;
   final VoidCallback onPressed;
+  final bool isBusy;
+  final bool hasError;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final itemRadius = studioRadiusOf(context, 16);
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    final containerColor = hasError
+        ? colorScheme.errorContainer.withValues(alpha: 0.85)
+        : colorScheme.primaryContainer;
+    final iconColor = hasError
+        ? colorScheme.onErrorContainer
+        : colorScheme.onPrimaryContainer;
 
     return Tooltip(
       message: tooltip,
-      child: Material(
-        color: colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(itemRadius),
-        child: StudioPressable(
+      child: Semantics(
+        button: true,
+        label: tooltip,
+        child: Material(
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(itemRadius),
-          onTap: onPressed,
-          child: SizedBox(
-            width: 34,
-            height: 34,
-            child: Center(
-              child: AnimatedSwitcher(
-                duration: disableAnimations
-                    ? Duration.zero
-                    : const Duration(milliseconds: 160),
-                transitionBuilder: (child, animation) {
-                  return ScaleTransition(
-                    scale: animation,
-                    child: FadeTransition(opacity: animation, child: child),
-                  );
-                },
-                child: Icon(
-                  icon,
-                  key: ValueKey(icon),
-                  size: 22,
-                  color: colorScheme.onPrimaryContainer,
+          child: StudioPressable(
+            borderRadius: BorderRadius.circular(itemRadius),
+            onTap: onPressed,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 44, minHeight: 48),
+              child: Center(
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: containerColor,
+                    borderRadius: BorderRadius.circular(itemRadius),
+                  ),
+                  child: Center(
+                    child: isBusy
+                        ? SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: disableAnimations
+                                ? Icon(
+                                    Icons.hourglass_empty_rounded,
+                                    size: 18,
+                                    color: iconColor,
+                                  )
+                                : CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      iconColor,
+                                    ),
+                                  ),
+                          )
+                        : AnimatedSwitcher(
+                            duration: disableAnimations
+                                ? Duration.zero
+                                : const Duration(milliseconds: 160),
+                            transitionBuilder: (child, animation) {
+                              return ScaleTransition(
+                                scale: animation,
+                                child: FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                ),
+                              );
+                            },
+                            child: Icon(
+                              icon,
+                              key: ValueKey(icon),
+                              size: 22,
+                              color: iconColor,
+                            ),
+                          ),
+                  ),
                 ),
               ),
             ),

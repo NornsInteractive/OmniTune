@@ -407,6 +407,7 @@
   "playerEmptyTitle": "No track selected",
   "playerEmptyDescription": "Choose a music file from your source browser to start playback.",
   "lyricsEmptyLabel": "No synced lyrics were found for this track yet.",
+  "untimedLyricsNotice": "Timed lyrics unavailable",
   "showLyricsAction": "Show lyrics",
   "hideLyricsAction": "Hide lyrics",
   "lyricsSourceSidecarLabel": "Local LRC",

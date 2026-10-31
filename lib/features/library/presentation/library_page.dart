@@ -1017,6 +1017,7 @@ class _SongCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final cardRadius = studioRadiusOf(context, 16);
     final coverSize = studioListSpacingOf(context, 48).clamp(48.0, 50.0);
     final isCurrentTrack = ref.watch(isCurrentTrackIdProvider(song.id));
@@ -1081,6 +1082,9 @@ class _SongCard extends ConsumerWidget {
                         icon: isFavorite
                             ? Icons.bookmark_rounded
                             : Icons.bookmark_border_rounded,
+                        tooltip: isFavorite
+                            ? l10n.removeFromFavoritesAction
+                            : l10n.addToFavoritesAction,
                         onTap: onFavorite,
                         active: isFavorite,
                       ),
@@ -1088,11 +1092,15 @@ class _SongCard extends ConsumerWidget {
                       icon: isLiked
                           ? Icons.favorite_rounded
                           : Icons.favorite_border_rounded,
+                      tooltip: isLiked
+                          ? l10n.removeFromLikedAction
+                          : l10n.addToLikedAction,
                       onTap: onLiked,
                       active: isLiked,
                     ),
                     _CompactIconButton(
                       icon: Icons.more_horiz_rounded,
+                      tooltip: l10n.moreOptionsAction,
                       onTap: onMore,
                     ),
                   ],
@@ -1142,11 +1150,13 @@ class _CompactIconButton extends StatefulWidget {
   const _CompactIconButton({
     required this.icon,
     required this.onTap,
+    this.tooltip,
     this.active = false,
   });
 
   final IconData icon;
   final VoidCallback onTap;
+  final String? tooltip;
   final bool active;
 
   @override
@@ -1209,7 +1219,7 @@ class _CompactIconButtonState extends State<_CompactIconButton>
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final buttonRadius = studioRadiusOf(context, 16);
-    return Material(
+    Widget button = Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(buttonRadius),
       child: InkWell(
@@ -1233,6 +1243,15 @@ class _CompactIconButtonState extends State<_CompactIconButton>
         ),
       ),
     );
+
+    if (widget.tooltip != null) {
+      return Tooltip(
+        message: widget.tooltip!,
+        child: Semantics(button: true, label: widget.tooltip, child: button),
+      );
+    }
+
+    return button;
   }
 }
 
