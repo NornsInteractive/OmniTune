@@ -49,3 +49,5 @@ app.*.map.json
 /android/key.properties
 /android/upload-keystore.jks
 /wget-log*
+*.m4a
+/promo_video/

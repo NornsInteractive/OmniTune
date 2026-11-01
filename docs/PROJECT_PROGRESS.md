@@ -1,5 +1,14 @@
 # OmniTune 项目进度与路线图
 
+## 2026-11-02 Android / Apple 全尺寸小组件与 1.0.331+332 发布
+
+- 实现 Android 与 Apple iOS / iPadOS 全尺寸小组件支持：
+  - Android 2×2、4×2、4×4 桌面小组件，基于 `MediaButtonReceiver` 实现后台零延迟切歌/播放/收藏控制与 `omnitune://player` 跳转。
+  - iOS / iPadOS WidgetKit `.systemSmall`、`.systemMedium`、`.systemLarge`、`.systemExtraLarge`（iPad 宽屏工作台）及锁屏小组件。
+  - 数据层 `WidgetSyncService` 与 `PlayerController` 联动，实现封面缓存、格式标签、歌词与待播队列同步。
+- 签名 APK/AAB 构建成功，产物 `app-release.apk` (70,789,679 字节, SHA-256 `848370ea066d9fa48d58ef7e966422a3d4c62e1a249af229a074f381100f910c`)。
+- GitHub Release `1.0.331` 发布并登记至 Ygg 分发平台，开启边缘反代分发。
+
 ## 2026-10-31 Android 1.0.330+331 发布
 
 - GitHub Release `1.0.330` 对应源码提交 `f67a02d80529d780dda25ee82ae8197693a02aa3`，附件 `app-release.apk` 69,943,340 字节，SHA-256 `0984f72c3041ba72ce6e5622c90904054d8f2341102ef5a3f240ac671491272f`；用户提供的音频样本未提交。

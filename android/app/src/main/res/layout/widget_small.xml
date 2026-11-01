@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_small_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background"
+    android:padding="10dp">
+
+    <!-- Artwork Container -->
+    <ImageView
+        android:id="@+id/widget_small_artwork"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@+id/widget_small_bottom"
+        android:layout_marginBottom="8dp"
+        android:background="@drawable/widget_cover_rounded"
+        android:contentDescription="@string/app_name"
+        android:scaleType="centerCrop"
+        android:src="@drawable/ic_widget_music_note" />
+
+    <!-- Play / Pause Floating Overlay on Artwork -->
+    <ImageView
+        android:id="@+id/widget_small_play_pause"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_alignEnd="@+id/widget_small_artwork"
+        android:layout_alignBottom="@+id/widget_small_artwork"
+        android:layout_marginEnd="6dp"
+        android:layout_marginBottom="6dp"
+        android:background="@drawable/widget_button_circle"
+        android:clickable="true"
+        android:contentDescription="@string/app_name"
+        android:elevation="4dp"
+        android:focusable="true"
+        android:padding="8dp"
+        android:src="@drawable/ic_widget_play"
+        android:tint="#141822" />
+
+    <!-- Bottom Info -->
+    <LinearLayout
+        android:id="@+id/widget_small_bottom"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/widget_small_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="告白气球"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widget_small_artist"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="周杰伦"
+            android:textColor="#8B949E"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+</RelativeLayout>

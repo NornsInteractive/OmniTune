@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OmniTune</string>
+    <string name="widget_small_description">迷你专辑封面与快捷播放/暂停</string>
+    <string name="widget_medium_description">正在播放音乐条，含播放控制与进度指示</string>
+    <string name="widget_large_description">全功能音乐中心，支持实时歌词与下一首队列预览</string>
+</resources>

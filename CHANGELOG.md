@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.331+332 — 2026-11-02
+
+- 新增 Android 手机/平板全尺寸桌面小组件支持：包含 2×2 迷你封面、4×2 横向经典控制条、4×4 全功能音乐中心（支持实时歌词与待播队列预览）。
+- Android 小组件播放控制直连系统 MediaButtonReceiver，支持零延迟后台播放/暂停、切歌与收藏操作。
+- 新增 Apple iOS / iPadOS WidgetKit 小组件：支持 `.systemSmall`、`.systemMedium`、`.systemLarge`、`.systemExtraLarge`（iPad 宽屏工作台）及 iOS 16+ 锁屏小组件。
+- 完善小组件与播放状态、本地封面缓存及高解析度音质标签的实时双向同步。
+
 ## 1.0.309+310 — 2026-10-21
 
 - About & updates now shows the Norns Interactive organization name and links to the GitHub repository.

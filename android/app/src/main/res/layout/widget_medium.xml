@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_medium_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="12dp">
+
+    <!-- Artwork -->
+    <ImageView
+        android:id="@+id/widget_medium_artwork"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:background="@drawable/widget_cover_rounded"
+        android:contentDescription="@string/app_name"
+        android:scaleType="centerCrop"
+        android:src="@drawable/ic_widget_music_note" />
+
+    <!-- Info & Controls -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="vertical">
+
+        <!-- Title & Format Chip -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/widget_medium_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="告白气球"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/widget_medium_format"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/widget_badge_background"
+                android:paddingStart="4dp"
+                android:paddingTop="1dp"
+                android:paddingEnd="4dp"
+                android:paddingBottom="1dp"
+                android:text="Hi-Res"
+                android:textColor="#58A6FF"
+                android:textSize="9sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Artist · Album -->
+        <TextView
+            android:id="@+id/widget_medium_artist_album"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="周杰伦 · 周杰伦的床边故事"
+            android:textColor="#8B949E"
+            android:textSize="12sp" />
+
+        <!-- Progress Bar -->
+        <ProgressBar
+            android:id="@+id/widget_medium_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:layout_marginTop="6dp"
+            android:max="1000"
+            android:progress="350"
+            android:progressBackgroundTint="#262E3E"
+            android:progressTint="#FFFFFF" />
+
+        <!-- Control Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <!-- Skip Previous -->
+            <ImageView
+                android:id="@+id/widget_medium_prev"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:contentDescription="@string/app_name"
+                android:focusable="true"
+                android:padding="3dp"
+                android:src="@drawable/ic_widget_skip_prev" />
+
+            <!-- Play / Pause -->
+            <ImageView
+                android:id="@+id/widget_medium_play_pause"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:layout_marginStart="14dp"
+                android:background="@drawable/widget_button_circle"
+                android:clickable="true"
+                android:contentDescription="@string/app_name"
+                android:elevation="2dp"
+                android:focusable="true"
+                android:padding="7dp"
+                android:src="@drawable/ic_widget_play"
+                android:tint="#141822" />
+
+            <!-- Skip Next -->
+            <ImageView
+                android:id="@+id/widget_medium_next"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginStart="14dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:contentDescription="@string/app_name"
+                android:focusable="true"
+                android:padding="3dp"
+                android:src="@drawable/ic_widget_skip_next" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <!-- Favorite Toggle -->
+            <ImageView
+                android:id="@+id/widget_medium_favorite"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:contentDescription="@string/app_name"
+                android:focusable="true"
+                android:padding="3dp"
+                android:src="@drawable/ic_favorite_border"
+                android:tint="#8B949E" />
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>

@@ -12,6 +12,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/audio/player_service.dart';
 import '../../../core/audio/system_audio_handler.dart';
+import '../../../core/widgets/widget_sync_service.dart';
 import '../../../core/database/isar_manager.dart';
 import '../../../core/database/scraping_metadata.dart';
 import '../../../core/models/app_preferences.dart';
@@ -298,6 +299,7 @@ class PlayerController extends _$PlayerController {
   bool _playWhenReady = false;
   Duration _targetPosition = Duration.zero;
   String? _lastSystemCurrentItemKey = '__uninitialized__';
+  String? _widgetArtworkPath;
   final Set<String> _inFlightAutoScrapeSongIds = <String>{};
 
   @override
@@ -1210,6 +1212,7 @@ class PlayerController extends _$PlayerController {
     if (_lastSystemCurrentItemKey != currentItemKey) {
       force = true;
       _lastSystemCurrentItemKey = currentItemKey;
+      _widgetArtworkPath = currentItemLocalCover;
       final mediaItem = currentItemId == null
           ? null
           : _mediaItemForCurrent(
@@ -1289,6 +1292,89 @@ class PlayerController extends _$PlayerController {
       canSkipToNext: nextState.canPlayNext,
       canSeek: currentDuration != null && currentDuration > Duration.zero,
       hasQueue: currentItemId != null,
+    );
+    _syncWidgets(nextState);
+  }
+
+  void _syncWidgets(PlayerViewState nextState) {
+    if (!WidgetSyncService.instance.isSupported) return;
+
+    final song = nextState.currentTrack != null &&
+            nextState.hasPlaylist &&
+            nextState.currentIndex >= 0 &&
+            nextState.currentIndex < nextState.playlistCount
+        ? nextState.playlist[nextState.currentIndex]
+        : null;
+    final track = nextState.currentTrack;
+    final title = _firstNonEmpty(
+      song?.displayTitle,
+      track?.displayTitle,
+      track?.title ?? _requestedSong?.displayTitle ?? _requestedEntry?.title,
+    );
+    final artist = _firstNonEmpty(
+      song?.displayArtist,
+      track?.displayArtist,
+      track?.artistName ?? _requestedSong?.displayArtist,
+    );
+    final album = _firstNonEmpty(
+      song?.displayAlbum,
+      track?.displayAlbum,
+      track?.albumTitle,
+    );
+
+    final trackId = song?.id ?? track?.id ?? _requestedEntry?.uniqueId;
+
+    final ext = p
+        .extension(song?.fileName ?? track?.remotePath ?? '')
+        .replaceAll('.', '')
+        .toUpperCase();
+    final formatBadge = ext.isNotEmpty ? ext : 'Hi-Res';
+
+    String? nextTrack1;
+    String? nextTrack2;
+    if (nextState.hasPlaylist && nextState.currentIndex >= 0) {
+      if (nextState.currentIndex + 1 < nextState.playlist.length) {
+        nextTrack1 =
+            nextState.playlist[nextState.currentIndex + 1].displayTitle;
+      }
+      if (nextState.currentIndex + 2 < nextState.playlist.length) {
+        nextTrack2 =
+            nextState.playlist[nextState.currentIndex + 2].displayTitle;
+      }
+    }
+
+    String? currentLyric;
+    if (nextState.lyrics.isNotEmpty &&
+        nextState.activeLyricIndex >= 0 &&
+        nextState.activeLyricIndex < nextState.lyrics.length) {
+      currentLyric = nextState.lyrics[nextState.activeLyricIndex].text;
+    }
+
+    final favorite = ref
+            .read(libraryCatalogControllerProvider)
+            .valueOrNull
+            ?.favoriteTrackIds
+            .contains(trackId) ??
+        false;
+
+    unawaited(
+      WidgetSyncService.instance.syncPlayerState(
+        trackId: trackId,
+        title: title,
+        artist: artist,
+        album: album,
+        isPlaying: nextState.isPlaying || (_isResolvingTrack && _playWhenReady),
+        isFavorite: favorite,
+        positionMs: nextState.position.inMilliseconds,
+        durationMs: nextState.duration?.inMilliseconds ?? 0,
+        formatBadge: formatBadge,
+        artworkPath: _widgetArtworkPath ??
+            song?.displayLocalCoverPath ??
+            track?.localCoverPath,
+        currentLyric: currentLyric,
+        nextTrack1: nextTrack1,
+        nextTrack2: nextTrack2,
+      ),
     );
   }
 
@@ -1514,6 +1600,10 @@ class PlayerController extends _$PlayerController {
         systemAudioHandler.mediaItem.value?.id == item.id &&
         artwork != null) {
       systemAudioHandler.updateCurrentItem(item.copyWith(artUri: artwork));
+      if (artwork.isScheme('file')) {
+        _widgetArtworkPath = artwork.toFilePath();
+        _syncWidgets(state);
+      }
     }
   }
 

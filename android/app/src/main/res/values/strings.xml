@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">OmniTune</string>
+    <string name="widget_small_description">Compact album art and quick play/pause</string>
+    <string name="widget_medium_description">Now playing music bar with playback controls and timeline</string>
+    <string name="widget_large_description">Comprehensive music hub with lyrics and upcoming playlist</string>
 </resources>
