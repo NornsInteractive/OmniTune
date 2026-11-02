@@ -1484,4 +1484,91 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aboutRepositoryAction => 'GitHub';
+
+  @override
+  String get desktopWidgetSettingsTitle => '桌面小组件';
+
+  @override
+  String get desktopWidgetSettingsSubtitle => '自定义 2x2、4x2、4x4 小组件样式、封面排版与主题配色';
+
+  @override
+  String get widgetCoverPositionTitle => '封面位置';
+
+  @override
+  String get widgetCoverPositionSubtitle => '设置专辑封面在小组件中的对齐方向';
+
+  @override
+  String get widgetCoverPositionLeft => '居左';
+
+  @override
+  String get widgetCoverPositionRight => '居右';
+
+  @override
+  String get widgetCoverFillTitle => '封面全屏填充';
+
+  @override
+  String get widgetCoverFillSubtitle => '封面铺满作为小组件背景，带沉浸式暗色渐变';
+
+  @override
+  String get widgetBackgroundColorTitle => '小组件背景色';
+
+  @override
+  String get widgetBackgroundColorSubtitle => '选择或自定义小组件底色';
+
+  @override
+  String get widgetThemeColorTitle => '小组件强调色';
+
+  @override
+  String get widgetThemeColorSubtitle => '设置播放按钮高亮、音质标签与播放进度色彩';
+
+  @override
+  String get widgetPreviewTitle => '微件实时预览';
+
+  @override
+  String get widgetPreviewSmall => '2x2 迷你微件';
+
+  @override
+  String get widgetPreviewMedium => '4x2 经典条形';
+
+  @override
+  String get widgetPreviewLarge => '4x4 音乐中心';
+
+  @override
+  String get widgetPresetDeepNavy => '暗夜深蓝';
+
+  @override
+  String get widgetPresetObsidian => '曜石纯黑';
+
+  @override
+  String get widgetPresetCharcoal => '深炭黑';
+
+  @override
+  String get widgetPresetNebula => '星云暗紫';
+
+  @override
+  String get widgetPresetMidnight => '极夜蓝';
+
+  @override
+  String get widgetPresetGraphite => '优雅灰';
+
+  @override
+  String get widgetPresetIceBlue => '冰河蓝';
+
+  @override
+  String get widgetPresetPureWhite => '纯净白';
+
+  @override
+  String get widgetPresetGold => '流光金';
+
+  @override
+  String get widgetPresetMint => '薄荷绿';
+
+  @override
+  String get widgetPresetRose => '珊瑚粉';
+
+  @override
+  String get widgetPresetLavender => '梦幻紫';
+
+  @override
+  String get widgetPresetSunset => '日落橙';
 }

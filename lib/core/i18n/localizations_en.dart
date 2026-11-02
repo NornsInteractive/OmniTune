@@ -1555,4 +1555,96 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutRepositoryAction => 'GitHub';
+
+  @override
+  String get desktopWidgetSettingsTitle => 'Desktop Widgets';
+
+  @override
+  String get desktopWidgetSettingsSubtitle =>
+      'Customize 2x2, 4x2, and 4x4 widget styles, layout, and colors';
+
+  @override
+  String get widgetCoverPositionTitle => 'Artwork Position';
+
+  @override
+  String get widgetCoverPositionSubtitle =>
+      'Alignment of the album artwork inside the widget';
+
+  @override
+  String get widgetCoverPositionLeft => 'Left';
+
+  @override
+  String get widgetCoverPositionRight => 'Right';
+
+  @override
+  String get widgetCoverFillTitle => 'Full Artwork Fill';
+
+  @override
+  String get widgetCoverFillSubtitle =>
+      'Fill the entire widget background with album artwork and dark scrim';
+
+  @override
+  String get widgetBackgroundColorTitle => 'Widget Background Color';
+
+  @override
+  String get widgetBackgroundColorSubtitle =>
+      'Select or customize the base background color';
+
+  @override
+  String get widgetThemeColorTitle => 'Widget Accent Color';
+
+  @override
+  String get widgetThemeColorSubtitle =>
+      'Highlight color for play controls, badges, and timeline';
+
+  @override
+  String get widgetPreviewTitle => 'Live Preview';
+
+  @override
+  String get widgetPreviewSmall => '2x2 Mini';
+
+  @override
+  String get widgetPreviewMedium => '4x2 Medium';
+
+  @override
+  String get widgetPreviewLarge => '4x4 Music Hub';
+
+  @override
+  String get widgetPresetDeepNavy => 'Deep Navy';
+
+  @override
+  String get widgetPresetObsidian => 'Obsidian Black';
+
+  @override
+  String get widgetPresetCharcoal => 'Charcoal';
+
+  @override
+  String get widgetPresetNebula => 'Nebula Purple';
+
+  @override
+  String get widgetPresetMidnight => 'Midnight Blue';
+
+  @override
+  String get widgetPresetGraphite => 'Graphite Gray';
+
+  @override
+  String get widgetPresetIceBlue => 'Ice Blue';
+
+  @override
+  String get widgetPresetPureWhite => 'Pure White';
+
+  @override
+  String get widgetPresetGold => 'Radiant Gold';
+
+  @override
+  String get widgetPresetMint => 'Mint Green';
+
+  @override
+  String get widgetPresetRose => 'Coral Rose';
+
+  @override
+  String get widgetPresetLavender => 'Lavender';
+
+  @override
+  String get widgetPresetSunset => 'Sunset Orange';
 }

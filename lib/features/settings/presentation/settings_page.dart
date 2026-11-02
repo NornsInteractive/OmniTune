@@ -33,6 +33,7 @@ class SettingsPage extends ConsumerStatefulWidget {
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
   int? _section;
+  int _widgetPreviewSize = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +42,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       l10n.sourceManagementSettingTitle,
       l10n.playbackSettingsTitle,
       l10n.appearanceSettingsTitle,
+      l10n.desktopWidgetSettingsTitle,
       l10n.scraperPipelineLabel,
       l10n.advancedSettingsTitle,
       l10n.aboutAndUpdatesSettingTitle,
@@ -49,6 +51,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       Icons.cloud_outlined,
       Icons.play_circle_outline_rounded,
       Icons.palette_outlined,
+      Icons.widgets_outlined,
       Icons.lyrics_outlined,
       Icons.tune_rounded,
       Icons.info_outline_rounded,
@@ -964,6 +967,121 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             ],
                           ),
                         if (_section != null) const SizedBox(height: 8),
+                        if (_section == 3)
+                          section(
+                            title: l10n.desktopWidgetSettingsTitle,
+                            children: [
+                              _buildWidgetPreview(
+                                context: context,
+                                preferences: preferences,
+                                colorScheme: colorScheme,
+                              ),
+                              const SizedBox(height: 16),
+                              divider(),
+                              const SizedBox(height: 12),
+                              // 1. Artwork Position
+                              settingRow(
+                                title: l10n.widgetCoverPositionTitle,
+                                subtitle: preferences.widgetCoverPosition == 'right'
+                                    ? l10n.widgetCoverPositionRight
+                                    : l10n.widgetCoverPositionLeft,
+                                trailing: SegmentedButton<String>(
+                                  segments: [
+                                    ButtonSegment<String>(
+                                      value: 'left',
+                                      label: Text(l10n.widgetCoverPositionLeft),
+                                      icon: const Icon(Icons.align_horizontal_left_rounded, size: 16),
+                                    ),
+                                    ButtonSegment<String>(
+                                      value: 'right',
+                                      label: Text(l10n.widgetCoverPositionRight),
+                                      icon: const Icon(Icons.align_horizontal_right_rounded, size: 16),
+                                    ),
+                                  ],
+                                  selected: {preferences.widgetCoverPosition},
+                                  onSelectionChanged: (set) {
+                                    appSettingsController.setWidgetCoverPosition(set.first);
+                                  },
+                                  showSelectedIcon: false,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              divider(),
+                              const SizedBox(height: 12),
+                              // 2. Artwork Full Fill
+                              SwitchListTile.adaptive(
+                                contentPadding: EdgeInsets.zero,
+                                dense: true,
+                                visualDensity: const VisualDensity(
+                                  horizontal: -2,
+                                  vertical: -2,
+                                ),
+                                title: Text(l10n.widgetCoverFillTitle),
+                                subtitle: Text(l10n.widgetCoverFillSubtitle),
+                                value: preferences.widgetCoverFill,
+                                onChanged: (value) {
+                                  appSettingsController.setWidgetCoverFill(value);
+                                },
+                              ),
+                              const SizedBox(height: 12),
+                              divider(),
+                              const SizedBox(height: 12),
+                              // 3. Widget Background Color
+                              settingRow(
+                                title: l10n.widgetBackgroundColorTitle,
+                                subtitle: preferences.widgetBackgroundColor,
+                                trailing: SizedBox(
+                                  width: 250,
+                                  child: _ThemeAccentSwatchRow(
+                                    label: '',
+                                    currentHex: preferences.widgetBackgroundColor,
+                                    presets: _widgetBackgroundPresets,
+                                    onPresetSelected: (color) {
+                                      appSettingsController.setWidgetBackgroundColor(_hexFromColor(color));
+                                    },
+                                    onCustomSelected: () async {
+                                      final colorHex = await _showColorPickerDialog(
+                                        context: context,
+                                        currentColor: preferences.widgetBackgroundColor,
+                                      );
+                                      if (colorHex != null && colorHex.isNotEmpty) {
+                                        await appSettingsController.setWidgetBackgroundColor(colorHex);
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              divider(),
+                              const SizedBox(height: 12),
+                              // 4. Widget Theme/Accent Color
+                              settingRow(
+                                title: l10n.widgetThemeColorTitle,
+                                subtitle: preferences.widgetThemeColor,
+                                trailing: SizedBox(
+                                  width: 250,
+                                  child: _ThemeAccentSwatchRow(
+                                    label: '',
+                                    currentHex: preferences.widgetThemeColor,
+                                    presets: _widgetAccentPresets,
+                                    onPresetSelected: (color) {
+                                      appSettingsController.setWidgetThemeColor(_hexFromColor(color));
+                                    },
+                                    onCustomSelected: () async {
+                                      final colorHex = await _showColorPickerDialog(
+                                        context: context,
+                                        currentColor: preferences.widgetThemeColor,
+                                      );
+                                      if (colorHex != null && colorHex.isNotEmpty) {
+                                        await appSettingsController.setWidgetThemeColor(colorHex);
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        if (_section != null) const SizedBox(height: 8),
                         if (_section == 0)
                           section(
                             title: l10n.sourceManagementSettingTitle,
@@ -1038,7 +1156,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             ],
                           ),
                         if (_section != null) const SizedBox(height: 8),
-                        if (_section == 3)
+                        if (_section == 4)
                           section(
                             title: l10n.scraperPipelineLabel,
                             children: [
@@ -1196,7 +1314,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             ],
                           ),
                         if (_section != null) const SizedBox(height: 8),
-                        if (_section == 4)
+                        if (_section == 5)
                           section(
                             title: l10n.debugSettingsTitle,
                             children: [
@@ -1225,7 +1343,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             ],
                           ),
                         if (_section != null) const SizedBox(height: 8),
-                        if (_section == 5)
+                        if (_section == 6)
                           section(
                             title: l10n.aboutAndUpdatesSettingTitle,
                             children: const [AppUpdatePanel()],
@@ -1714,6 +1832,681 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       SourceProtocol.samba => l10n.sambaProtocol,
       SourceProtocol.cloudDrive => l10n.cloud189Protocol,
     };
+  }
+
+  static const List<Color> _widgetBackgroundPresets = [
+    Color(0xFF141822),
+    Color(0xFF0A0D14),
+    Color(0xFF1A1C23),
+    Color(0xFF1E1E2E),
+    Color(0xFF0F172A),
+    Color(0xFF24292E),
+  ];
+
+  static const List<Color> _widgetAccentPresets = [
+    Color(0xFF58A6FF),
+    Color(0xFFFFFFFF),
+    Color(0xFFFFD700),
+    Color(0xFF4ADE80),
+    Color(0xFFFB7185),
+    Color(0xFFA78BFA),
+    Color(0xFFFB923C),
+  ];
+
+  Widget _buildWidgetPreview({
+    required BuildContext context,
+    required LibraryPreferences preferences,
+    required ColorScheme colorScheme,
+  }) {
+    final l10n = AppLocalizations.of(context)!;
+    final widgetBg = _colorFromHexOrFallback(
+      preferences.widgetBackgroundColor,
+      const Color(0xFF141822),
+    );
+    final widgetAccent = _colorFromHexOrFallback(
+      preferences.widgetThemeColor,
+      const Color(0xFF58A6FF),
+    );
+    final isCoverRight = preferences.widgetCoverPosition == 'right';
+    final isCoverFill = preferences.widgetCoverFill;
+    final isAccentLight = widgetAccent.computeLuminance() > 0.5;
+    final playIconColor = isAccentLight ? const Color(0xFF141822) : Colors.white;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: SegmentedButton<int>(
+              segments: [
+                ButtonSegment<int>(
+                  value: 0,
+                  label: Text(l10n.widgetPreviewSmall),
+                ),
+                ButtonSegment<int>(
+                  value: 1,
+                  label: Text(l10n.widgetPreviewMedium),
+                ),
+                ButtonSegment<int>(
+                  value: 2,
+                  label: Text(l10n.widgetPreviewLarge),
+                ),
+              ],
+              selected: {_widgetPreviewSize},
+              onSelectionChanged: (set) {
+                setState(() => _widgetPreviewSize = set.first);
+              },
+              showSelectedIcon: false,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Center(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
+              width: _widgetPreviewSize == 0 ? 170 : 320,
+              height: _widgetPreviewSize == 0
+                  ? 170
+                  : (_widgetPreviewSize == 1 ? 120 : 330),
+              decoration: BoxDecoration(
+                color: widgetBg,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: const Color(0xFF2A3245),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Stack(
+                children: [
+                  if (isCoverFill) ...[
+                    Positioned.fill(
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFF2B3A4A), Color(0xFF1E2836)],
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.album_rounded,
+                          size: 96,
+                          color: Colors.white.withValues(alpha: 0.12),
+                        ),
+                      ),
+                    ),
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.6),
+                              Colors.black.withValues(alpha: 0.85),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (_widgetPreviewSize == 0)
+                    _buildSmallPreviewContent(
+                      isCoverFill: isCoverFill,
+                      isCoverRight: isCoverRight,
+                      widgetAccent: widgetAccent,
+                      playIconColor: playIconColor,
+                    )
+                  else if (_widgetPreviewSize == 1)
+                    _buildMediumPreviewContent(
+                      isCoverFill: isCoverFill,
+                      isCoverRight: isCoverRight,
+                      widgetAccent: widgetAccent,
+                      playIconColor: playIconColor,
+                    )
+                  else
+                    _buildLargePreviewContent(
+                      isCoverFill: isCoverFill,
+                      isCoverRight: isCoverRight,
+                      widgetAccent: widgetAccent,
+                      playIconColor: playIconColor,
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSmallPreviewContent({
+    required bool isCoverFill,
+    required bool isCoverRight,
+    required Color widgetAccent,
+    required Color playIconColor,
+  }) {
+    Widget coverTile() => Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: const Color(0xFF242C3D),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFF344057)),
+          ),
+          child: const Icon(
+            Icons.music_note_rounded,
+            size: 24,
+            color: Color(0xFF8B949E),
+          ),
+        );
+
+    return Padding(
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                if (!isCoverFill && !isCoverRight) ...[
+                  coverTile(),
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        '告白气球',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Text(
+                        '周杰伦',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Color(0xFF8B949E),
+                          fontSize: 10,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: widgetAccent.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: Text(
+                          'Hi-Res',
+                          style: TextStyle(
+                            color: widgetAccent,
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!isCoverFill && isCoverRight) ...[
+                  const SizedBox(width: 8),
+                  coverTile(),
+                ],
+              ],
+            ),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.skip_previous_rounded,
+                size: 22,
+                color: Color(0xFFE6EDF3),
+              ),
+              const SizedBox(width: 14),
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: widgetAccent,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.pause_rounded,
+                  size: 16,
+                  color: playIconColor,
+                ),
+              ),
+              const SizedBox(width: 14),
+              const Icon(
+                Icons.skip_next_rounded,
+                size: 22,
+                color: Color(0xFFE6EDF3),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMediumPreviewContent({
+    required bool isCoverFill,
+    required bool isCoverRight,
+    required Color widgetAccent,
+    required Color playIconColor,
+  }) {
+    Widget coverTile() => Container(
+          width: 76,
+          height: 76,
+          decoration: BoxDecoration(
+            color: const Color(0xFF242C3D),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFF344057)),
+          ),
+          child: const Icon(
+            Icons.music_note_rounded,
+            size: 32,
+            color: Color(0xFF8B949E),
+          ),
+        );
+
+    return Padding(
+      padding: const EdgeInsets.all(10),
+      child: Row(
+        children: [
+          if (!isCoverFill && !isCoverRight) ...[
+            coverTile(),
+            const SizedBox(width: 10),
+          ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        '告白气球',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: widgetAccent.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      child: Text(
+                        'Hi-Res',
+                        style: TextStyle(
+                          color: widgetAccent,
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(
+                      Icons.favorite_rounded,
+                      size: 16,
+                      color: Color(0xFFFF5252),
+                    ),
+                  ],
+                ),
+                const Text(
+                  '周杰伦 · 周杰伦的床边故事',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Color(0xFF8B949E),
+                    fontSize: 10,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Text(
+                      '01:18',
+                      style: TextStyle(
+                        color: Color(0xFF8B949E),
+                        fontSize: 8,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(2),
+                        child: LinearProgressIndicator(
+                          value: 0.35,
+                          minHeight: 3,
+                          backgroundColor: const Color(0xFF262E3E),
+                          valueColor: AlwaysStoppedAnimation(widgetAccent),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Text(
+                      '03:35',
+                      style: TextStyle(
+                        color: Color(0xFF8B949E),
+                        fontSize: 8,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.skip_previous_rounded,
+                      size: 20,
+                      color: Color(0xFFE6EDF3),
+                    ),
+                    const SizedBox(width: 16),
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: widgetAccent,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.pause_rounded,
+                        size: 14,
+                        color: playIconColor,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    const Icon(
+                      Icons.skip_next_rounded,
+                      size: 20,
+                      color: Color(0xFFE6EDF3),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          if (!isCoverFill && isCoverRight) ...[
+            const SizedBox(width: 10),
+            coverTile(),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLargePreviewContent({
+    required bool isCoverFill,
+    required bool isCoverRight,
+    required Color widgetAccent,
+    required Color playIconColor,
+  }) {
+    Widget coverTile() => Container(
+          width: 76,
+          height: 76,
+          decoration: BoxDecoration(
+            color: const Color(0xFF242C3D),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFF344057)),
+          ),
+          child: const Icon(
+            Icons.music_note_rounded,
+            size: 36,
+            color: Color(0xFF8B949E),
+          ),
+        );
+
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              if (!isCoverFill && !isCoverRight) ...[
+                coverTile(),
+                const SizedBox(width: 10),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: widgetAccent.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      child: Text(
+                        'FLAC · 96kHz / 24bit',
+                        style: TextStyle(
+                          color: widgetAccent,
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      '告白气球',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Text(
+                      '周杰伦',
+                      maxLines: 1,
+                      style: TextStyle(color: Color(0xFFE6EDF3), fontSize: 11),
+                    ),
+                    const Text(
+                      '周杰伦的床边故事',
+                      maxLines: 1,
+                      style: TextStyle(color: Color(0xFF8B949E), fontSize: 10),
+                    ),
+                    Text(
+                      'OmniTune Hi-Fi Studio · Master Sound',
+                      maxLines: 1,
+                      style: TextStyle(color: widgetAccent, fontSize: 8),
+                    ),
+                  ],
+                ),
+              ),
+              if (!isCoverFill && isCoverRight) ...[
+                const SizedBox(width: 10),
+                coverTile(),
+              ],
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(2),
+            child: LinearProgressIndicator(
+              value: 0.35,
+              minHeight: 3,
+              backgroundColor: const Color(0xFF262E3E),
+              valueColor: AlwaysStoppedAnimation(widgetAccent),
+            ),
+          ),
+          const SizedBox(height: 2),
+          const Row(
+            children: [
+              Text(
+                '01:18',
+                style: TextStyle(color: Color(0xFF8B949E), fontSize: 8),
+              ),
+              Spacer(),
+              Text(
+                '03:35',
+                style: TextStyle(color: Color(0xFF8B949E), fontSize: 8),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              const Icon(
+                Icons.favorite_rounded,
+                size: 18,
+                color: Color(0xFFFF5252),
+              ),
+              const Icon(
+                Icons.skip_previous_rounded,
+                size: 22,
+                color: Color(0xFFE6EDF3),
+              ),
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: widgetAccent,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.pause_rounded,
+                  size: 16,
+                  color: playIconColor,
+                ),
+              ),
+              const Icon(
+                Icons.skip_next_rounded,
+                size: 22,
+                color: Color(0xFFE6EDF3),
+              ),
+              const Icon(
+                Icons.volume_up_rounded,
+                size: 18,
+                color: Color(0xFF8B949E),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Container(height: 1, color: const Color(0xFF202636)),
+          const SizedBox(height: 6),
+          // Lyric Card
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A2232),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF2A354C)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '♪ ACTIVE LYRICS',
+                  style: TextStyle(
+                    color: widgetAccent,
+                    fontSize: 8,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                const Text(
+                  '亲爱的 爱上你 从那天起 甜蜜的很轻易',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Color(0xFFE6EDF3),
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+          // Queue Card
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A2232),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF2A354C)),
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'UP NEXT IN QUEUE',
+                  style: TextStyle(
+                    color: Color(0xFF8B949E),
+                    fontSize: 8,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 1),
+                Text(
+                  'Next: 晴天 · 周杰伦',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Color(0xFFD0D7DE),
+                    fontSize: 9,
+                  ),
+                ),
+                Text(
+                  'Then: 七里香 · 周杰伦',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Color(0xFF6E7681),
+                    fontSize: 8,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

@@ -1,151 +1,240 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_medium_root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@drawable/widget_background"
-    android:gravity="center_vertical"
-    android:orientation="horizontal"
-    android:padding="12dp">
+    android:layout_height="match_parent">
 
-    <!-- Artwork -->
+    <!-- 1. Tintable Base Background -->
     <ImageView
-        android:id="@+id/widget_medium_artwork"
-        android:layout_width="80dp"
-        android:layout_height="80dp"
-        android:background="@drawable/widget_cover_rounded"
+        android:id="@+id/widget_medium_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@string/app_name"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_background" />
+
+    <!-- 2. Full Fill Cover Background -->
+    <ImageView
+        android:id="@+id/widget_medium_bg_cover"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:contentDescription="@string/app_name"
         android:scaleType="centerCrop"
-        android:src="@drawable/ic_widget_music_note" />
+        android:visibility="gone" />
 
-    <!-- Info & Controls -->
-    <LinearLayout
-        android:layout_width="0dp"
+    <!-- 3. Dark Gradient Scrim Overlay -->
+    <FrameLayout
+        android:id="@+id/widget_medium_scrim"
+        android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_marginStart="12dp"
-        android:layout_weight="1"
+        android:background="@drawable/widget_scrim_overlay"
+        android:visibility="gone" />
+
+    <!-- 4. Foreground Content Container -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:gravity="center_vertical"
-        android:orientation="vertical">
+        android:orientation="horizontal"
+        android:padding="10dp">
 
-        <!-- Title & Format Chip -->
+        <!-- Artwork (Left Position) -->
+        <ImageView
+            android:id="@+id/widget_medium_artwork_left"
+            android:layout_width="86dp"
+            android:layout_height="86dp"
+            android:background="@drawable/widget_cover_rounded"
+            android:contentDescription="@string/app_name"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_widget_music_note" />
+
+        <!-- Info & Controls Column (Fills remaining horizontal space) -->
         <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:id="@+id/widget_medium_info"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp"
+            android:layout_weight="1"
             android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/widget_medium_title"
-                android:layout_width="0dp"
+            <!-- Title & Badges Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/widget_medium_title"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="告白气球"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/widget_medium_format"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/widget_badge_background"
+                    android:paddingStart="4dp"
+                    android:paddingTop="1dp"
+                    android:paddingEnd="4dp"
+                    android:paddingBottom="1dp"
+                    android:text="Hi-Res"
+                    android:textColor="#58A6FF"
+                    android:textSize="9sp"
+                    android:textStyle="bold" />
+
+                <ImageView
+                    android:id="@+id/widget_medium_favorite"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginStart="8dp"
+                    android:clickable="true"
+                    android:contentDescription="@string/app_name"
+                    android:focusable="true"
+                    android:padding="2dp"
+                    android:src="@drawable/ic_widget_favorite_inactive" />
+            </LinearLayout>
+
+            <!-- Artist · Album Row -->
+            <TextView
+                android:id="@+id/widget_medium_artist_album"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:text="告白气球"
-                android:textColor="#FFFFFF"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                android:text="周杰伦 · 周杰伦的床边故事"
+                android:textColor="#8B949E"
+                android:textSize="11sp" />
 
-            <TextView
-                android:id="@+id/widget_medium_format"
-                android:layout_width="wrap_content"
+            <!-- Progress Bar & Timestamps -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:background="@drawable/widget_badge_background"
-                android:paddingStart="4dp"
-                android:paddingTop="1dp"
-                android:paddingEnd="4dp"
-                android:paddingBottom="1dp"
-                android:text="Hi-Res"
-                android:textColor="#58A6FF"
-                android:textSize="9sp"
-                android:textStyle="bold" />
+                android:layout_marginTop="5dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/widget_medium_time_pos"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="01:18"
+                    android:textColor="#8B949E"
+                    android:textSize="9sp" />
+
+                <ProgressBar
+                    android:id="@+id/widget_medium_progress"
+                    android:layout_width="0dp"
+                    android:layout_height="4dp"
+                    android:layout_marginStart="6dp"
+                    android:layout_marginEnd="6dp"
+                    android:layout_weight="1"
+                    android:indeterminate="false"
+                    android:max="1000"
+                    android:progress="350"
+                    android:progressDrawable="@drawable/widget_progress_bar" />
+
+                <TextView
+                    android:id="@+id/widget_medium_time_dur"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="03:35"
+                    android:textColor="#8B949E"
+                    android:textSize="9sp" />
+            </LinearLayout>
+
+            <!-- Control Buttons Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <!-- Spacer -->
+                <FrameLayout
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
+                <!-- Skip Previous -->
+                <ImageView
+                    android:id="@+id/widget_medium_prev"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:clickable="true"
+                    android:contentDescription="@string/app_name"
+                    android:focusable="true"
+                    android:padding="4dp"
+                    android:src="@drawable/ic_widget_skip_prev" />
+
+                <!-- Play / Pause Action Button -->
+                <FrameLayout
+                    android:id="@+id/widget_medium_play_pause"
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
+                    android:layout_marginStart="14dp"
+                    android:layout_marginEnd="14dp"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:id="@+id/widget_medium_play_pause_bg"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:contentDescription="@string/app_name"
+                        android:src="@drawable/widget_button_circle" />
+
+                    <ImageView
+                        android:id="@+id/widget_medium_play_pause_icon"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:contentDescription="@string/app_name"
+                        android:padding="7dp"
+                        android:src="@drawable/ic_widget_play_dark" />
+                </FrameLayout>
+
+                <!-- Skip Next -->
+                <ImageView
+                    android:id="@+id/widget_medium_next"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:clickable="true"
+                    android:contentDescription="@string/app_name"
+                    android:focusable="true"
+                    android:padding="4dp"
+                    android:src="@drawable/ic_widget_skip_next" />
+
+                <!-- Spacer -->
+                <FrameLayout
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+            </LinearLayout>
         </LinearLayout>
 
-        <!-- Artist · Album -->
-        <TextView
-            android:id="@+id/widget_medium_artist_album"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:text="周杰伦 · 周杰伦的床边故事"
-            android:textColor="#8B949E"
-            android:textSize="12sp" />
+        <!-- Artwork (Right Position) -->
+        <ImageView
+            android:id="@+id/widget_medium_artwork_right"
+            android:layout_width="86dp"
+            android:layout_height="86dp"
+            android:background="@drawable/widget_cover_rounded"
+            android:contentDescription="@string/app_name"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_widget_music_note"
+            android:visibility="gone" />
 
-        <!-- Progress Bar -->
-        <ProgressBar
-            android:id="@+id/widget_medium_progress"
-            android:layout_width="match_parent"
-            android:layout_height="4dp"
-            android:layout_marginTop="6dp"
-            android:indeterminate="false"
-            android:max="1000"
-            android:progress="350"
-            android:progressDrawable="@drawable/widget_progress_bar" />
-
-        <!-- Control Buttons -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <!-- Skip Previous -->
-            <ImageView
-                android:id="@+id/widget_medium_prev"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:clickable="true"
-                android:contentDescription="@string/app_name"
-                android:focusable="true"
-                android:padding="3dp"
-                android:src="@drawable/ic_widget_skip_prev" />
-
-            <!-- Play / Pause -->
-            <ImageView
-                android:id="@+id/widget_medium_play_pause"
-                android:layout_width="34dp"
-                android:layout_height="34dp"
-                android:layout_marginStart="14dp"
-                android:background="@drawable/widget_button_circle"
-                android:clickable="true"
-                android:contentDescription="@string/app_name"
-                android:focusable="true"
-                android:padding="7dp"
-                android:src="@drawable/ic_widget_play_dark" />
-
-            <!-- Skip Next -->
-            <ImageView
-                android:id="@+id/widget_medium_next"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:layout_marginStart="14dp"
-                android:clickable="true"
-                android:contentDescription="@string/app_name"
-                android:focusable="true"
-                android:padding="3dp"
-                android:src="@drawable/ic_widget_skip_next" />
-
-            <!-- Spacer (Whitelisted RemoteView FrameLayout) -->
-            <FrameLayout
-                android:layout_width="0dp"
-                android:layout_height="1dp"
-                android:layout_weight="1" />
-
-            <!-- Favorite Toggle -->
-            <ImageView
-                android:id="@+id/widget_medium_favorite"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
-                android:clickable="true"
-                android:contentDescription="@string/app_name"
-                android:focusable="true"
-                android:padding="3dp"
-                android:src="@drawable/ic_widget_favorite_inactive" />
-        </LinearLayout>
     </LinearLayout>
 
-</LinearLayout>
+</FrameLayout>

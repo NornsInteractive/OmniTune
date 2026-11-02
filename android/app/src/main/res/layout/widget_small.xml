@@ -1,68 +1,179 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_small_root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@drawable/widget_background"
-    android:padding="10dp">
+    android:layout_height="match_parent">
 
-    <!-- Artwork Container -->
+    <!-- 1. Tintable Background -->
     <ImageView
-        android:id="@+id/widget_small_artwork"
+        android:id="@+id/widget_small_bg"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_above="@+id/widget_small_bottom"
-        android:layout_marginBottom="8dp"
-        android:background="@drawable/widget_cover_rounded"
+        android:contentDescription="@string/app_name"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_background" />
+
+    <!-- 2. Full Fill Background Cover -->
+    <ImageView
+        android:id="@+id/widget_small_bg_cover"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:contentDescription="@string/app_name"
         android:scaleType="centerCrop"
-        android:src="@drawable/ic_widget_music_note" />
+        android:visibility="gone" />
 
-    <!-- Play / Pause Floating Overlay on Artwork -->
-    <ImageView
-        android:id="@+id/widget_small_play_pause"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_alignEnd="@+id/widget_small_artwork"
-        android:layout_alignBottom="@+id/widget_small_artwork"
-        android:layout_marginEnd="6dp"
-        android:layout_marginBottom="6dp"
-        android:background="@drawable/widget_button_circle"
-        android:clickable="true"
-        android:contentDescription="@string/app_name"
-        android:focusable="true"
-        android:padding="8dp"
-        android:src="@drawable/ic_widget_play_dark" />
-
-    <!-- Bottom Info -->
-    <LinearLayout
-        android:id="@+id/widget_small_bottom"
+    <!-- 3. Dark Gradient Scrim Overlay -->
+    <FrameLayout
+        android:id="@+id/widget_small_scrim"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:orientation="vertical">
+        android:layout_height="match_parent"
+        android:background="@drawable/widget_scrim_overlay"
+        android:visibility="gone" />
 
-        <TextView
-            android:id="@+id/widget_small_title"
+    <!-- 4. Foreground Content Container -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="10dp">
+
+        <!-- Top Row: Cover thumbnail + Title / Artist / Format -->
+        <LinearLayout
+            android:id="@+id/widget_small_top_row"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <!-- Artwork (Left Position) -->
+            <ImageView
+                android:id="@+id/widget_small_artwork_left"
+                android:layout_width="54dp"
+                android:layout_height="54dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/widget_cover_rounded"
+                android:contentDescription="@string/app_name"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ic_widget_music_note" />
+
+            <!-- Song Info Column -->
+            <LinearLayout
+                android:id="@+id/widget_small_info"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center_vertical"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/widget_small_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="告白气球"
+                    android:textColor="#FFFFFF"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/widget_small_artist"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="周杰伦"
+                    android:textColor="#8B949E"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:id="@+id/widget_small_format"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:background="@drawable/widget_badge_background"
+                    android:paddingStart="4dp"
+                    android:paddingTop="1dp"
+                    android:paddingEnd="4dp"
+                    android:paddingBottom="1dp"
+                    android:text="Hi-Res"
+                    android:textColor="#58A6FF"
+                    android:textSize="8sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Artwork (Right Position) -->
+            <ImageView
+                android:id="@+id/widget_small_artwork_right"
+                android:layout_width="54dp"
+                android:layout_height="54dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/widget_cover_rounded"
+                android:contentDescription="@string/app_name"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ic_widget_music_note"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <!-- Bottom Controls Row: Previous, Play/Pause, Next -->
+        <LinearLayout
+            android:id="@+id/widget_small_controls"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:text="告白气球"
-            android:textColor="#FFFFFF"
-            android:textSize="13sp"
-            android:textStyle="bold" />
+            android:layout_marginTop="4dp"
+            android:gravity="center"
+            android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/widget_small_artist"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="1dp"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:text="周杰伦"
-            android:textColor="#8B949E"
-            android:textSize="11sp" />
+            <!-- Previous Button -->
+            <ImageView
+                android:id="@+id/widget_small_prev"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:clickable="true"
+                android:contentDescription="@string/app_name"
+                android:focusable="true"
+                android:padding="5dp"
+                android:src="@drawable/ic_widget_skip_prev" />
+
+            <!-- Play / Pause Action Button -->
+            <FrameLayout
+                android:id="@+id/widget_small_play_pause"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="14dp"
+                android:layout_marginEnd="14dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:id="@+id/widget_small_play_pause_bg"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@string/app_name"
+                    android:src="@drawable/widget_button_circle" />
+
+                <ImageView
+                    android:id="@+id/widget_small_play_pause_icon"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@string/app_name"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_widget_play_dark" />
+            </FrameLayout>
+
+            <!-- Next Button -->
+            <ImageView
+                android:id="@+id/widget_small_next"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:clickable="true"
+                android:contentDescription="@string/app_name"
+                android:focusable="true"
+                android:padding="5dp"
+                android:src="@drawable/ic_widget_skip_next" />
+        </LinearLayout>
     </LinearLayout>
 
-</RelativeLayout>
+</FrameLayout>

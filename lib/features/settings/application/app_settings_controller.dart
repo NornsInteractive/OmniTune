@@ -5,6 +5,7 @@ import '../../../core/models/custom_theme_colors.dart';
 import '../../../core/models/library_album.dart';
 import '../../../core/storage/library_preferences_repository.dart';
 import '../../../core/utils/debug_logger.dart';
+import '../../../core/widgets/widget_sync_service.dart';
 
 class AppSettingsController extends AsyncNotifier<LibraryPreferences> {
   @override
@@ -13,6 +14,12 @@ class AppSettingsController extends AsyncNotifier<LibraryPreferences> {
         .read(libraryPreferencesRepositoryProvider)
         .load();
     DebugLogger.setDebugEnabled(preferences.enableDebugMode);
+    WidgetSyncService.instance.syncWidgetPreferences(
+      coverPosition: preferences.widgetCoverPosition,
+      coverFill: preferences.widgetCoverFill,
+      themeColor: preferences.widgetThemeColor,
+      backgroundColor: preferences.widgetBackgroundColor,
+    );
     return preferences;
   }
 
@@ -128,6 +135,45 @@ class AppSettingsController extends AsyncNotifier<LibraryPreferences> {
   Future<void> clearBackgroundImage() async {
     await _save(
       (preferences) => preferences.copyWith(clearBackgroundImageSource: true),
+    );
+  }
+
+  Future<void> setWidgetCoverPosition(String value) async {
+    await _save(
+      (preferences) => preferences.copyWith(widgetCoverPosition: value),
+    );
+    _syncWidgets();
+  }
+
+  Future<void> setWidgetCoverFill(bool value) async {
+    await _save(
+      (preferences) => preferences.copyWith(widgetCoverFill: value),
+    );
+    _syncWidgets();
+  }
+
+  Future<void> setWidgetThemeColor(String value) async {
+    await _save(
+      (preferences) => preferences.copyWith(widgetThemeColor: value),
+    );
+    _syncWidgets();
+  }
+
+  Future<void> setWidgetBackgroundColor(String value) async {
+    await _save(
+      (preferences) => preferences.copyWith(widgetBackgroundColor: value),
+    );
+    _syncWidgets();
+  }
+
+  void _syncWidgets() {
+    final prefs = state.valueOrNull;
+    if (prefs == null) return;
+    WidgetSyncService.instance.syncWidgetPreferences(
+      coverPosition: prefs.widgetCoverPosition,
+      coverFill: prefs.widgetCoverFill,
+      themeColor: prefs.widgetThemeColor,
+      backgroundColor: prefs.widgetBackgroundColor,
     );
   }
 

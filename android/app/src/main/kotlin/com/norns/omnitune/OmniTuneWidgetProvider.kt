@@ -10,6 +10,7 @@ import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
@@ -70,6 +71,24 @@ abstract class BaseOmniTuneWidgetProvider : AppWidgetProvider() {
         }
     }
 
+    protected fun parseColorHex(hex: String?, defaultColor: Int): Int {
+        if (hex.isNullOrBlank()) return defaultColor
+        return try {
+            val cleanHex = if (hex.startsWith("#")) hex else "#$hex"
+            Color.parseColor(cleanHex)
+        } catch (e: Throwable) {
+            defaultColor
+        }
+    }
+
+    protected fun isColorLight(color: Int): Boolean {
+        val r = Color.red(color)
+        val g = Color.green(color)
+        val b = Color.blue(color)
+        val luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0
+        return luminance > 0.5
+    }
+
     protected fun getLaunchPendingIntent(context: Context): PendingIntent {
         val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
             ?: Intent(context, MainActivity::class.java).apply {
@@ -102,7 +121,12 @@ abstract class BaseOmniTuneWidgetProvider : AppWidgetProvider() {
         return PendingIntent.getBroadcast(context, requestCode, intent, flags)
     }
 
-    protected fun loadArtworkBitmap(context: Context, filePath: String?, maxDim: Int = 256): Bitmap? {
+    protected fun loadArtworkBitmap(
+        context: Context,
+        filePath: String?,
+        maxDim: Int = 256,
+        cornerRadiusDp: Float = 12f
+    ): Bitmap? {
         if (filePath.isNullOrBlank()) return null
         val file = File(filePath)
         if (!file.exists()) return null
@@ -121,7 +145,7 @@ abstract class BaseOmniTuneWidgetProvider : AppWidgetProvider() {
             }
             val raw = BitmapFactory.decodeFile(file.absolutePath, decodeOptions) ?: return null
             val density = context.resources.displayMetrics.density
-            roundBitmapCorners(raw, 12f, density)
+            roundBitmapCorners(raw, cornerRadiusDp, density)
         } catch (e: Throwable) {
             null
         }
@@ -150,7 +174,7 @@ abstract class BaseOmniTuneWidgetProvider : AppWidgetProvider() {
 }
 
 /**
- * 2x2 Small Widget Provider (Compact Cover + Play/Pause Floating Action)
+ * 2x2 Small Widget Provider (Previous + Play/Pause + Next, Position & Fill & Colors)
  */
 class OmniTuneWidgetProviderSmall : BaseOmniTuneWidgetProvider() {
     override fun updateAppWidget(
@@ -164,32 +188,76 @@ class OmniTuneWidgetProviderSmall : BaseOmniTuneWidgetProvider() {
         val title = prefs.getString("widget_title", "OmniTune") ?: "OmniTune"
         val artist = prefs.getString("widget_artist", "Ready to play") ?: "Ready to play"
         val isPlaying = prefs.getBoolean("widget_is_playing", false)
+        val formatBadge = prefs.getString("widget_format", "Hi-Res") ?: "Hi-Res"
         val artworkPath = prefs.getString("widget_artwork_path", null)
+        val coverPos = prefs.getString("widget_cover_pos", "left") ?: "left"
+        val coverFill = prefs.getBoolean("widget_cover_fill", false)
+        val bgColor = parseColorHex(prefs.getString("widget_bg_color", "#141822"), 0xFF141822.toInt())
+        val themeColor = parseColorHex(prefs.getString("widget_theme_color", "#58A6FF"), 0xFF58A6FF.toInt())
 
         views.setTextViewText(R.id.widget_small_title, title)
         views.setTextViewText(R.id.widget_small_artist, artist)
+        views.setTextViewText(R.id.widget_small_format, formatBadge)
+        views.setTextColor(R.id.widget_small_format, themeColor)
+
+        // Tint base background
+        views.setInt(R.id.widget_small_bg, "setColorFilter", bgColor)
 
         // Pending intents
         val launchPending = getLaunchPendingIntent(context)
         views.setOnClickPendingIntent(R.id.widget_small_root, launchPending)
 
-        val playPausePending = getMediaButtonPendingIntent(
-            context,
-            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
-            101
+        views.setOnClickPendingIntent(
+            R.id.widget_small_prev,
+            getMediaButtonPendingIntent(context, KeyEvent.KEYCODE_MEDIA_PREVIOUS, 101)
         )
-        views.setOnClickPendingIntent(R.id.widget_small_play_pause, playPausePending)
-        views.setImageViewResource(
+        views.setOnClickPendingIntent(
             R.id.widget_small_play_pause,
-            if (isPlaying) R.drawable.ic_widget_pause_dark else R.drawable.ic_widget_play_dark
+            getMediaButtonPendingIntent(context, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, 102)
+        )
+        views.setOnClickPendingIntent(
+            R.id.widget_small_next,
+            getMediaButtonPendingIntent(context, KeyEvent.KEYCODE_MEDIA_NEXT, 103)
         )
 
-        // Artwork
-        val bitmap = loadArtworkBitmap(context, artworkPath, 256)
-        if (bitmap != null) {
-            views.setImageViewBitmap(R.id.widget_small_artwork, bitmap)
+        // Play/Pause button styling
+        views.setInt(R.id.widget_small_play_pause_bg, "setColorFilter", themeColor)
+        val isLight = isColorLight(themeColor)
+        val playIconRes = if (isPlaying) {
+            if (isLight) R.drawable.ic_widget_pause_dark else R.drawable.ic_widget_pause
         } else {
-            views.setImageViewResource(R.id.widget_small_artwork, R.drawable.ic_widget_music_note)
+            if (isLight) R.drawable.ic_widget_play_dark else R.drawable.ic_widget_play
+        }
+        views.setImageViewResource(R.id.widget_small_play_pause_icon, playIconRes)
+
+        // Artwork handling: full-bleed fill vs side placement
+        val bitmap = loadArtworkBitmap(context, artworkPath, 256, if (coverFill) 20f else 12f)
+        if (coverFill && bitmap != null) {
+            views.setViewVisibility(R.id.widget_small_bg_cover, View.VISIBLE)
+            views.setViewVisibility(R.id.widget_small_scrim, View.VISIBLE)
+            views.setImageViewBitmap(R.id.widget_small_bg_cover, bitmap)
+            views.setViewVisibility(R.id.widget_small_artwork_left, View.GONE)
+            views.setViewVisibility(R.id.widget_small_artwork_right, View.GONE)
+        } else {
+            views.setViewVisibility(R.id.widget_small_bg_cover, View.GONE)
+            views.setViewVisibility(R.id.widget_small_scrim, View.GONE)
+            if (coverPos == "right") {
+                views.setViewVisibility(R.id.widget_small_artwork_left, View.GONE)
+                views.setViewVisibility(R.id.widget_small_artwork_right, View.VISIBLE)
+                if (bitmap != null) {
+                    views.setImageViewBitmap(R.id.widget_small_artwork_right, bitmap)
+                } else {
+                    views.setImageViewResource(R.id.widget_small_artwork_right, R.drawable.ic_widget_music_note)
+                }
+            } else {
+                views.setViewVisibility(R.id.widget_small_artwork_left, View.VISIBLE)
+                views.setViewVisibility(R.id.widget_small_artwork_right, View.GONE)
+                if (bitmap != null) {
+                    views.setImageViewBitmap(R.id.widget_small_artwork_left, bitmap)
+                } else {
+                    views.setImageViewResource(R.id.widget_small_artwork_left, R.drawable.ic_widget_music_note)
+                }
+            }
         }
 
         appWidgetManager.updateAppWidget(appWidgetId, views)
@@ -197,7 +265,7 @@ class OmniTuneWidgetProviderSmall : BaseOmniTuneWidgetProvider() {
 }
 
 /**
- * 4x2 Medium Widget Provider (Landscape Bar + Full Controls + Timeline)
+ * 4x2 Medium Widget Provider (Full Bleed Content + Timeline + Dual Position Cover)
  */
 class OmniTuneWidgetProviderMedium : BaseOmniTuneWidgetProvider() {
     override fun updateAppWidget(
@@ -215,6 +283,10 @@ class OmniTuneWidgetProviderMedium : BaseOmniTuneWidgetProvider() {
         val isFavorite = prefs.getBoolean("widget_is_favorite", false)
         val formatBadge = prefs.getString("widget_format", "Hi-Res") ?: "Hi-Res"
         val artworkPath = prefs.getString("widget_artwork_path", null)
+        val coverPos = prefs.getString("widget_cover_pos", "left") ?: "left"
+        val coverFill = prefs.getBoolean("widget_cover_fill", false)
+        val bgColor = parseColorHex(prefs.getString("widget_bg_color", "#141822"), 0xFF141822.toInt())
+        val themeColor = parseColorHex(prefs.getString("widget_theme_color", "#58A6FF"), 0xFF58A6FF.toInt())
         val positionMs = getLongOrInt(prefs, "widget_position_ms", 0L)
         val durationMs = getLongOrInt(prefs, "widget_duration_ms", 0L)
 
@@ -222,10 +294,16 @@ class OmniTuneWidgetProviderMedium : BaseOmniTuneWidgetProvider() {
         val subtitle = if (album.isNotEmpty()) "$artist · $album" else artist
         views.setTextViewText(R.id.widget_medium_artist_album, subtitle)
         views.setTextViewText(R.id.widget_medium_format, formatBadge)
+        views.setTextColor(R.id.widget_medium_format, themeColor)
 
-        // Progress
+        // Tint base background
+        views.setInt(R.id.widget_medium_bg, "setColorFilter", bgColor)
+
+        // Progress & Timestamps
         val progress = if (durationMs > 0) ((positionMs * 1000) / durationMs).toInt() else 0
         views.setProgressBar(R.id.widget_medium_progress, 1000, progress.coerceIn(0, 1000), false)
+        views.setTextViewText(R.id.widget_medium_time_pos, formatTimeMs(positionMs))
+        views.setTextViewText(R.id.widget_medium_time_dur, formatTimeMs(durationMs))
 
         // Pending intents
         val launchPending = getLaunchPendingIntent(context)
@@ -243,22 +321,54 @@ class OmniTuneWidgetProviderMedium : BaseOmniTuneWidgetProvider() {
             R.id.widget_medium_next,
             getMediaButtonPendingIntent(context, KeyEvent.KEYCODE_MEDIA_NEXT, 203)
         )
-
-        views.setImageViewResource(
-            R.id.widget_medium_play_pause,
-            if (isPlaying) R.drawable.ic_widget_pause_dark else R.drawable.ic_widget_play_dark
+        views.setOnClickPendingIntent(
+            R.id.widget_medium_favorite,
+            launchPending
         )
+
+        // Play/Pause button styling
+        views.setInt(R.id.widget_medium_play_pause_bg, "setColorFilter", themeColor)
+        val isLight = isColorLight(themeColor)
+        val playIconRes = if (isPlaying) {
+            if (isLight) R.drawable.ic_widget_pause_dark else R.drawable.ic_widget_pause
+        } else {
+            if (isLight) R.drawable.ic_widget_play_dark else R.drawable.ic_widget_play
+        }
+        views.setImageViewResource(R.id.widget_medium_play_pause_icon, playIconRes)
+
         views.setImageViewResource(
             R.id.widget_medium_favorite,
             if (isFavorite) R.drawable.ic_widget_favorite_active else R.drawable.ic_widget_favorite_inactive
         )
 
-        // Artwork
-        val bitmap = loadArtworkBitmap(context, artworkPath, 256)
-        if (bitmap != null) {
-            views.setImageViewBitmap(R.id.widget_medium_artwork, bitmap)
+        // Artwork handling: full-bleed fill vs side placement
+        val bitmap = loadArtworkBitmap(context, artworkPath, 256, if (coverFill) 20f else 12f)
+        if (coverFill && bitmap != null) {
+            views.setViewVisibility(R.id.widget_medium_bg_cover, View.VISIBLE)
+            views.setViewVisibility(R.id.widget_medium_scrim, View.VISIBLE)
+            views.setImageViewBitmap(R.id.widget_medium_bg_cover, bitmap)
+            views.setViewVisibility(R.id.widget_medium_artwork_left, View.GONE)
+            views.setViewVisibility(R.id.widget_medium_artwork_right, View.GONE)
         } else {
-            views.setImageViewResource(R.id.widget_medium_artwork, R.drawable.ic_widget_music_note)
+            views.setViewVisibility(R.id.widget_medium_bg_cover, View.GONE)
+            views.setViewVisibility(R.id.widget_medium_scrim, View.GONE)
+            if (coverPos == "right") {
+                views.setViewVisibility(R.id.widget_medium_artwork_left, View.GONE)
+                views.setViewVisibility(R.id.widget_medium_artwork_right, View.VISIBLE)
+                if (bitmap != null) {
+                    views.setImageViewBitmap(R.id.widget_medium_artwork_right, bitmap)
+                } else {
+                    views.setImageViewResource(R.id.widget_medium_artwork_right, R.drawable.ic_widget_music_note)
+                }
+            } else {
+                views.setViewVisibility(R.id.widget_medium_artwork_left, View.VISIBLE)
+                views.setViewVisibility(R.id.widget_medium_artwork_right, View.GONE)
+                if (bitmap != null) {
+                    views.setImageViewBitmap(R.id.widget_medium_artwork_left, bitmap)
+                } else {
+                    views.setImageViewResource(R.id.widget_medium_artwork_left, R.drawable.ic_widget_music_note)
+                }
+            }
         }
 
         appWidgetManager.updateAppWidget(appWidgetId, views)
@@ -266,7 +376,7 @@ class OmniTuneWidgetProviderMedium : BaseOmniTuneWidgetProvider() {
 }
 
 /**
- * 4x4 Large Widget Provider (Music Hub + Lyric Snippet + Queue Next Preview)
+ * 4x4 Large Widget Provider (Music Hub + Complete Content Filling + Dual Position Cover)
  */
 class OmniTuneWidgetProviderLarge : BaseOmniTuneWidgetProvider() {
     override fun updateAppWidget(
@@ -284,9 +394,13 @@ class OmniTuneWidgetProviderLarge : BaseOmniTuneWidgetProvider() {
         val isFavorite = prefs.getBoolean("widget_is_favorite", false)
         val formatBadge = prefs.getString("widget_format", "Hi-Res") ?: "Hi-Res"
         val artworkPath = prefs.getString("widget_artwork_path", null)
+        val coverPos = prefs.getString("widget_cover_pos", "left") ?: "left"
+        val coverFill = prefs.getBoolean("widget_cover_fill", false)
         val lyric = prefs.getString("widget_current_lyric", "") ?: ""
         val nextTrack1 = prefs.getString("widget_queue_next1", "") ?: ""
         val nextTrack2 = prefs.getString("widget_queue_next2", "") ?: ""
+        val bgColor = parseColorHex(prefs.getString("widget_bg_color", "#141822"), 0xFF141822.toInt())
+        val themeColor = parseColorHex(prefs.getString("widget_theme_color", "#58A6FF"), 0xFF58A6FF.toInt())
         val positionMs = getLongOrInt(prefs, "widget_position_ms", 0L)
         val durationMs = getLongOrInt(prefs, "widget_duration_ms", 0L)
 
@@ -294,6 +408,12 @@ class OmniTuneWidgetProviderLarge : BaseOmniTuneWidgetProvider() {
         views.setTextViewText(R.id.widget_large_artist, artist)
         views.setTextViewText(R.id.widget_large_album, album)
         views.setTextViewText(R.id.widget_large_format, formatBadge)
+        views.setTextColor(R.id.widget_large_format, themeColor)
+        views.setTextColor(R.id.widget_large_lyric_label, themeColor)
+        views.setTextColor(R.id.widget_large_quality_tag, themeColor)
+
+        // Tint base background
+        views.setInt(R.id.widget_large_bg, "setColorFilter", bgColor)
 
         // Progress & Time
         val progress = if (durationMs > 0) ((positionMs * 1000) / durationMs).toInt() else 0
@@ -301,30 +421,34 @@ class OmniTuneWidgetProviderLarge : BaseOmniTuneWidgetProvider() {
         views.setTextViewText(R.id.widget_large_time_position, formatTimeMs(positionMs))
         views.setTextViewText(R.id.widget_large_time_duration, formatTimeMs(durationMs))
 
-        // Lyric & Queue
-        if (lyric.isNotEmpty()) {
-            views.setViewVisibility(R.id.widget_large_lyric_container, View.VISIBLE)
+        // Bottom Rich Hub: Always fully filled
+        if (lyric.isNotBlank()) {
+            views.setTextViewText(R.id.widget_large_lyric_label, "♪ ACTIVE LYRICS")
             views.setTextViewText(R.id.widget_large_current_lyric, lyric)
         } else {
-            views.setViewVisibility(R.id.widget_large_lyric_container, View.GONE)
+            views.setTextViewText(R.id.widget_large_lyric_label, "♪ OMNITUNE STUDIO")
+            views.setTextViewText(R.id.widget_large_current_lyric, "Pure Sound Engine · Master Quality Audio")
         }
 
-        if (nextTrack1.isNotEmpty()) {
-            views.setViewVisibility(R.id.widget_large_queue_container, View.VISIBLE)
+        if (nextTrack1.isNotBlank()) {
+            views.setTextViewText(R.id.widget_large_queue_label, "UP NEXT IN QUEUE")
             views.setTextViewText(R.id.widget_large_queue_next1, "Next: $nextTrack1")
-            if (nextTrack2.isNotEmpty()) {
-                views.setViewVisibility(R.id.widget_large_queue_next2, View.VISIBLE)
+            if (nextTrack2.isNotBlank()) {
                 views.setTextViewText(R.id.widget_large_queue_next2, "Then: $nextTrack2")
             } else {
-                views.setViewVisibility(R.id.widget_large_queue_next2, View.GONE)
+                views.setTextViewText(R.id.widget_large_queue_next2, "Playback: Normal Loop Mode")
             }
         } else {
-            views.setViewVisibility(R.id.widget_large_queue_container, View.GONE)
+            views.setTextViewText(R.id.widget_large_queue_label, "PLAYBACK CONTEXT")
+            views.setTextViewText(R.id.widget_large_queue_next1, "Playing from Current Audio Stream")
+            views.setTextViewText(R.id.widget_large_queue_next2, "OmniTune High-Resolution Processing")
         }
 
         // Pending intents
         val launchPending = getLaunchPendingIntent(context)
         views.setOnClickPendingIntent(R.id.widget_large_root, launchPending)
+        views.setOnClickPendingIntent(R.id.widget_large_app_icon, launchPending)
+        views.setOnClickPendingIntent(R.id.widget_large_favorite, launchPending)
 
         views.setOnClickPendingIntent(
             R.id.widget_large_prev,
@@ -339,21 +463,49 @@ class OmniTuneWidgetProviderLarge : BaseOmniTuneWidgetProvider() {
             getMediaButtonPendingIntent(context, KeyEvent.KEYCODE_MEDIA_NEXT, 303)
         )
 
-        views.setImageViewResource(
-            R.id.widget_large_play_pause,
-            if (isPlaying) R.drawable.ic_widget_pause_dark else R.drawable.ic_widget_play_dark
-        )
+        // Play/Pause button styling
+        views.setInt(R.id.widget_large_play_pause_bg, "setColorFilter", themeColor)
+        val isLight = isColorLight(themeColor)
+        val playIconRes = if (isPlaying) {
+            if (isLight) R.drawable.ic_widget_pause_dark else R.drawable.ic_widget_pause
+        } else {
+            if (isLight) R.drawable.ic_widget_play_dark else R.drawable.ic_widget_play
+        }
+        views.setImageViewResource(R.id.widget_large_play_pause_icon, playIconRes)
+
         views.setImageViewResource(
             R.id.widget_large_favorite,
             if (isFavorite) R.drawable.ic_widget_favorite_active else R.drawable.ic_widget_favorite_inactive
         )
 
-        // Artwork
-        val bitmap = loadArtworkBitmap(context, artworkPath, 256)
-        if (bitmap != null) {
-            views.setImageViewBitmap(R.id.widget_large_artwork, bitmap)
+        // Artwork handling: full-bleed fill vs side placement
+        val bitmap = loadArtworkBitmap(context, artworkPath, 256, if (coverFill) 20f else 12f)
+        if (coverFill && bitmap != null) {
+            views.setViewVisibility(R.id.widget_large_bg_cover, View.VISIBLE)
+            views.setViewVisibility(R.id.widget_large_scrim, View.VISIBLE)
+            views.setImageViewBitmap(R.id.widget_large_bg_cover, bitmap)
+            views.setViewVisibility(R.id.widget_large_artwork_left, View.GONE)
+            views.setViewVisibility(R.id.widget_large_artwork_right, View.GONE)
         } else {
-            views.setImageViewResource(R.id.widget_large_artwork, R.drawable.ic_widget_music_note)
+            views.setViewVisibility(R.id.widget_large_bg_cover, View.GONE)
+            views.setViewVisibility(R.id.widget_large_scrim, View.GONE)
+            if (coverPos == "right") {
+                views.setViewVisibility(R.id.widget_large_artwork_left, View.GONE)
+                views.setViewVisibility(R.id.widget_large_artwork_right, View.VISIBLE)
+                if (bitmap != null) {
+                    views.setImageViewBitmap(R.id.widget_large_artwork_right, bitmap)
+                } else {
+                    views.setImageViewResource(R.id.widget_large_artwork_right, R.drawable.ic_widget_music_note)
+                }
+            } else {
+                views.setViewVisibility(R.id.widget_large_artwork_left, View.VISIBLE)
+                views.setViewVisibility(R.id.widget_large_artwork_right, View.GONE)
+                if (bitmap != null) {
+                    views.setImageViewBitmap(R.id.widget_large_artwork_left, bitmap)
+                } else {
+                    views.setImageViewResource(R.id.widget_large_artwork_left, R.drawable.ic_widget_music_note)
+                }
+            }
         }
 
         appWidgetManager.updateAppWidget(appWidgetId, views)

@@ -1,269 +1,374 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_large_root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@drawable/widget_background"
-    android:orientation="vertical"
-    android:padding="16dp">
+    android:layout_height="match_parent">
 
-    <!-- Top Row: Cover Art + Song Info -->
+    <!-- 1. Tintable Base Background -->
+    <ImageView
+        android:id="@+id/widget_large_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@string/app_name"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_background" />
+
+    <!-- 2. Full Fill Cover Background -->
+    <ImageView
+        android:id="@+id/widget_large_bg_cover"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@string/app_name"
+        android:scaleType="centerCrop"
+        android:visibility="gone" />
+
+    <!-- 3. Dark Gradient Scrim Overlay -->
+    <FrameLayout
+        android:id="@+id/widget_large_scrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/widget_scrim_overlay"
+        android:visibility="gone" />
+
+    <!-- 4. Foreground Content Container -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="14dp">
 
-        <!-- Artwork -->
-        <ImageView
-            android:id="@+id/widget_large_artwork"
-            android:layout_width="96dp"
-            android:layout_height="96dp"
-            android:background="@drawable/widget_cover_rounded"
-            android:contentDescription="@string/app_name"
-            android:scaleType="centerCrop"
-            android:src="@drawable/ic_widget_music_note" />
-
-        <!-- Info Column -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="14dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <!-- Format Badge -->
-            <TextView
-                android:id="@+id/widget_large_format"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/widget_badge_background"
-                android:paddingStart="5dp"
-                android:paddingTop="2dp"
-                android:paddingEnd="5dp"
-                android:paddingBottom="2dp"
-                android:text="FLAC · 96kHz / 24bit"
-                android:textColor="#58A6FF"
-                android:textSize="9sp"
-                android:textStyle="bold" />
-
-            <!-- Track Title -->
-            <TextView
-                android:id="@+id/widget_large_title"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:text="告白气球"
-                android:textColor="#FFFFFF"
-                android:textSize="17sp"
-                android:textStyle="bold" />
-
-            <!-- Artist -->
-            <TextView
-                android:id="@+id/widget_large_artist"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:text="周杰伦"
-                android:textColor="#E6EDF3"
-                android:textSize="13sp" />
-
-            <!-- Album -->
-            <TextView
-                android:id="@+id/widget_large_album"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:text="周杰伦的床边故事"
-                android:textColor="#8B949E"
-                android:textSize="11sp" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <!-- Progress Bar & Timestamps -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:orientation="vertical">
-
-        <ProgressBar
-            android:id="@+id/widget_large_progress"
-            android:layout_width="match_parent"
-            android:layout_height="4dp"
-            android:indeterminate="false"
-            android:max="1000"
-            android:progress="350"
-            android:progressDrawable="@drawable/widget_progress_bar" />
-
+        <!-- Header Row: Cover Art + Detailed Info -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="3dp"
+            android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/widget_large_time_position"
-                android:layout_width="wrap_content"
+            <!-- Artwork (Left Position) -->
+            <ImageView
+                android:id="@+id/widget_large_artwork_left"
+                android:layout_width="96dp"
+                android:layout_height="96dp"
+                android:background="@drawable/widget_cover_rounded"
+                android:contentDescription="@string/app_name"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ic_widget_music_note" />
+
+            <!-- Song Info Column -->
+            <LinearLayout
+                android:id="@+id/widget_large_info"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="01:18"
-                android:textColor="#8B949E"
-                android:textSize="10sp" />
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="12dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <!-- Format Badge -->
+                <TextView
+                    android:id="@+id/widget_large_format"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/widget_badge_background"
+                    android:paddingStart="5dp"
+                    android:paddingTop="2dp"
+                    android:paddingEnd="5dp"
+                    android:paddingBottom="2dp"
+                    android:text="FLAC · 96kHz / 24bit"
+                    android:textColor="#58A6FF"
+                    android:textSize="9sp"
+                    android:textStyle="bold" />
+
+                <!-- Track Title -->
+                <TextView
+                    android:id="@+id/widget_large_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="告白气球"
+                    android:textColor="#FFFFFF"
+                    android:textSize="17sp"
+                    android:textStyle="bold" />
+
+                <!-- Artist -->
+                <TextView
+                    android:id="@+id/widget_large_artist"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="周杰伦"
+                    android:textColor="#E6EDF3"
+                    android:textSize="13sp" />
+
+                <!-- Album -->
+                <TextView
+                    android:id="@+id/widget_large_album"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="周杰伦的床边故事"
+                    android:textColor="#8B949E"
+                    android:textSize="11sp" />
+
+                <!-- Quality Status Tag -->
+                <TextView
+                    android:id="@+id/widget_large_quality_tag"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="OmniTune Hi-Fi Studio · Master Sound"
+                    android:textColor="#58A6FF"
+                    android:textSize="9sp" />
+            </LinearLayout>
+
+            <!-- Artwork (Right Position) -->
+            <ImageView
+                android:id="@+id/widget_large_artwork_right"
+                android:layout_width="96dp"
+                android:layout_height="96dp"
+                android:background="@drawable/widget_cover_rounded"
+                android:contentDescription="@string/app_name"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ic_widget_music_note"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <!-- Progress Bar & Timestamps -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:orientation="vertical">
+
+            <ProgressBar
+                android:id="@+id/widget_large_progress"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:indeterminate="false"
+                android:max="1000"
+                android:progress="350"
+                android:progressDrawable="@drawable/widget_progress_bar" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/widget_large_time_position"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="01:18"
+                    android:textColor="#8B949E"
+                    android:textSize="10sp" />
+
+                <FrameLayout
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
+                <TextView
+                    android:id="@+id/widget_large_time_duration"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="03:35"
+                    android:textColor="#8B949E"
+                    android:textSize="10sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Playback Controls Row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/widget_large_favorite"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:clickable="true"
+                android:contentDescription="@string/app_name"
+                android:focusable="true"
+                android:padding="4dp"
+                android:src="@drawable/ic_widget_favorite_inactive" />
 
             <FrameLayout
                 android:layout_width="0dp"
                 android:layout_height="1dp"
                 android:layout_weight="1" />
 
-            <TextView
-                android:id="@+id/widget_large_time_duration"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="03:35"
-                android:textColor="#8B949E"
-                android:textSize="10sp" />
+            <ImageView
+                android:id="@+id/widget_large_prev"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:clickable="true"
+                android:contentDescription="@string/app_name"
+                android:focusable="true"
+                android:padding="5dp"
+                android:src="@drawable/ic_widget_skip_prev" />
+
+            <!-- Play / Pause Action Button -->
+            <FrameLayout
+                android:id="@+id/widget_large_play_pause"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_marginStart="18dp"
+                android:layout_marginEnd="18dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:id="@+id/widget_large_play_pause_bg"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@string/app_name"
+                    android:src="@drawable/widget_button_circle" />
+
+                <ImageView
+                    android:id="@+id/widget_large_play_pause_icon"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@string/app_name"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_widget_play_dark" />
+            </FrameLayout>
+
+            <ImageView
+                android:id="@+id/widget_large_next"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:clickable="true"
+                android:contentDescription="@string/app_name"
+                android:focusable="true"
+                android:padding="5dp"
+                android:src="@drawable/ic_widget_skip_next" />
+
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <ImageView
+                android:id="@+id/widget_large_app_icon"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:clickable="true"
+                android:contentDescription="@string/app_name"
+                android:focusable="true"
+                android:padding="5dp"
+                android:src="@mipmap/ic_launcher" />
         </LinearLayout>
-    </LinearLayout>
 
-    <!-- Playback Controls -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
-
-        <ImageView
-            android:id="@+id/widget_large_favorite"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:clickable="true"
-            android:contentDescription="@string/app_name"
-            android:focusable="true"
-            android:padding="5dp"
-            android:src="@drawable/ic_widget_favorite_inactive" />
-
+        <!-- Divider Line -->
         <FrameLayout
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:layout_weight="1" />
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:background="#202636" />
 
-        <ImageView
-            android:id="@+id/widget_large_prev"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:clickable="true"
-            android:contentDescription="@string/app_name"
-            android:focusable="true"
-            android:padding="5dp"
-            android:src="@drawable/ic_widget_skip_prev" />
+        <!-- Bottom Rich Info Hub (Fills the large canvas) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
 
-        <ImageView
-            android:id="@+id/widget_large_play_pause"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:layout_marginStart="20dp"
-            android:layout_marginEnd="20dp"
-            android:background="@drawable/widget_button_circle"
-            android:clickable="true"
-            android:contentDescription="@string/app_name"
-            android:focusable="true"
-            android:padding="10dp"
-            android:src="@drawable/ic_widget_play_dark" />
+            <!-- Card 1: Dynamic Lyrics Card -->
+            <LinearLayout
+                android:id="@+id/widget_large_lyric_card"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:background="@drawable/widget_card_rounded"
+                android:gravity="center_vertical"
+                android:orientation="vertical"
+                android:paddingStart="10dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="6dp">
 
-        <ImageView
-            android:id="@+id/widget_large_next"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:clickable="true"
-            android:contentDescription="@string/app_name"
-            android:focusable="true"
-            android:padding="5dp"
-            android:src="@drawable/ic_widget_skip_next" />
+                <TextView
+                    android:id="@+id/widget_large_lyric_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="♪ ACTIVE LYRICS"
+                    android:textColor="#58A6FF"
+                    android:textSize="9sp"
+                    android:textStyle="bold" />
 
-        <FrameLayout
-            android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="1" />
+                <TextView
+                    android:id="@+id/widget_large_current_lyric"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:text="亲爱的 爱上你 从那天起 甜蜜的很轻易"
+                    android:textColor="#E6EDF3"
+                    android:textSize="12sp" />
+            </LinearLayout>
 
-        <ImageView
-            android:id="@+id/widget_large_app_icon"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:contentDescription="@string/app_name"
-            android:padding="6dp"
-            android:src="@mipmap/ic_launcher" />
+            <!-- Card 2: Queue / Up Next Card -->
+            <LinearLayout
+                android:id="@+id/widget_large_queue_card"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginTop="6dp"
+                android:layout_weight="1"
+                android:background="@drawable/widget_card_rounded"
+                android:gravity="center_vertical"
+                android:orientation="vertical"
+                android:paddingStart="10dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="6dp">
+
+                <TextView
+                    android:id="@+id/widget_large_queue_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="UP NEXT IN QUEUE"
+                    android:textColor="#8B949E"
+                    android:textSize="9sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/widget_large_queue_next1"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="Next: 晴天 · 周杰伦"
+                    android:textColor="#D0D7DE"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:id="@+id/widget_large_queue_next2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="1dp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="Then: 七里香 · 周杰伦"
+                    android:textColor="#6E7681"
+                    android:textSize="10sp" />
+            </LinearLayout>
+        </LinearLayout>
+
     </LinearLayout>
 
-    <!-- Divider Line (Whitelisted RemoteView FrameLayout) -->
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginTop="10dp"
-        android:layout_marginBottom="10dp"
-        android:background="#202636" />
-
-    <!-- Lyric Snippet Banner -->
-    <LinearLayout
-        android:id="@+id/widget_large_lyric_container"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="♪ "
-            android:textColor="#58A6FF"
-            android:textSize="12sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/widget_large_current_lyric"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:text="亲爱的 爱上你 从那天起 甜蜜的很轻易"
-            android:textColor="#E6EDF3"
-            android:textSize="12sp" />
-    </LinearLayout>
-
-    <!-- Queue Next Up Preview -->
-    <LinearLayout
-        android:id="@+id/widget_large_queue_container"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:orientation="vertical">
-
-        <TextView
-            android:id="@+id/widget_large_queue_next1"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:text="Next: 晴天 · 周杰伦"
-            android:textColor="#6E7681"
-            android:textSize="11sp" />
-
-        <TextView
-            android:id="@+id/widget_large_queue_next2"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:text="Then: 七里香 · 周杰伦"
-            android:textColor="#484F58"
-            android:textSize="10sp" />
-    </LinearLayout>
-
-</LinearLayout>
+</FrameLayout>

@@ -2854,6 +2854,180 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'GitHub'**
   String get aboutRepositoryAction;
+
+  /// No description provided for @desktopWidgetSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Desktop Widgets'**
+  String get desktopWidgetSettingsTitle;
+
+  /// No description provided for @desktopWidgetSettingsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Customize 2x2, 4x2, and 4x4 widget styles, layout, and colors'**
+  String get desktopWidgetSettingsSubtitle;
+
+  /// No description provided for @widgetCoverPositionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Artwork Position'**
+  String get widgetCoverPositionTitle;
+
+  /// No description provided for @widgetCoverPositionSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Alignment of the album artwork inside the widget'**
+  String get widgetCoverPositionSubtitle;
+
+  /// No description provided for @widgetCoverPositionLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Left'**
+  String get widgetCoverPositionLeft;
+
+  /// No description provided for @widgetCoverPositionRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Right'**
+  String get widgetCoverPositionRight;
+
+  /// No description provided for @widgetCoverFillTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Full Artwork Fill'**
+  String get widgetCoverFillTitle;
+
+  /// No description provided for @widgetCoverFillSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill the entire widget background with album artwork and dark scrim'**
+  String get widgetCoverFillSubtitle;
+
+  /// No description provided for @widgetBackgroundColorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Widget Background Color'**
+  String get widgetBackgroundColorTitle;
+
+  /// No description provided for @widgetBackgroundColorSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select or customize the base background color'**
+  String get widgetBackgroundColorSubtitle;
+
+  /// No description provided for @widgetThemeColorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Widget Accent Color'**
+  String get widgetThemeColorTitle;
+
+  /// No description provided for @widgetThemeColorSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Highlight color for play controls, badges, and timeline'**
+  String get widgetThemeColorSubtitle;
+
+  /// No description provided for @widgetPreviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Live Preview'**
+  String get widgetPreviewTitle;
+
+  /// No description provided for @widgetPreviewSmall.
+  ///
+  /// In en, this message translates to:
+  /// **'2x2 Mini'**
+  String get widgetPreviewSmall;
+
+  /// No description provided for @widgetPreviewMedium.
+  ///
+  /// In en, this message translates to:
+  /// **'4x2 Medium'**
+  String get widgetPreviewMedium;
+
+  /// No description provided for @widgetPreviewLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'4x4 Music Hub'**
+  String get widgetPreviewLarge;
+
+  /// No description provided for @widgetPresetDeepNavy.
+  ///
+  /// In en, this message translates to:
+  /// **'Deep Navy'**
+  String get widgetPresetDeepNavy;
+
+  /// No description provided for @widgetPresetObsidian.
+  ///
+  /// In en, this message translates to:
+  /// **'Obsidian Black'**
+  String get widgetPresetObsidian;
+
+  /// No description provided for @widgetPresetCharcoal.
+  ///
+  /// In en, this message translates to:
+  /// **'Charcoal'**
+  String get widgetPresetCharcoal;
+
+  /// No description provided for @widgetPresetNebula.
+  ///
+  /// In en, this message translates to:
+  /// **'Nebula Purple'**
+  String get widgetPresetNebula;
+
+  /// No description provided for @widgetPresetMidnight.
+  ///
+  /// In en, this message translates to:
+  /// **'Midnight Blue'**
+  String get widgetPresetMidnight;
+
+  /// No description provided for @widgetPresetGraphite.
+  ///
+  /// In en, this message translates to:
+  /// **'Graphite Gray'**
+  String get widgetPresetGraphite;
+
+  /// No description provided for @widgetPresetIceBlue.
+  ///
+  /// In en, this message translates to:
+  /// **'Ice Blue'**
+  String get widgetPresetIceBlue;
+
+  /// No description provided for @widgetPresetPureWhite.
+  ///
+  /// In en, this message translates to:
+  /// **'Pure White'**
+  String get widgetPresetPureWhite;
+
+  /// No description provided for @widgetPresetGold.
+  ///
+  /// In en, this message translates to:
+  /// **'Radiant Gold'**
+  String get widgetPresetGold;
+
+  /// No description provided for @widgetPresetMint.
+  ///
+  /// In en, this message translates to:
+  /// **'Mint Green'**
+  String get widgetPresetMint;
+
+  /// No description provided for @widgetPresetRose.
+  ///
+  /// In en, this message translates to:
+  /// **'Coral Rose'**
+  String get widgetPresetRose;
+
+  /// No description provided for @widgetPresetLavender.
+  ///
+  /// In en, this message translates to:
+  /// **'Lavender'**
+  String get widgetPresetLavender;
+
+  /// No description provided for @widgetPresetSunset.
+  ///
+  /// In en, this message translates to:
+  /// **'Sunset Orange'**
+  String get widgetPresetSunset;
 }
 
 class _AppLocalizationsDelegate

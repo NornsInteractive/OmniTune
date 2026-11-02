@@ -35,6 +35,10 @@ class LibraryPreferences {
     this.groupMetadataAlbumsByArtist = false,
     this.enableDeezerCoverScraping = false,
     this.enableItunesMetadataScraping = false,
+    this.widgetCoverPosition = 'left',
+    this.widgetCoverFill = false,
+    this.widgetThemeColor = '#58A6FF',
+    this.widgetBackgroundColor = '#141822',
   });
 
   final Set<String> favoriteTrackIds;
@@ -59,6 +63,10 @@ class LibraryPreferences {
   final bool groupMetadataAlbumsByArtist;
   final bool enableDeezerCoverScraping;
   final bool enableItunesMetadataScraping;
+  final String widgetCoverPosition;
+  final bool widgetCoverFill;
+  final String widgetThemeColor;
+  final String widgetBackgroundColor;
 
   PlaybackCacheSettings get playbackCacheSettings {
     return PlaybackCacheSettings(
@@ -92,6 +100,10 @@ class LibraryPreferences {
     bool? groupMetadataAlbumsByArtist,
     bool? enableDeezerCoverScraping,
     bool? enableItunesMetadataScraping,
+    String? widgetCoverPosition,
+    bool? widgetCoverFill,
+    String? widgetThemeColor,
+    String? widgetBackgroundColor,
   }) {
     return LibraryPreferences(
       favoriteTrackIds: favoriteTrackIds ?? this.favoriteTrackIds,
@@ -136,6 +148,11 @@ class LibraryPreferences {
           enableDeezerCoverScraping ?? this.enableDeezerCoverScraping,
       enableItunesMetadataScraping:
           enableItunesMetadataScraping ?? this.enableItunesMetadataScraping,
+      widgetCoverPosition: widgetCoverPosition ?? this.widgetCoverPosition,
+      widgetCoverFill: widgetCoverFill ?? this.widgetCoverFill,
+      widgetThemeColor: widgetThemeColor ?? this.widgetThemeColor,
+      widgetBackgroundColor:
+          widgetBackgroundColor ?? this.widgetBackgroundColor,
     );
   }
 }
@@ -235,6 +252,13 @@ class SecureLibraryPreferencesRepository
           json['enableDeezerCoverScraping'] as bool? ?? false,
       enableItunesMetadataScraping:
           json['enableItunesMetadataScraping'] as bool? ?? false,
+      widgetCoverPosition:
+          (json['widgetCoverPosition'] as String?) ?? 'left',
+      widgetCoverFill: json['widgetCoverFill'] as bool? ?? false,
+      widgetThemeColor:
+          (json['widgetThemeColor'] as String?) ?? '#58A6FF',
+      widgetBackgroundColor:
+          (json['widgetBackgroundColor'] as String?) ?? '#141822',
     );
   }
 
@@ -304,6 +328,10 @@ class SecureLibraryPreferencesRepository
       'groupMetadataAlbumsByArtist': preferences.groupMetadataAlbumsByArtist,
       'enableDeezerCoverScraping': preferences.enableDeezerCoverScraping,
       'enableItunesMetadataScraping': preferences.enableItunesMetadataScraping,
+      'widgetCoverPosition': preferences.widgetCoverPosition,
+      'widgetCoverFill': preferences.widgetCoverFill,
+      'widgetThemeColor': preferences.widgetThemeColor,
+      'widgetBackgroundColor': preferences.widgetBackgroundColor,
     });
     return _storage.write(key: _key, value: raw);
   }

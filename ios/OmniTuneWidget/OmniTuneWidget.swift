@@ -15,6 +15,10 @@ struct OmniTuneEntry: TimelineEntry {
     let nextTrack2: String
     let positionMs: Int
     let durationMs: Int
+    let coverPosition: String
+    let coverFill: Bool
+    let themeColorHex: String
+    let backgroundColorHex: String
 }
 
 struct OmniTuneProvider: TimelineProvider {
@@ -34,7 +38,11 @@ struct OmniTuneProvider: TimelineProvider {
             nextTrack1: "晴天 · 周杰伦",
             nextTrack2: "七里香 · 周杰伦",
             positionMs: 78000,
-            durationMs: 215000
+            durationMs: 215000,
+            coverPosition: "left",
+            coverFill: false,
+            themeColorHex: "#58A6FF",
+            backgroundColorHex: "#141822"
         )
     }
 
@@ -63,6 +71,10 @@ struct OmniTuneProvider: TimelineProvider {
         let nextTrack2 = defaults?.string(forKey: "widget_queue_next2") ?? ""
         let positionMs = defaults?.integer(forKey: "widget_position_ms") ?? 0
         let durationMs = defaults?.integer(forKey: "widget_duration_ms") ?? 0
+        let coverPos = defaults?.string(forKey: "widget_cover_pos") ?? "left"
+        let coverFill = defaults?.bool(forKey: "widget_cover_fill") ?? false
+        let themeColor = defaults?.string(forKey: "widget_theme_color") ?? "#58A6FF"
+        let bgColor = defaults?.string(forKey: "widget_bg_color") ?? "#141822"
 
         return OmniTuneEntry(
             date: Date(),
@@ -77,7 +89,11 @@ struct OmniTuneProvider: TimelineProvider {
             nextTrack1: nextTrack1,
             nextTrack2: nextTrack2,
             positionMs: positionMs,
-            durationMs: durationMs
+            durationMs: durationMs,
+            coverPosition: coverPos,
+            coverFill: coverFill,
+            themeColorHex: themeColor,
+            backgroundColorHex: bgColor
         )
     }
 }

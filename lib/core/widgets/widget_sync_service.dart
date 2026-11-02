@@ -141,4 +141,46 @@ class WidgetSyncService {
       debugPrint('[WidgetSyncService] Error syncing widget state: $e');
     }
   }
+
+  /// Syncs appearance and style preferences for widgets (position, fill, colors).
+  Future<void> syncWidgetPreferences({
+    required String coverPosition,
+    required bool coverFill,
+    required String themeColor,
+    required String backgroundColor,
+  }) async {
+    if (!isSupported) return;
+    if (!_initialized) await initialize();
+
+    try {
+      await HomeWidget.saveWidgetData<String>('widget_cover_pos', coverPosition);
+      await HomeWidget.saveWidgetData<bool>('widget_cover_fill', coverFill);
+      await HomeWidget.saveWidgetData<String>('widget_theme_color', themeColor);
+      await HomeWidget.saveWidgetData<String>('widget_bg_color', backgroundColor);
+
+      try {
+        await HomeWidget.updateWidget(
+          name: widgetSmallAndroid,
+          androidName: widgetSmallAndroid,
+          iOSName: widgetSmallIOS,
+        );
+      } catch (_) {}
+      try {
+        await HomeWidget.updateWidget(
+          name: widgetMediumAndroid,
+          androidName: widgetMediumAndroid,
+          iOSName: widgetMediumIOS,
+        );
+      } catch (_) {}
+      try {
+        await HomeWidget.updateWidget(
+          name: widgetLargeAndroid,
+          androidName: widgetLargeAndroid,
+          iOSName: widgetLargeIOS,
+        );
+      } catch (_) {}
+    } catch (e) {
+      debugPrint('[WidgetSyncService] Error syncing widget preferences: $e');
+    }
+  }
 }
