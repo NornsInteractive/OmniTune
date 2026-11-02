@@ -22,6 +22,7 @@ part 'app_router.g.dart';
 GoRouter appRouter(Ref ref) {
   return GoRouter(
     initialLocation: kIsWeb ? '/' : '/albums',
+    errorBuilder: (context, state) => const AlbumsPage(),
     routes: [
       GoRoute(
         path: '/',

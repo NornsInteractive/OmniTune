@@ -77,14 +77,13 @@
         <!-- Progress Bar -->
         <ProgressBar
             android:id="@+id/widget_medium_progress"
-            style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="match_parent"
             android:layout_height="4dp"
             android:layout_marginTop="6dp"
+            android:indeterminate="false"
             android:max="1000"
             android:progress="350"
-            android:progressBackgroundTint="#262E3E"
-            android:progressTint="#FFFFFF" />
+            android:progressDrawable="@drawable/widget_progress_bar" />
 
         <!-- Control Buttons -->
         <LinearLayout
@@ -99,7 +98,6 @@
                 android:id="@+id/widget_medium_prev"
                 android:layout_width="28dp"
                 android:layout_height="28dp"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:clickable="true"
                 android:contentDescription="@string/app_name"
                 android:focusable="true"
@@ -115,11 +113,9 @@
                 android:background="@drawable/widget_button_circle"
                 android:clickable="true"
                 android:contentDescription="@string/app_name"
-                android:elevation="2dp"
                 android:focusable="true"
                 android:padding="7dp"
-                android:src="@drawable/ic_widget_play"
-                android:tint="#141822" />
+                android:src="@drawable/ic_widget_play_dark" />
 
             <!-- Skip Next -->
             <ImageView
@@ -127,14 +123,14 @@
                 android:layout_width="28dp"
                 android:layout_height="28dp"
                 android:layout_marginStart="14dp"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:clickable="true"
                 android:contentDescription="@string/app_name"
                 android:focusable="true"
                 android:padding="3dp"
                 android:src="@drawable/ic_widget_skip_next" />
 
-            <View
+            <!-- Spacer (Whitelisted RemoteView FrameLayout) -->
+            <FrameLayout
                 android:layout_width="0dp"
                 android:layout_height="1dp"
                 android:layout_weight="1" />
@@ -144,13 +140,11 @@
                 android:id="@+id/widget_medium_favorite"
                 android:layout_width="26dp"
                 android:layout_height="26dp"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:clickable="true"
                 android:contentDescription="@string/app_name"
                 android:focusable="true"
                 android:padding="3dp"
-                android:src="@drawable/ic_favorite_border"
-                android:tint="#8B949E" />
+                android:src="@drawable/ic_widget_favorite_inactive" />
         </LinearLayout>
     </LinearLayout>
 

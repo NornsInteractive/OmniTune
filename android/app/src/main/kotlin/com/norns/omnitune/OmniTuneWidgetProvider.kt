@@ -15,8 +15,8 @@ import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.Rect
 import android.graphics.RectF
-import android.net.Uri
 import android.os.Build
+import android.util.Log
 import android.view.KeyEvent
 import android.view.View
 import android.widget.RemoteViews
@@ -30,14 +30,22 @@ abstract class BaseOmniTuneWidgetProvider : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray
     ) {
-        val prefs = try {
-            HomeWidgetPlugin.getData(context)
-        } catch (e: Throwable) {
-            context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
-        }
+        try {
+            val prefs = try {
+                HomeWidgetPlugin.getData(context)
+            } catch (e: Throwable) {
+                context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
+            }
 
-        for (widgetId in appWidgetIds) {
-            updateAppWidget(context, appWidgetManager, widgetId, prefs)
+            for (widgetId in appWidgetIds) {
+                try {
+                    updateAppWidget(context, appWidgetManager, widgetId, prefs)
+                } catch (e: Throwable) {
+                    Log.e("OmniTuneWidget", "Error updating widget $widgetId", e)
+                }
+            }
+        } catch (e: Throwable) {
+            Log.e("OmniTuneWidget", "Error in onUpdate", e)
         }
     }
 
@@ -48,18 +56,33 @@ abstract class BaseOmniTuneWidgetProvider : AppWidgetProvider() {
         prefs: SharedPreferences
     )
 
-    protected fun getLaunchPendingIntent(context: Context): PendingIntent {
-        val intent = Intent(context, MainActivity::class.java).apply {
-            action = Intent.ACTION_VIEW
-            data = Uri.parse("omnitune://player")
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+    protected fun getLongOrInt(prefs: SharedPreferences, key: String, default: Long = 0L): Long {
+        return try {
+            prefs.getLong(key, default)
+        } catch (e: ClassCastException) {
+            try {
+                prefs.getInt(key, default.toInt()).toLong()
+            } catch (e2: Throwable) {
+                default
+            }
+        } catch (e: Throwable) {
+            default
         }
+    }
+
+    protected fun getLaunchPendingIntent(context: Context): PendingIntent {
+        val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            ?: Intent(context, MainActivity::class.java).apply {
+                action = Intent.ACTION_MAIN
+                addCategory(Intent.CATEGORY_LAUNCHER)
+            }
+        launchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         } else {
             PendingIntent.FLAG_UPDATE_CURRENT
         }
-        return PendingIntent.getActivity(context, 0, intent, flags)
+        return PendingIntent.getActivity(context, 0, launchIntent, flags)
     }
 
     protected fun getMediaButtonPendingIntent(
@@ -79,7 +102,7 @@ abstract class BaseOmniTuneWidgetProvider : AppWidgetProvider() {
         return PendingIntent.getBroadcast(context, requestCode, intent, flags)
     }
 
-    protected fun loadArtworkBitmap(context: Context, filePath: String?, maxDim: Int = 384): Bitmap? {
+    protected fun loadArtworkBitmap(context: Context, filePath: String?, maxDim: Int = 256): Bitmap? {
         if (filePath.isNullOrBlank()) return null
         val file = File(filePath)
         if (!file.exists()) return null
@@ -158,7 +181,7 @@ class OmniTuneWidgetProviderSmall : BaseOmniTuneWidgetProvider() {
         views.setOnClickPendingIntent(R.id.widget_small_play_pause, playPausePending)
         views.setImageViewResource(
             R.id.widget_small_play_pause,
-            if (isPlaying) R.drawable.ic_widget_pause else R.drawable.ic_widget_play
+            if (isPlaying) R.drawable.ic_widget_pause_dark else R.drawable.ic_widget_play_dark
         )
 
         // Artwork
@@ -192,8 +215,8 @@ class OmniTuneWidgetProviderMedium : BaseOmniTuneWidgetProvider() {
         val isFavorite = prefs.getBoolean("widget_is_favorite", false)
         val formatBadge = prefs.getString("widget_format", "Hi-Res") ?: "Hi-Res"
         val artworkPath = prefs.getString("widget_artwork_path", null)
-        val positionMs = prefs.getLong("widget_position_ms", 0L)
-        val durationMs = prefs.getLong("widget_duration_ms", 0L)
+        val positionMs = getLongOrInt(prefs, "widget_position_ms", 0L)
+        val durationMs = getLongOrInt(prefs, "widget_duration_ms", 0L)
 
         views.setTextViewText(R.id.widget_medium_title, title)
         val subtitle = if (album.isNotEmpty()) "$artist · $album" else artist
@@ -223,11 +246,11 @@ class OmniTuneWidgetProviderMedium : BaseOmniTuneWidgetProvider() {
 
         views.setImageViewResource(
             R.id.widget_medium_play_pause,
-            if (isPlaying) R.drawable.ic_widget_pause else R.drawable.ic_widget_play
+            if (isPlaying) R.drawable.ic_widget_pause_dark else R.drawable.ic_widget_play_dark
         )
         views.setImageViewResource(
             R.id.widget_medium_favorite,
-            if (isFavorite) R.drawable.ic_favorite else R.drawable.ic_favorite_border
+            if (isFavorite) R.drawable.ic_widget_favorite_active else R.drawable.ic_widget_favorite_inactive
         )
 
         // Artwork
@@ -264,8 +287,8 @@ class OmniTuneWidgetProviderLarge : BaseOmniTuneWidgetProvider() {
         val lyric = prefs.getString("widget_current_lyric", "") ?: ""
         val nextTrack1 = prefs.getString("widget_queue_next1", "") ?: ""
         val nextTrack2 = prefs.getString("widget_queue_next2", "") ?: ""
-        val positionMs = prefs.getLong("widget_position_ms", 0L)
-        val durationMs = prefs.getLong("widget_duration_ms", 0L)
+        val positionMs = getLongOrInt(prefs, "widget_position_ms", 0L)
+        val durationMs = getLongOrInt(prefs, "widget_duration_ms", 0L)
 
         views.setTextViewText(R.id.widget_large_title, title)
         views.setTextViewText(R.id.widget_large_artist, artist)
@@ -318,15 +341,15 @@ class OmniTuneWidgetProviderLarge : BaseOmniTuneWidgetProvider() {
 
         views.setImageViewResource(
             R.id.widget_large_play_pause,
-            if (isPlaying) R.drawable.ic_widget_pause else R.drawable.ic_widget_play
+            if (isPlaying) R.drawable.ic_widget_pause_dark else R.drawable.ic_widget_play_dark
         )
         views.setImageViewResource(
             R.id.widget_large_favorite,
-            if (isFavorite) R.drawable.ic_favorite else R.drawable.ic_favorite_border
+            if (isFavorite) R.drawable.ic_widget_favorite_active else R.drawable.ic_widget_favorite_inactive
         )
 
         // Artwork
-        val bitmap = loadArtworkBitmap(context, artworkPath, 384)
+        val bitmap = loadArtworkBitmap(context, artworkPath, 256)
         if (bitmap != null) {
             views.setImageViewBitmap(R.id.widget_large_artwork, bitmap)
         } else {

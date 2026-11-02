@@ -30,11 +30,9 @@
         android:background="@drawable/widget_button_circle"
         android:clickable="true"
         android:contentDescription="@string/app_name"
-        android:elevation="4dp"
         android:focusable="true"
         android:padding="8dp"
-        android:src="@drawable/ic_widget_play"
-        android:tint="#141822" />
+        android:src="@drawable/ic_widget_play_dark" />
 
     <!-- Bottom Info -->
     <LinearLayout

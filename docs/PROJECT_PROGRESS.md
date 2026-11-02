@@ -1,5 +1,15 @@
 # OmniTune 项目进度与路线图
 
+## 2026-11-02 桌面微件 RemoteViews 兼容性与 1.0.332+333 紧急修复
+
+- 修复 Android 4×2 与 4×4 桌面微件在启动器创建时提示“无法创建微件”的问题：
+  - 移除非 RemoteViews 白名单的 `<View>` 标签，换用标准 `@RemoteView` 标记的 `FrameLayout` 容器；
+  - 移除启动器上下文无法解析的主题属性 `?android:attr/...` 与 `android:tint`，采用独立的矢量图元和图层列表进度条 `widget_progress_bar.xml`。
+- 修复 `SharedPreferences` 读取整型与长整型导致的 `ClassCastException` 主线程闪退问题，补充 `getLongOrInt` 安全兼容与全局异常沙箱。
+- 修复微件点击唤醒 Intent，改用标准应用主入口 Intent 并为 GoRouter 增加全局路由错误兜底。
+- 签名 APK/AAB 构建成功，产物 `app-release.apk` (70,791,600 字节, SHA-256 `628cd309a0affbfe94397cd617d9371994d4f150c817f48fd42935099033d9be`)。
+- GitHub Release `1.0.332` 发布并更新 Ygg 分发。
+
 ## 2026-11-02 Android / Apple 全尺寸小组件与 1.0.331+332 发布
 
 - 实现 Android 与 Apple iOS / iPadOS 全尺寸小组件支持：

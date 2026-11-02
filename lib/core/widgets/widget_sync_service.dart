@@ -110,21 +110,33 @@ class WidgetSyncService {
       );
 
       // Trigger update on all registered widget sizes
-      await HomeWidget.updateWidget(
-        name: widgetSmallAndroid,
-        androidName: widgetSmallAndroid,
-        iOSName: widgetSmallIOS,
-      );
-      await HomeWidget.updateWidget(
-        name: widgetMediumAndroid,
-        androidName: widgetMediumAndroid,
-        iOSName: widgetMediumIOS,
-      );
-      await HomeWidget.updateWidget(
-        name: widgetLargeAndroid,
-        androidName: widgetLargeAndroid,
-        iOSName: widgetLargeIOS,
-      );
+      try {
+        await HomeWidget.updateWidget(
+          name: widgetSmallAndroid,
+          androidName: widgetSmallAndroid,
+          iOSName: widgetSmallIOS,
+        );
+      } catch (e) {
+        debugPrint('[WidgetSyncService] updateWidget small error: $e');
+      }
+      try {
+        await HomeWidget.updateWidget(
+          name: widgetMediumAndroid,
+          androidName: widgetMediumAndroid,
+          iOSName: widgetMediumIOS,
+        );
+      } catch (e) {
+        debugPrint('[WidgetSyncService] updateWidget medium error: $e');
+      }
+      try {
+        await HomeWidget.updateWidget(
+          name: widgetLargeAndroid,
+          androidName: widgetLargeAndroid,
+          iOSName: widgetLargeIOS,
+        );
+      } catch (e) {
+        debugPrint('[WidgetSyncService] updateWidget large error: $e');
+      }
     } catch (e) {
       debugPrint('[WidgetSyncService] Error syncing widget state: $e');
     }
