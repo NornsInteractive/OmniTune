@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/app_preferences.dart';
 import '../../../core/models/custom_theme_colors.dart';
 import '../../../core/models/library_album.dart';
+import '../../../core/models/widget_style_config.dart';
 import '../../../core/storage/library_preferences_repository.dart';
 import '../../../core/utils/debug_logger.dart';
 import '../../../core/widgets/widget_sync_service.dart';
@@ -14,11 +15,10 @@ class AppSettingsController extends AsyncNotifier<LibraryPreferences> {
         .read(libraryPreferencesRepositoryProvider)
         .load();
     DebugLogger.setDebugEnabled(preferences.enableDebugMode);
-    WidgetSyncService.instance.syncWidgetPreferences(
-      coverPosition: preferences.widgetCoverPosition,
-      coverFill: preferences.widgetCoverFill,
-      themeColor: preferences.widgetThemeColor,
-      backgroundColor: preferences.widgetBackgroundColor,
+    WidgetSyncService.instance.syncWidgetStyleConfigs(
+      small: preferences.widgetSmallConfig,
+      medium: preferences.widgetMediumConfig,
+      large: preferences.widgetLargeConfig,
     );
     return preferences;
   }
@@ -138,6 +138,16 @@ class AppSettingsController extends AsyncNotifier<LibraryPreferences> {
     );
   }
 
+  Future<void> updateWidgetConfig(
+    int sizeIndex,
+    WidgetStyleConfig config,
+  ) async {
+    await _save(
+      (preferences) => preferences.copyWithWidgetConfig(sizeIndex, config),
+    );
+    _syncWidgets();
+  }
+
   Future<void> setWidgetCoverPosition(String value) async {
     await _save(
       (preferences) => preferences.copyWith(widgetCoverPosition: value),
@@ -169,11 +179,10 @@ class AppSettingsController extends AsyncNotifier<LibraryPreferences> {
   void _syncWidgets() {
     final prefs = state.valueOrNull;
     if (prefs == null) return;
-    WidgetSyncService.instance.syncWidgetPreferences(
-      coverPosition: prefs.widgetCoverPosition,
-      coverFill: prefs.widgetCoverFill,
-      themeColor: prefs.widgetThemeColor,
-      backgroundColor: prefs.widgetBackgroundColor,
+    WidgetSyncService.instance.syncWidgetStyleConfigs(
+      small: prefs.widgetSmallConfig,
+      medium: prefs.widgetMediumConfig,
+      large: prefs.widgetLargeConfig,
     );
   }
 

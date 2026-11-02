@@ -649,5 +649,19 @@
   "widgetPresetMint": "薄荷绿",
   "widgetPresetRose": "珊瑚粉",
   "widgetPresetLavender": "梦幻紫",
-  "widgetPresetSunset": "日落橙"
+  "widgetPresetSunset": "日落橙",
+  "aboutOfficialWebsiteLabel": "团队官网",
+  "aboutOfficialWebsiteAction": "访问",
+  "appUpdateLaterAction": "稍后提醒",
+  "widgetCoverOpacityTitle": "封面遮罩暗度",
+  "widgetCoverOpacitySubtitle": "调节全屏封面背景上的暗色遮罩透明度（0%~100%）",
+  "widgetShowLyricsTitle": "显示动态歌词",
+  "widgetShowLyricsSubtitle": "在小组件上展示当前歌曲的动态歌词",
+  "widgetIndependentConfigTip": "当前尺寸独立生效",
+  "widgetPresetDeepSpace": "深空纯黑",
+  "widgetPresetPineTeal": "北欧暗松青",
+  "widgetPresetWineRed": "波尔多酒红",
+  "widgetPresetTwilightViolet": "暮色紫罗兰",
+  "widgetPresetEspresso": "琥珀黑咖",
+  "widgetPresetSlateGray": "雅致石板灰"
 }

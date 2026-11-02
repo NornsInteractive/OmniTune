@@ -76,7 +76,7 @@ class _FakeAppUpdateController extends AppUpdateController {
   int cancelCalls = 0;
 
   @override
-  Future<void> check() async {
+  Future<void> check({bool isAutomatic = false}) async {
     checkCalls++;
   }
 

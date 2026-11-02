@@ -3028,6 +3028,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sunset Orange'**
   String get widgetPresetSunset;
+
+  /// No description provided for @aboutOfficialWebsiteLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Official Website'**
+  String get aboutOfficialWebsiteLabel;
+
+  /// No description provided for @aboutOfficialWebsiteAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Visit'**
+  String get aboutOfficialWebsiteAction;
+
+  /// No description provided for @appUpdateLaterAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Remind Later'**
+  String get appUpdateLaterAction;
+
+  /// No description provided for @widgetCoverOpacityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cover Scrim Darkness'**
+  String get widgetCoverOpacityTitle;
+
+  /// No description provided for @widgetCoverOpacitySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust the darkness overlay on the background cover (0% - 100%)'**
+  String get widgetCoverOpacitySubtitle;
+
+  /// No description provided for @widgetShowLyricsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Lyrics'**
+  String get widgetShowLyricsTitle;
+
+  /// No description provided for @widgetShowLyricsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Display active song lyrics on the widget'**
+  String get widgetShowLyricsSubtitle;
+
+  /// No description provided for @widgetIndependentConfigTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Customized independently per size'**
+  String get widgetIndependentConfigTip;
+
+  /// No description provided for @widgetPresetDeepSpace.
+  ///
+  /// In en, this message translates to:
+  /// **'Deep Space Black'**
+  String get widgetPresetDeepSpace;
+
+  /// No description provided for @widgetPresetPineTeal.
+  ///
+  /// In en, this message translates to:
+  /// **'Nordic Pine'**
+  String get widgetPresetPineTeal;
+
+  /// No description provided for @widgetPresetWineRed.
+  ///
+  /// In en, this message translates to:
+  /// **'Bordeaux Wine'**
+  String get widgetPresetWineRed;
+
+  /// No description provided for @widgetPresetTwilightViolet.
+  ///
+  /// In en, this message translates to:
+  /// **'Twilight Violet'**
+  String get widgetPresetTwilightViolet;
+
+  /// No description provided for @widgetPresetEspresso.
+  ///
+  /// In en, this message translates to:
+  /// **'Amber Espresso'**
+  String get widgetPresetEspresso;
+
+  /// No description provided for @widgetPresetSlateGray.
+  ///
+  /// In en, this message translates to:
+  /// **'Slate Gray'**
+  String get widgetPresetSlateGray;
 }
 
 class _AppLocalizationsDelegate

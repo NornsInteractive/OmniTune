@@ -8,6 +8,7 @@ import '../models/app_preferences.dart';
 import '../models/custom_theme_colors.dart';
 import '../models/library_album.dart';
 import '../models/playback_cache_settings.dart';
+import '../models/widget_style_config.dart';
 
 part 'library_preferences_repository.g.dart';
 
@@ -36,9 +37,13 @@ class LibraryPreferences {
     this.enableDeezerCoverScraping = false,
     this.enableItunesMetadataScraping = false,
     this.widgetCoverPosition = 'left',
-    this.widgetCoverFill = false,
+    this.widgetCoverFill = true,
     this.widgetThemeColor = '#58A6FF',
-    this.widgetBackgroundColor = '#141822',
+    this.widgetBackgroundColor = '#121620',
+    this.widgetSmallConfig = const WidgetStyleConfig(),
+    this.widgetMediumConfig = const WidgetStyleConfig(),
+    this.widgetLargeConfig = const WidgetStyleConfig(),
+    this.lastDailyUpdateCheckDate,
   });
 
   final Set<String> favoriteTrackIds;
@@ -67,6 +72,43 @@ class LibraryPreferences {
   final bool widgetCoverFill;
   final String widgetThemeColor;
   final String widgetBackgroundColor;
+  final WidgetStyleConfig widgetSmallConfig;
+  final WidgetStyleConfig widgetMediumConfig;
+  final WidgetStyleConfig widgetLargeConfig;
+  final String? lastDailyUpdateCheckDate;
+
+  WidgetStyleConfig getWidgetConfig(int sizeIndex) {
+    switch (sizeIndex) {
+      case 0:
+        return widgetSmallConfig;
+      case 1:
+        return widgetMediumConfig;
+      case 2:
+      default:
+        return widgetLargeConfig;
+    }
+  }
+
+  LibraryPreferences copyWithWidgetConfig(
+    int sizeIndex,
+    WidgetStyleConfig config,
+  ) {
+    switch (sizeIndex) {
+      case 0:
+        return copyWith(widgetSmallConfig: config);
+      case 1:
+        return copyWith(
+          widgetMediumConfig: config,
+          widgetCoverPosition: config.coverPosition,
+          widgetCoverFill: config.coverFill,
+          widgetThemeColor: config.themeColor,
+          widgetBackgroundColor: config.backgroundColor,
+        );
+      case 2:
+      default:
+        return copyWith(widgetLargeConfig: config);
+    }
+  }
 
   PlaybackCacheSettings get playbackCacheSettings {
     return PlaybackCacheSettings(
@@ -104,6 +146,10 @@ class LibraryPreferences {
     bool? widgetCoverFill,
     String? widgetThemeColor,
     String? widgetBackgroundColor,
+    WidgetStyleConfig? widgetSmallConfig,
+    WidgetStyleConfig? widgetMediumConfig,
+    WidgetStyleConfig? widgetLargeConfig,
+    String? lastDailyUpdateCheckDate,
   }) {
     return LibraryPreferences(
       favoriteTrackIds: favoriteTrackIds ?? this.favoriteTrackIds,
@@ -153,6 +199,11 @@ class LibraryPreferences {
       widgetThemeColor: widgetThemeColor ?? this.widgetThemeColor,
       widgetBackgroundColor:
           widgetBackgroundColor ?? this.widgetBackgroundColor,
+      widgetSmallConfig: widgetSmallConfig ?? this.widgetSmallConfig,
+      widgetMediumConfig: widgetMediumConfig ?? this.widgetMediumConfig,
+      widgetLargeConfig: widgetLargeConfig ?? this.widgetLargeConfig,
+      lastDailyUpdateCheckDate:
+          lastDailyUpdateCheckDate ?? this.lastDailyUpdateCheckDate,
     );
   }
 }
@@ -254,11 +305,45 @@ class SecureLibraryPreferencesRepository
           json['enableItunesMetadataScraping'] as bool? ?? false,
       widgetCoverPosition:
           (json['widgetCoverPosition'] as String?) ?? 'left',
-      widgetCoverFill: json['widgetCoverFill'] as bool? ?? false,
+      widgetCoverFill: json['widgetCoverFill'] as bool? ?? true,
       widgetThemeColor:
           (json['widgetThemeColor'] as String?) ?? '#58A6FF',
       widgetBackgroundColor:
-          (json['widgetBackgroundColor'] as String?) ?? '#141822',
+          (json['widgetBackgroundColor'] as String?) ?? '#121620',
+      widgetSmallConfig: json['widgetSmallConfig'] is Map<String, dynamic>
+          ? WidgetStyleConfig.fromJson(
+              json['widgetSmallConfig'] as Map<String, dynamic>,
+            )
+          : WidgetStyleConfig(
+              coverPosition: (json['widgetCoverPosition'] as String?) ?? 'left',
+              coverFill: json['widgetCoverFill'] as bool? ?? true,
+              themeColor: (json['widgetThemeColor'] as String?) ?? '#58A6FF',
+              backgroundColor:
+                  (json['widgetBackgroundColor'] as String?) ?? '#121620',
+            ),
+      widgetMediumConfig: json['widgetMediumConfig'] is Map<String, dynamic>
+          ? WidgetStyleConfig.fromJson(
+              json['widgetMediumConfig'] as Map<String, dynamic>,
+            )
+          : WidgetStyleConfig(
+              coverPosition: (json['widgetCoverPosition'] as String?) ?? 'left',
+              coverFill: json['widgetCoverFill'] as bool? ?? true,
+              themeColor: (json['widgetThemeColor'] as String?) ?? '#58A6FF',
+              backgroundColor:
+                  (json['widgetBackgroundColor'] as String?) ?? '#121620',
+            ),
+      widgetLargeConfig: json['widgetLargeConfig'] is Map<String, dynamic>
+          ? WidgetStyleConfig.fromJson(
+              json['widgetLargeConfig'] as Map<String, dynamic>,
+            )
+          : WidgetStyleConfig(
+              coverPosition: (json['widgetCoverPosition'] as String?) ?? 'left',
+              coverFill: json['widgetCoverFill'] as bool? ?? true,
+              themeColor: (json['widgetThemeColor'] as String?) ?? '#58A6FF',
+              backgroundColor:
+                  (json['widgetBackgroundColor'] as String?) ?? '#121620',
+            ),
+      lastDailyUpdateCheckDate: json['lastDailyUpdateCheckDate'] as String?,
     );
   }
 
@@ -332,6 +417,10 @@ class SecureLibraryPreferencesRepository
       'widgetCoverFill': preferences.widgetCoverFill,
       'widgetThemeColor': preferences.widgetThemeColor,
       'widgetBackgroundColor': preferences.widgetBackgroundColor,
+      'widgetSmallConfig': preferences.widgetSmallConfig.toJson(),
+      'widgetMediumConfig': preferences.widgetMediumConfig.toJson(),
+      'widgetLargeConfig': preferences.widgetLargeConfig.toJson(),
+      'lastDailyUpdateCheckDate': preferences.lastDailyUpdateCheckDate,
     });
     return _storage.write(key: _key, value: raw);
   }

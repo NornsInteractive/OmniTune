@@ -1571,4 +1571,46 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get widgetPresetSunset => '日落橙';
+
+  @override
+  String get aboutOfficialWebsiteLabel => '团队官网';
+
+  @override
+  String get aboutOfficialWebsiteAction => '访问';
+
+  @override
+  String get appUpdateLaterAction => '稍后提醒';
+
+  @override
+  String get widgetCoverOpacityTitle => '封面遮罩暗度';
+
+  @override
+  String get widgetCoverOpacitySubtitle => '调节全屏封面背景上的暗色遮罩透明度（0%~100%）';
+
+  @override
+  String get widgetShowLyricsTitle => '显示动态歌词';
+
+  @override
+  String get widgetShowLyricsSubtitle => '在小组件上展示当前歌曲的动态歌词';
+
+  @override
+  String get widgetIndependentConfigTip => '当前尺寸独立生效';
+
+  @override
+  String get widgetPresetDeepSpace => '深空纯黑';
+
+  @override
+  String get widgetPresetPineTeal => '北欧暗松青';
+
+  @override
+  String get widgetPresetWineRed => '波尔多酒红';
+
+  @override
+  String get widgetPresetTwilightViolet => '暮色紫罗兰';
+
+  @override
+  String get widgetPresetEspresso => '琥珀黑咖';
+
+  @override
+  String get widgetPresetSlateGray => '雅致石板灰';
 }

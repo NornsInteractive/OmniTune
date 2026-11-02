@@ -17,6 +17,8 @@ import '../core/widgets/top_snackbar.dart';
 import '../features/player/application/player_controller.dart';
 import '../features/player/presentation/widgets/mini_player.dart';
 import '../features/settings/application/app_settings_controller.dart';
+import '../features/updates/application/app_update_controller.dart';
+import '../features/updates/presentation/auto_update_dialog.dart';
 
 class MusicAppShell extends ConsumerStatefulWidget {
   const MusicAppShell({super.key, required this.navigationShell});
@@ -44,6 +46,29 @@ class _MusicAppShellState extends ConsumerState<MusicAppShell> {
         router.push('/player');
       }
     });
+    _triggerDailyUpdateCheck();
+  }
+
+  void _triggerDailyUpdateCheck() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      try {
+        final prefsRepo = ref.read(libraryPreferencesRepositoryProvider);
+        final prefs = await prefsRepo.load();
+        final now = DateTime.now();
+        final todayStr =
+            '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+        if (prefs.lastDailyUpdateCheckDate != todayStr) {
+          await prefsRepo.update(
+            (p) => p.copyWith(lastDailyUpdateCheckDate: todayStr),
+          );
+          if (!mounted) return;
+          ref.read(appUpdateControllerProvider.notifier).check(isAutomatic: true);
+        }
+      } catch (e) {
+        debugPrint('[MusicAppShell] Daily update check failed: $e');
+      }
+    });
   }
 
   @override
@@ -54,6 +79,14 @@ class _MusicAppShellState extends ConsumerState<MusicAppShell> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AppUpdateState>(appUpdateControllerProvider, (previous, next) {
+      if (next.phase == AppUpdatePhase.available &&
+          next.isAutomaticCheck &&
+          (previous == null || previous.phase != AppUpdatePhase.available)) {
+        AutoUpdateDialog.show(context);
+      }
+    });
+
     final navigationShell = widget.navigationShell;
     final preferences =
         ref.watch(appSettingsControllerProvider).valueOrNull ??

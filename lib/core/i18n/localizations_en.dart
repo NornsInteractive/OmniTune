@@ -1647,4 +1647,48 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get widgetPresetSunset => 'Sunset Orange';
+
+  @override
+  String get aboutOfficialWebsiteLabel => 'Official Website';
+
+  @override
+  String get aboutOfficialWebsiteAction => 'Visit';
+
+  @override
+  String get appUpdateLaterAction => 'Remind Later';
+
+  @override
+  String get widgetCoverOpacityTitle => 'Cover Scrim Darkness';
+
+  @override
+  String get widgetCoverOpacitySubtitle =>
+      'Adjust the darkness overlay on the background cover (0% - 100%)';
+
+  @override
+  String get widgetShowLyricsTitle => 'Show Lyrics';
+
+  @override
+  String get widgetShowLyricsSubtitle =>
+      'Display active song lyrics on the widget';
+
+  @override
+  String get widgetIndependentConfigTip => 'Customized independently per size';
+
+  @override
+  String get widgetPresetDeepSpace => 'Deep Space Black';
+
+  @override
+  String get widgetPresetPineTeal => 'Nordic Pine';
+
+  @override
+  String get widgetPresetWineRed => 'Bordeaux Wine';
+
+  @override
+  String get widgetPresetTwilightViolet => 'Twilight Violet';
+
+  @override
+  String get widgetPresetEspresso => 'Amber Espresso';
+
+  @override
+  String get widgetPresetSlateGray => 'Slate Gray';
 }

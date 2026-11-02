@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
 
+import '../models/widget_style_config.dart';
+
 /// Service responsible for syncing player metadata and playback state
 /// to Android AppWidgets and iOS WidgetKit.
 class WidgetSyncService {
@@ -142,21 +144,47 @@ class WidgetSyncService {
     }
   }
 
-  /// Syncs appearance and style preferences for widgets (position, fill, colors).
-  Future<void> syncWidgetPreferences({
-    required String coverPosition,
-    required bool coverFill,
-    required String themeColor,
-    required String backgroundColor,
+  /// Syncs appearance and style preferences for all widget sizes.
+  Future<void> syncWidgetStyleConfigs({
+    required WidgetStyleConfig small,
+    required WidgetStyleConfig medium,
+    required WidgetStyleConfig large,
   }) async {
     if (!isSupported) return;
     if (!_initialized) await initialize();
 
     try {
-      await HomeWidget.saveWidgetData<String>('widget_cover_pos', coverPosition);
-      await HomeWidget.saveWidgetData<bool>('widget_cover_fill', coverFill);
-      await HomeWidget.saveWidgetData<String>('widget_theme_color', themeColor);
-      await HomeWidget.saveWidgetData<String>('widget_bg_color', backgroundColor);
+      // Small 2x2
+      await HomeWidget.saveWidgetData<String>('widget_small_cover_pos', small.coverPosition);
+      await HomeWidget.saveWidgetData<bool>('widget_small_cover_fill', small.coverFill);
+      await HomeWidget.saveWidgetData<double>('widget_small_cover_opacity', small.coverOpacity);
+      await HomeWidget.saveWidgetData<String>('widget_small_theme_color', small.themeColor);
+      await HomeWidget.saveWidgetData<String>('widget_small_bg_color', small.backgroundColor);
+      await HomeWidget.saveWidgetData<bool>('widget_small_show_lyrics', small.showLyrics);
+
+      // Medium 4x2
+      await HomeWidget.saveWidgetData<String>('widget_medium_cover_pos', medium.coverPosition);
+      await HomeWidget.saveWidgetData<bool>('widget_medium_cover_fill', medium.coverFill);
+      await HomeWidget.saveWidgetData<double>('widget_medium_cover_opacity', medium.coverOpacity);
+      await HomeWidget.saveWidgetData<String>('widget_medium_theme_color', medium.themeColor);
+      await HomeWidget.saveWidgetData<String>('widget_medium_bg_color', medium.backgroundColor);
+      await HomeWidget.saveWidgetData<bool>('widget_medium_show_lyrics', medium.showLyrics);
+
+      // Large 4x4
+      await HomeWidget.saveWidgetData<String>('widget_large_cover_pos', large.coverPosition);
+      await HomeWidget.saveWidgetData<bool>('widget_large_cover_fill', large.coverFill);
+      await HomeWidget.saveWidgetData<double>('widget_large_cover_opacity', large.coverOpacity);
+      await HomeWidget.saveWidgetData<String>('widget_large_theme_color', large.themeColor);
+      await HomeWidget.saveWidgetData<String>('widget_large_bg_color', large.backgroundColor);
+      await HomeWidget.saveWidgetData<bool>('widget_large_show_lyrics', large.showLyrics);
+
+      // Fallback global keys
+      await HomeWidget.saveWidgetData<String>('widget_cover_pos', medium.coverPosition);
+      await HomeWidget.saveWidgetData<bool>('widget_cover_fill', medium.coverFill);
+      await HomeWidget.saveWidgetData<double>('widget_cover_opacity', medium.coverOpacity);
+      await HomeWidget.saveWidgetData<String>('widget_theme_color', medium.themeColor);
+      await HomeWidget.saveWidgetData<String>('widget_bg_color', medium.backgroundColor);
+      await HomeWidget.saveWidgetData<bool>('widget_show_lyrics', medium.showLyrics);
 
       try {
         await HomeWidget.updateWidget(
@@ -180,7 +208,28 @@ class WidgetSyncService {
         );
       } catch (_) {}
     } catch (e) {
-      debugPrint('[WidgetSyncService] Error syncing widget preferences: $e');
+      debugPrint('[WidgetSyncService] Error syncing widget style configs: $e');
     }
   }
+
+  /// Legacy helper for syncing widget preferences.
+  Future<void> syncWidgetPreferences({
+    required String coverPosition,
+    required bool coverFill,
+    required String themeColor,
+    required String backgroundColor,
+  }) async {
+    final config = WidgetStyleConfig(
+      coverPosition: coverPosition,
+      coverFill: coverFill,
+      themeColor: themeColor,
+      backgroundColor: backgroundColor,
+    );
+    await syncWidgetStyleConfigs(
+      small: config,
+      medium: config,
+      large: config,
+    );
+  }
 }
+

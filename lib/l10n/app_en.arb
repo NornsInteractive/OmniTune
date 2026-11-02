@@ -666,5 +666,19 @@
   "widgetPresetMint": "Mint Green",
   "widgetPresetRose": "Coral Rose",
   "widgetPresetLavender": "Lavender",
-  "widgetPresetSunset": "Sunset Orange"
+  "widgetPresetSunset": "Sunset Orange",
+  "aboutOfficialWebsiteLabel": "Official Website",
+  "aboutOfficialWebsiteAction": "Visit",
+  "appUpdateLaterAction": "Remind Later",
+  "widgetCoverOpacityTitle": "Cover Scrim Darkness",
+  "widgetCoverOpacitySubtitle": "Adjust the darkness overlay on the background cover (0% - 100%)",
+  "widgetShowLyricsTitle": "Show Lyrics",
+  "widgetShowLyricsSubtitle": "Display active song lyrics on the widget",
+  "widgetIndependentConfigTip": "Customized independently per size",
+  "widgetPresetDeepSpace": "Deep Space Black",
+  "widgetPresetPineTeal": "Nordic Pine",
+  "widgetPresetWineRed": "Bordeaux Wine",
+  "widgetPresetTwilightViolet": "Twilight Violet",
+  "widgetPresetEspresso": "Amber Espresso",
+  "widgetPresetSlateGray": "Slate Gray"
 }

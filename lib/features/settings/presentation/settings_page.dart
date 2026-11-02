@@ -11,6 +11,7 @@ import '../../../core/models/custom_theme_colors.dart';
 import '../../../core/models/playback_cache_settings.dart';
 import '../../../core/models/source_profile.dart';
 import '../../../core/models/source_protocol.dart';
+import '../../../core/models/widget_style_config.dart';
 import '../../../core/storage/library_preferences_repository.dart';
 import '../../../core/widgets/glacier_dialog.dart';
 import '../../../core/widgets/studio_chrome.dart';
@@ -22,6 +23,7 @@ import '../../sources/application/sources_controller.dart';
 import '../../sources/data/webdav/webdav_playback_cache_base.dart';
 import '../../sources/data/webdav/webdav_playback_cache_provider.dart';
 import '../application/app_settings_controller.dart';
+import '../../updates/application/app_update_controller.dart';
 import '../../updates/presentation/app_update_panel.dart';
 import 'add_source_page.dart';
 
@@ -81,6 +83,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final appSettingsController = ref.read(
       appSettingsControllerProvider.notifier,
     );
+    final updateState = ref.watch(appUpdateControllerProvider);
+    final hasUpdateBadge = updateState.hasUnappliedUpdate ||
+        updateState.phase == AppUpdatePhase.available;
     final isDark = theme.brightness == Brightness.dark;
     final dividerColor = colorScheme.outlineVariant.withValues(
       alpha: isDark ? 0.5 : 0.62,
@@ -332,12 +337,56 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                   sectionIcons[index],
                                   color: colorScheme.primary,
                                 ),
-                                title: Text(
-                                  sectionTitles[index],
-                                  style: theme.textTheme.titleMedium,
+                                title: Row(
+                                  children: [
+                                    Text(
+                                      sectionTitles[index],
+                                      style: theme.textTheme.titleMedium,
+                                    ),
+                                    if (index == 6 && hasUpdateBadge) ...[
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        width: 8,
+                                        height: 8,
+                                        decoration: BoxDecoration(
+                                          color: colorScheme.error,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
-                                trailing: const Icon(
-                                  Icons.chevron_right_rounded,
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (index == 6 && hasUpdateBadge) ...[
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        margin: const EdgeInsets.only(right: 6),
+                                        decoration: BoxDecoration(
+                                          color: colorScheme.errorContainer,
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                        ),
+                                        child: Text(
+                                          'NEW',
+                                          style: theme.textTheme.labelSmall
+                                              ?.copyWith(
+                                            color: colorScheme
+                                                .onErrorContainer,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 9,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                    const Icon(
+                                      Icons.chevron_right_rounded,
+                                    ),
+                                  ],
                                 ),
                                 onTap: () => setState(() => _section = index),
                               ),
@@ -968,119 +1017,269 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           ),
                         if (_section != null) const SizedBox(height: 8),
                         if (_section == 3)
-                          section(
-                            title: l10n.desktopWidgetSettingsTitle,
-                            children: [
-                              _buildWidgetPreview(
-                                context: context,
-                                preferences: preferences,
-                                colorScheme: colorScheme,
-                              ),
-                              const SizedBox(height: 16),
-                              divider(),
-                              const SizedBox(height: 12),
-                              // 1. Artwork Position
-                              settingRow(
-                                title: l10n.widgetCoverPositionTitle,
-                                subtitle: preferences.widgetCoverPosition == 'right'
-                                    ? l10n.widgetCoverPositionRight
-                                    : l10n.widgetCoverPositionLeft,
-                                trailing: SegmentedButton<String>(
-                                  segments: [
-                                    ButtonSegment<String>(
-                                      value: 'left',
-                                      label: Text(l10n.widgetCoverPositionLeft),
-                                      icon: const Icon(Icons.align_horizontal_left_rounded, size: 16),
+                          () {
+                            final activeWidgetConfig =
+                                preferences.getWidgetConfig(_widgetPreviewSize);
+                            return section(
+                              title: l10n.desktopWidgetSettingsTitle,
+                              children: [
+                                _buildWidgetPreview(
+                                  context: context,
+                                  preferences: preferences,
+                                  config: activeWidgetConfig,
+                                  colorScheme: colorScheme,
+                                ),
+                                const SizedBox(height: 12),
+                                Center(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
                                     ),
-                                    ButtonSegment<String>(
-                                      value: 'right',
-                                      label: Text(l10n.widgetCoverPositionRight),
-                                      icon: const Icon(Icons.align_horizontal_right_rounded, size: 16),
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.primary
+                                          .withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
-                                  ],
-                                  selected: {preferences.widgetCoverPosition},
-                                  onSelectionChanged: (set) {
-                                    appSettingsController.setWidgetCoverPosition(set.first);
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.tune_rounded,
+                                          size: 13,
+                                          color: colorScheme.primary,
+                                        ),
+                                        const SizedBox(width: 5),
+                                        Text(
+                                          l10n.widgetIndependentConfigTip,
+                                          style: theme.textTheme.labelSmall
+                                              ?.copyWith(
+                                            color: colorScheme.primary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                divider(),
+                                const SizedBox(height: 12),
+                                // 1. Artwork Position
+                                settingRow(
+                                  title: l10n.widgetCoverPositionTitle,
+                                  subtitle:
+                                      activeWidgetConfig.coverPosition == 'right'
+                                          ? l10n.widgetCoverPositionRight
+                                          : l10n.widgetCoverPositionLeft,
+                                  trailing: SegmentedButton<String>(
+                                    segments: [
+                                      ButtonSegment<String>(
+                                        value: 'left',
+                                        label: Text(
+                                          l10n.widgetCoverPositionLeft,
+                                        ),
+                                        icon: const Icon(
+                                          Icons.align_horizontal_left_rounded,
+                                          size: 16,
+                                        ),
+                                      ),
+                                      ButtonSegment<String>(
+                                        value: 'right',
+                                        label: Text(
+                                          l10n.widgetCoverPositionRight,
+                                        ),
+                                        icon: const Icon(
+                                          Icons.align_horizontal_right_rounded,
+                                          size: 16,
+                                        ),
+                                      ),
+                                    ],
+                                    selected: {
+                                      activeWidgetConfig.coverPosition,
+                                    },
+                                    onSelectionChanged: (set) {
+                                      appSettingsController.updateWidgetConfig(
+                                        _widgetPreviewSize,
+                                        activeWidgetConfig.copyWith(
+                                          coverPosition: set.first,
+                                        ),
+                                      );
+                                    },
+                                    showSelectedIcon: false,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                divider(),
+                                const SizedBox(height: 12),
+                                // 2. Artwork Full Fill
+                                SwitchListTile.adaptive(
+                                  contentPadding: EdgeInsets.zero,
+                                  dense: true,
+                                  visualDensity: const VisualDensity(
+                                    horizontal: -2,
+                                    vertical: -2,
+                                  ),
+                                  title: Text(l10n.widgetCoverFillTitle),
+                                  subtitle: Text(l10n.widgetCoverFillSubtitle),
+                                  value: activeWidgetConfig.coverFill,
+                                  onChanged: (value) {
+                                    appSettingsController.updateWidgetConfig(
+                                      _widgetPreviewSize,
+                                      activeWidgetConfig.copyWith(
+                                        coverFill: value,
+                                      ),
+                                    );
                                   },
-                                  showSelectedIcon: false,
                                 ),
-                              ),
-                              const SizedBox(height: 12),
-                              divider(),
-                              const SizedBox(height: 12),
-                              // 2. Artwork Full Fill
-                              SwitchListTile.adaptive(
-                                contentPadding: EdgeInsets.zero,
-                                dense: true,
-                                visualDensity: const VisualDensity(
-                                  horizontal: -2,
-                                  vertical: -2,
+                                if (activeWidgetConfig.coverFill) ...[
+                                  const SizedBox(height: 12),
+                                  divider(),
+                                  const SizedBox(height: 12),
+                                  // 3. Cover Scrim Darkness/Opacity Slider
+                                  settingRow(
+                                    title: l10n.widgetCoverOpacityTitle,
+                                    subtitle:
+                                        '${(activeWidgetConfig.coverOpacity * 100).round()}%',
+                                    trailing: SizedBox(
+                                      width: 180,
+                                      child: Slider(
+                                        value: activeWidgetConfig.coverOpacity,
+                                        min: 0.0,
+                                        max: 1.0,
+                                        divisions: 20,
+                                        label:
+                                            '${(activeWidgetConfig.coverOpacity * 100).round()}%',
+                                        onChanged: (val) {
+                                          appSettingsController
+                                              .updateWidgetConfig(
+                                            _widgetPreviewSize,
+                                            activeWidgetConfig.copyWith(
+                                              coverOpacity: val,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 12),
+                                divider(),
+                                const SizedBox(height: 12),
+                                // 4. Show Lyrics Switch
+                                SwitchListTile.adaptive(
+                                  contentPadding: EdgeInsets.zero,
+                                  dense: true,
+                                  visualDensity: const VisualDensity(
+                                    horizontal: -2,
+                                    vertical: -2,
+                                  ),
+                                  title: Text(l10n.widgetShowLyricsTitle),
+                                  subtitle: Text(l10n.widgetShowLyricsSubtitle),
+                                  value: activeWidgetConfig.showLyrics,
+                                  onChanged: (value) {
+                                    appSettingsController.updateWidgetConfig(
+                                      _widgetPreviewSize,
+                                      activeWidgetConfig.copyWith(
+                                        showLyrics: value,
+                                      ),
+                                    );
+                                  },
                                 ),
-                                title: Text(l10n.widgetCoverFillTitle),
-                                subtitle: Text(l10n.widgetCoverFillSubtitle),
-                                value: preferences.widgetCoverFill,
-                                onChanged: (value) {
-                                  appSettingsController.setWidgetCoverFill(value);
-                                },
-                              ),
-                              const SizedBox(height: 12),
-                              divider(),
-                              const SizedBox(height: 12),
-                              // 3. Widget Background Color
-                              settingRow(
-                                title: l10n.widgetBackgroundColorTitle,
-                                subtitle: preferences.widgetBackgroundColor,
-                                trailing: SizedBox(
-                                  width: 250,
-                                  child: _ThemeAccentSwatchRow(
-                                    label: '',
-                                    currentHex: preferences.widgetBackgroundColor,
-                                    presets: _widgetBackgroundPresets,
-                                    onPresetSelected: (color) {
-                                      appSettingsController.setWidgetBackgroundColor(_hexFromColor(color));
-                                    },
-                                    onCustomSelected: () async {
-                                      final colorHex = await _showColorPickerDialog(
-                                        context: context,
-                                        currentColor: preferences.widgetBackgroundColor,
-                                      );
-                                      if (colorHex != null && colorHex.isNotEmpty) {
-                                        await appSettingsController.setWidgetBackgroundColor(colorHex);
-                                      }
-                                    },
+                                const SizedBox(height: 12),
+                                divider(),
+                                const SizedBox(height: 12),
+                                // 5. Widget Background Color
+                                settingRow(
+                                  title: l10n.widgetBackgroundColorTitle,
+                                  subtitle:
+                                      activeWidgetConfig.backgroundColor,
+                                  trailing: SizedBox(
+                                    width: 250,
+                                    child: _ThemeAccentSwatchRow(
+                                      label: '',
+                                      currentHex:
+                                          activeWidgetConfig.backgroundColor,
+                                      presets: _widgetBackgroundPresets,
+                                      onPresetSelected: (color) {
+                                        appSettingsController
+                                            .updateWidgetConfig(
+                                          _widgetPreviewSize,
+                                          activeWidgetConfig.copyWith(
+                                            backgroundColor:
+                                                _hexFromColor(color),
+                                          ),
+                                        );
+                                      },
+                                      onCustomSelected: () async {
+                                        final colorHex =
+                                            await _showColorPickerDialog(
+                                          context: context,
+                                          currentColor: activeWidgetConfig
+                                              .backgroundColor,
+                                        );
+                                        if (colorHex != null &&
+                                            colorHex.isNotEmpty) {
+                                          await appSettingsController
+                                              .updateWidgetConfig(
+                                            _widgetPreviewSize,
+                                            activeWidgetConfig.copyWith(
+                                              backgroundColor: colorHex,
+                                            ),
+                                          );
+                                        }
+                                      },
+                                    ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 12),
-                              divider(),
-                              const SizedBox(height: 12),
-                              // 4. Widget Theme/Accent Color
-                              settingRow(
-                                title: l10n.widgetThemeColorTitle,
-                                subtitle: preferences.widgetThemeColor,
-                                trailing: SizedBox(
-                                  width: 250,
-                                  child: _ThemeAccentSwatchRow(
-                                    label: '',
-                                    currentHex: preferences.widgetThemeColor,
-                                    presets: _widgetAccentPresets,
-                                    onPresetSelected: (color) {
-                                      appSettingsController.setWidgetThemeColor(_hexFromColor(color));
-                                    },
-                                    onCustomSelected: () async {
-                                      final colorHex = await _showColorPickerDialog(
-                                        context: context,
-                                        currentColor: preferences.widgetThemeColor,
-                                      );
-                                      if (colorHex != null && colorHex.isNotEmpty) {
-                                        await appSettingsController.setWidgetThemeColor(colorHex);
-                                      }
-                                    },
+                                const SizedBox(height: 12),
+                                divider(),
+                                const SizedBox(height: 12),
+                                // 6. Widget Theme/Accent Color
+                                settingRow(
+                                  title: l10n.widgetThemeColorTitle,
+                                  subtitle: activeWidgetConfig.themeColor,
+                                  trailing: SizedBox(
+                                    width: 250,
+                                    child: _ThemeAccentSwatchRow(
+                                      label: '',
+                                      currentHex:
+                                          activeWidgetConfig.themeColor,
+                                      presets: _widgetAccentPresets,
+                                      onPresetSelected: (color) {
+                                        appSettingsController
+                                            .updateWidgetConfig(
+                                          _widgetPreviewSize,
+                                          activeWidgetConfig.copyWith(
+                                            themeColor:
+                                                _hexFromColor(color),
+                                          ),
+                                        );
+                                      },
+                                      onCustomSelected: () async {
+                                        final colorHex =
+                                            await _showColorPickerDialog(
+                                          context: context,
+                                          currentColor:
+                                              activeWidgetConfig.themeColor,
+                                        );
+                                        if (colorHex != null &&
+                                            colorHex.isNotEmpty) {
+                                          await appSettingsController
+                                              .updateWidgetConfig(
+                                            _widgetPreviewSize,
+                                            activeWidgetConfig.copyWith(
+                                              themeColor: colorHex,
+                                            ),
+                                          );
+                                        }
+                                      },
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
+                              ],
+                            );
+                          }(),
                         if (_section != null) const SizedBox(height: 8),
                         if (_section == 0)
                           section(
@@ -1835,12 +2034,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   static const List<Color> _widgetBackgroundPresets = [
-    Color(0xFF141822),
-    Color(0xFF0A0D14),
-    Color(0xFF1A1C23),
-    Color(0xFF1E1E2E),
-    Color(0xFF0F172A),
-    Color(0xFF24292E),
+    Color(0xFF121620), // 深空黑 Deep Space Black
+    Color(0xFF1E222D), // 曜石碳 Obsidian Dark
+    Color(0xFF10223D), // 午夜深蓝 Midnight Navy
+    Color(0xFF0D2826), // 北欧暗松青 Nordic Pine
+    Color(0xFF2E141E), // 波尔多酒红 Bordeaux Wine
+    Color(0xFF261536), // 暮色紫罗兰 Twilight Violet
+    Color(0xFF291E16), // 琥珀黑咖 Amber Espresso
+    Color(0xFF2C333D), // 雅致石板灰 Slate Gray
   ];
 
   static const List<Color> _widgetAccentPresets = [
@@ -1856,21 +2057,24 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   Widget _buildWidgetPreview({
     required BuildContext context,
     required LibraryPreferences preferences,
+    required WidgetStyleConfig config,
     required ColorScheme colorScheme,
   }) {
     final l10n = AppLocalizations.of(context)!;
     final widgetBg = _colorFromHexOrFallback(
-      preferences.widgetBackgroundColor,
-      const Color(0xFF141822),
+      config.backgroundColor,
+      const Color(0xFF121620),
     );
     final widgetAccent = _colorFromHexOrFallback(
-      preferences.widgetThemeColor,
+      config.themeColor,
       const Color(0xFF58A6FF),
     );
-    final isCoverRight = preferences.widgetCoverPosition == 'right';
-    final isCoverFill = preferences.widgetCoverFill;
+    final isCoverRight = config.coverPosition == 'right';
+    final isCoverFill = config.coverFill;
+    final coverOpacity = config.coverOpacity;
+    final showLyrics = config.showLyrics;
     final isAccentLight = widgetAccent.computeLuminance() > 0.5;
-    final playIconColor = isAccentLight ? const Color(0xFF141822) : Colors.white;
+    final playIconColor = isAccentLight ? const Color(0xFF121620) : Colors.white;
 
     return Container(
       width: double.infinity,
@@ -1952,20 +2156,25 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         ),
                       ),
                     ),
-                    Positioned.fill(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.black.withValues(alpha: 0.6),
-                              Colors.black.withValues(alpha: 0.85),
-                            ],
+                    if (coverOpacity > 0.02)
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.black.withValues(
+                                  alpha: (0.35 * coverOpacity).clamp(0.0, 1.0),
+                                ),
+                                Colors.black.withValues(
+                                  alpha: (0.85 * coverOpacity).clamp(0.0, 1.0),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
                   ],
                   if (_widgetPreviewSize == 0)
                     _buildSmallPreviewContent(
@@ -1973,6 +2182,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       isCoverRight: isCoverRight,
                       widgetAccent: widgetAccent,
                       playIconColor: playIconColor,
+                      showLyrics: showLyrics,
                     )
                   else if (_widgetPreviewSize == 1)
                     _buildMediumPreviewContent(
@@ -1980,6 +2190,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       isCoverRight: isCoverRight,
                       widgetAccent: widgetAccent,
                       playIconColor: playIconColor,
+                      showLyrics: showLyrics,
                     )
                   else
                     _buildLargePreviewContent(
@@ -1987,6 +2198,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       isCoverRight: isCoverRight,
                       widgetAccent: widgetAccent,
                       playIconColor: playIconColor,
+                      showLyrics: showLyrics,
                     ),
                 ],
               ),
@@ -2002,6 +2214,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     required bool isCoverRight,
     required Color widgetAccent,
     required Color playIconColor,
+    required bool showLyrics,
   }) {
     Widget coverTile() => Container(
           width: 48,
@@ -2044,15 +2257,28 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const Text(
-                        '周杰伦',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Color(0xFF8B949E),
-                          fontSize: 10,
+                      if (showLyrics) ...[
+                        Text(
+                          '♪ 亲爱的 爱上你',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: widgetAccent,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
-                      ),
+                      ] else ...[
+                        const Text(
+                          '周杰伦',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Color(0xFF8B949E),
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 2),
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -2122,6 +2348,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     required bool isCoverRight,
     required Color widgetAccent,
     required Color playIconColor,
+    required bool showLyrics,
   }) {
     Widget coverTile() => Container(
           width: 76,
@@ -2191,15 +2418,28 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     ),
                   ],
                 ),
-                const Text(
-                  '周杰伦 · 周杰伦的床边故事',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Color(0xFF8B949E),
-                    fontSize: 10,
+                if (showLyrics) ...[
+                  Text(
+                    '♪ 亲爱的 爱上你 从那天起',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: widgetAccent,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
+                ] else ...[
+                  const Text(
+                    '周杰伦 · 周杰伦的床边故事',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Color(0xFF8B949E),
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 4),
                 Row(
                   children: [
@@ -2280,6 +2520,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     required bool isCoverRight,
     required Color widgetAccent,
     required Color playIconColor,
+    required bool showLyrics,
   }) {
     Widget coverTile() => Container(
           width: 76,
@@ -2427,41 +2668,43 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          Container(height: 1, color: const Color(0xFF202636)),
-          const SizedBox(height: 6),
-          // Lyric Card
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A2232),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF2A354C)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '♪ ACTIVE LYRICS',
-                  style: TextStyle(
-                    color: widgetAccent,
-                    fontSize: 8,
-                    fontWeight: FontWeight.bold,
+          if (showLyrics) ...[
+            const SizedBox(height: 6),
+            Container(height: 1, color: const Color(0xFF202636)),
+            const SizedBox(height: 6),
+            // Lyric Card
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A2232),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF2A354C)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '♪ ACTIVE LYRICS',
+                    style: TextStyle(
+                      color: widgetAccent,
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 1),
-                const Text(
-                  '亲爱的 爱上你 从那天起 甜蜜的很轻易',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Color(0xFFE6EDF3),
-                    fontSize: 10,
+                  const SizedBox(height: 1),
+                  const Text(
+                    '亲爱的 爱上你 从那天起 甜蜜的很轻易',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Color(0xFFE6EDF3),
+                      fontSize: 10,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: 6),
           // Queue Card
           Container(

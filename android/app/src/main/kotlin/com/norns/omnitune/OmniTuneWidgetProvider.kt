@@ -71,6 +71,28 @@ abstract class BaseOmniTuneWidgetProvider : AppWidgetProvider() {
         }
     }
 
+    protected fun getFloatSafe(prefs: SharedPreferences, key: String, default: Float = 0.5f): Float {
+        return try {
+            prefs.getFloat(key, default)
+        } catch (e: ClassCastException) {
+            try {
+                prefs.getString(key, null)?.toFloatOrNull() ?: default
+            } catch (e2: Throwable) {
+                default
+            }
+        } catch (e: Throwable) {
+            default
+        }
+    }
+
+    protected fun getBooleanSafe(prefs: SharedPreferences, key: String, default: Boolean): Boolean {
+        return try {
+            if (prefs.contains(key)) prefs.getBoolean(key, default) else default
+        } catch (e: Throwable) {
+            default
+        }
+    }
+
     protected fun parseColorHex(hex: String?, defaultColor: Int): Int {
         if (hex.isNullOrBlank()) return defaultColor
         return try {
@@ -190,10 +212,14 @@ class OmniTuneWidgetProviderSmall : BaseOmniTuneWidgetProvider() {
         val isPlaying = prefs.getBoolean("widget_is_playing", false)
         val formatBadge = prefs.getString("widget_format", "Hi-Res") ?: "Hi-Res"
         val artworkPath = prefs.getString("widget_artwork_path", null)
-        val coverPos = prefs.getString("widget_cover_pos", "left") ?: "left"
-        val coverFill = prefs.getBoolean("widget_cover_fill", false)
-        val bgColor = parseColorHex(prefs.getString("widget_bg_color", "#141822"), 0xFF141822.toInt())
-        val themeColor = parseColorHex(prefs.getString("widget_theme_color", "#58A6FF"), 0xFF58A6FF.toInt())
+        val lyric = prefs.getString("widget_current_lyric", "") ?: ""
+
+        val coverPos = prefs.getString("widget_small_cover_pos", prefs.getString("widget_cover_pos", "left")) ?: "left"
+        val coverFill = getBooleanSafe(prefs, "widget_small_cover_fill", getBooleanSafe(prefs, "widget_cover_fill", true))
+        val coverOpacity = getFloatSafe(prefs, "widget_small_cover_opacity", getFloatSafe(prefs, "widget_cover_opacity", 0.5f))
+        val bgColor = parseColorHex(prefs.getString("widget_small_bg_color", prefs.getString("widget_bg_color", "#121620")), 0xFF121620.toInt())
+        val themeColor = parseColorHex(prefs.getString("widget_small_theme_color", prefs.getString("widget_theme_color", "#58A6FF")), 0xFF58A6FF.toInt())
+        val showLyrics = getBooleanSafe(prefs, "widget_small_show_lyrics", getBooleanSafe(prefs, "widget_show_lyrics", true))
 
         views.setTextViewText(R.id.widget_small_title, title)
         views.setTextViewText(R.id.widget_small_artist, artist)
@@ -230,12 +256,26 @@ class OmniTuneWidgetProviderSmall : BaseOmniTuneWidgetProvider() {
         }
         views.setImageViewResource(R.id.widget_small_play_pause_icon, playIconRes)
 
+        // Dynamic Lyrics row
+        if (showLyrics && lyric.isNotBlank()) {
+            views.setViewVisibility(R.id.widget_small_lyric, View.VISIBLE)
+            views.setTextViewText(R.id.widget_small_lyric, "♪ $lyric")
+            views.setTextColor(R.id.widget_small_lyric, themeColor)
+        } else {
+            views.setViewVisibility(R.id.widget_small_lyric, View.GONE)
+        }
+
         // Artwork handling: full-bleed fill vs side placement
         val bitmap = loadArtworkBitmap(context, artworkPath, 256, if (coverFill) 20f else 12f)
         if (coverFill && bitmap != null) {
             views.setViewVisibility(R.id.widget_small_bg_cover, View.VISIBLE)
-            views.setViewVisibility(R.id.widget_small_scrim, View.VISIBLE)
             views.setImageViewBitmap(R.id.widget_small_bg_cover, bitmap)
+            if (coverOpacity > 0.02f) {
+                views.setViewVisibility(R.id.widget_small_scrim, View.VISIBLE)
+                views.setFloat(R.id.widget_small_scrim, "setAlpha", coverOpacity.coerceIn(0.0f, 1.0f))
+            } else {
+                views.setViewVisibility(R.id.widget_small_scrim, View.GONE)
+            }
             views.setViewVisibility(R.id.widget_small_artwork_left, View.GONE)
             views.setViewVisibility(R.id.widget_small_artwork_right, View.GONE)
         } else {
@@ -283,12 +323,16 @@ class OmniTuneWidgetProviderMedium : BaseOmniTuneWidgetProvider() {
         val isFavorite = prefs.getBoolean("widget_is_favorite", false)
         val formatBadge = prefs.getString("widget_format", "Hi-Res") ?: "Hi-Res"
         val artworkPath = prefs.getString("widget_artwork_path", null)
-        val coverPos = prefs.getString("widget_cover_pos", "left") ?: "left"
-        val coverFill = prefs.getBoolean("widget_cover_fill", false)
-        val bgColor = parseColorHex(prefs.getString("widget_bg_color", "#141822"), 0xFF141822.toInt())
-        val themeColor = parseColorHex(prefs.getString("widget_theme_color", "#58A6FF"), 0xFF58A6FF.toInt())
+        val lyric = prefs.getString("widget_current_lyric", "") ?: ""
         val positionMs = getLongOrInt(prefs, "widget_position_ms", 0L)
         val durationMs = getLongOrInt(prefs, "widget_duration_ms", 0L)
+
+        val coverPos = prefs.getString("widget_medium_cover_pos", prefs.getString("widget_cover_pos", "left")) ?: "left"
+        val coverFill = getBooleanSafe(prefs, "widget_medium_cover_fill", getBooleanSafe(prefs, "widget_cover_fill", true))
+        val coverOpacity = getFloatSafe(prefs, "widget_medium_cover_opacity", getFloatSafe(prefs, "widget_cover_opacity", 0.5f))
+        val bgColor = parseColorHex(prefs.getString("widget_medium_bg_color", prefs.getString("widget_bg_color", "#121620")), 0xFF121620.toInt())
+        val themeColor = parseColorHex(prefs.getString("widget_medium_theme_color", prefs.getString("widget_theme_color", "#58A6FF")), 0xFF58A6FF.toInt())
+        val showLyrics = getBooleanSafe(prefs, "widget_medium_show_lyrics", getBooleanSafe(prefs, "widget_show_lyrics", true))
 
         views.setTextViewText(R.id.widget_medium_title, title)
         val subtitle = if (album.isNotEmpty()) "$artist · $album" else artist
@@ -341,12 +385,26 @@ class OmniTuneWidgetProviderMedium : BaseOmniTuneWidgetProvider() {
             if (isFavorite) R.drawable.ic_widget_favorite_active else R.drawable.ic_widget_favorite_inactive
         )
 
+        // Dynamic Lyrics row
+        if (showLyrics && lyric.isNotBlank()) {
+            views.setViewVisibility(R.id.widget_medium_lyric, View.VISIBLE)
+            views.setTextViewText(R.id.widget_medium_lyric, "♪ $lyric")
+            views.setTextColor(R.id.widget_medium_lyric, themeColor)
+        } else {
+            views.setViewVisibility(R.id.widget_medium_lyric, View.GONE)
+        }
+
         // Artwork handling: full-bleed fill vs side placement
         val bitmap = loadArtworkBitmap(context, artworkPath, 256, if (coverFill) 20f else 12f)
         if (coverFill && bitmap != null) {
             views.setViewVisibility(R.id.widget_medium_bg_cover, View.VISIBLE)
-            views.setViewVisibility(R.id.widget_medium_scrim, View.VISIBLE)
             views.setImageViewBitmap(R.id.widget_medium_bg_cover, bitmap)
+            if (coverOpacity > 0.02f) {
+                views.setViewVisibility(R.id.widget_medium_scrim, View.VISIBLE)
+                views.setFloat(R.id.widget_medium_scrim, "setAlpha", coverOpacity.coerceIn(0.0f, 1.0f))
+            } else {
+                views.setViewVisibility(R.id.widget_medium_scrim, View.GONE)
+            }
             views.setViewVisibility(R.id.widget_medium_artwork_left, View.GONE)
             views.setViewVisibility(R.id.widget_medium_artwork_right, View.GONE)
         } else {
@@ -394,15 +452,18 @@ class OmniTuneWidgetProviderLarge : BaseOmniTuneWidgetProvider() {
         val isFavorite = prefs.getBoolean("widget_is_favorite", false)
         val formatBadge = prefs.getString("widget_format", "Hi-Res") ?: "Hi-Res"
         val artworkPath = prefs.getString("widget_artwork_path", null)
-        val coverPos = prefs.getString("widget_cover_pos", "left") ?: "left"
-        val coverFill = prefs.getBoolean("widget_cover_fill", false)
         val lyric = prefs.getString("widget_current_lyric", "") ?: ""
         val nextTrack1 = prefs.getString("widget_queue_next1", "") ?: ""
         val nextTrack2 = prefs.getString("widget_queue_next2", "") ?: ""
-        val bgColor = parseColorHex(prefs.getString("widget_bg_color", "#141822"), 0xFF141822.toInt())
-        val themeColor = parseColorHex(prefs.getString("widget_theme_color", "#58A6FF"), 0xFF58A6FF.toInt())
         val positionMs = getLongOrInt(prefs, "widget_position_ms", 0L)
         val durationMs = getLongOrInt(prefs, "widget_duration_ms", 0L)
+
+        val coverPos = prefs.getString("widget_large_cover_pos", prefs.getString("widget_cover_pos", "left")) ?: "left"
+        val coverFill = getBooleanSafe(prefs, "widget_large_cover_fill", getBooleanSafe(prefs, "widget_cover_fill", true))
+        val coverOpacity = getFloatSafe(prefs, "widget_large_cover_opacity", getFloatSafe(prefs, "widget_cover_opacity", 0.5f))
+        val bgColor = parseColorHex(prefs.getString("widget_large_bg_color", prefs.getString("widget_bg_color", "#121620")), 0xFF121620.toInt())
+        val themeColor = parseColorHex(prefs.getString("widget_large_theme_color", prefs.getString("widget_theme_color", "#58A6FF")), 0xFF58A6FF.toInt())
+        val showLyrics = getBooleanSafe(prefs, "widget_large_show_lyrics", getBooleanSafe(prefs, "widget_show_lyrics", true))
 
         views.setTextViewText(R.id.widget_large_title, title)
         views.setTextViewText(R.id.widget_large_artist, artist)
@@ -421,15 +482,21 @@ class OmniTuneWidgetProviderLarge : BaseOmniTuneWidgetProvider() {
         views.setTextViewText(R.id.widget_large_time_position, formatTimeMs(positionMs))
         views.setTextViewText(R.id.widget_large_time_duration, formatTimeMs(durationMs))
 
-        // Bottom Rich Hub: Always fully filled
-        if (lyric.isNotBlank()) {
-            views.setTextViewText(R.id.widget_large_lyric_label, "♪ ACTIVE LYRICS")
-            views.setTextViewText(R.id.widget_large_current_lyric, lyric)
+        // Dynamic Lyrics Card (Card 1)
+        if (showLyrics) {
+            views.setViewVisibility(R.id.widget_large_lyric_card, View.VISIBLE)
+            if (lyric.isNotBlank()) {
+                views.setTextViewText(R.id.widget_large_lyric_label, "♪ ACTIVE LYRICS")
+                views.setTextViewText(R.id.widget_large_current_lyric, lyric)
+            } else {
+                views.setTextViewText(R.id.widget_large_lyric_label, "♪ OMNITUNE STUDIO")
+                views.setTextViewText(R.id.widget_large_current_lyric, "Pure Sound Engine · Master Quality Audio")
+            }
         } else {
-            views.setTextViewText(R.id.widget_large_lyric_label, "♪ OMNITUNE STUDIO")
-            views.setTextViewText(R.id.widget_large_current_lyric, "Pure Sound Engine · Master Quality Audio")
+            views.setViewVisibility(R.id.widget_large_lyric_card, View.GONE)
         }
 
+        // Queue Hub (Card 2)
         if (nextTrack1.isNotBlank()) {
             views.setTextViewText(R.id.widget_large_queue_label, "UP NEXT IN QUEUE")
             views.setTextViewText(R.id.widget_large_queue_next1, "Next: $nextTrack1")
@@ -482,8 +549,13 @@ class OmniTuneWidgetProviderLarge : BaseOmniTuneWidgetProvider() {
         val bitmap = loadArtworkBitmap(context, artworkPath, 256, if (coverFill) 20f else 12f)
         if (coverFill && bitmap != null) {
             views.setViewVisibility(R.id.widget_large_bg_cover, View.VISIBLE)
-            views.setViewVisibility(R.id.widget_large_scrim, View.VISIBLE)
             views.setImageViewBitmap(R.id.widget_large_bg_cover, bitmap)
+            if (coverOpacity > 0.02f) {
+                views.setViewVisibility(R.id.widget_large_scrim, View.VISIBLE)
+                views.setFloat(R.id.widget_large_scrim, "setAlpha", coverOpacity.coerceIn(0.0f, 1.0f))
+            } else {
+                views.setViewVisibility(R.id.widget_large_scrim, View.GONE)
+            }
             views.setViewVisibility(R.id.widget_large_artwork_left, View.GONE)
             views.setViewVisibility(R.id.widget_large_artwork_right, View.GONE)
         } else {

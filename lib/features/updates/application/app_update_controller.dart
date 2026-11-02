@@ -29,6 +29,8 @@ class AppUpdateState {
     this.release,
     this.progress,
     this.failure,
+    this.hasUnappliedUpdate = false,
+    this.isAutomaticCheck = false,
   });
   final AppUpdatePhase phase;
   final String? installedVersion;
@@ -36,6 +38,8 @@ class AppUpdateState {
   final AppUpdateRelease? release;
   final double? progress;
   final AppUpdateFailure? failure;
+  final bool hasUnappliedUpdate;
+  final bool isAutomaticCheck;
   bool get isBusy =>
       phase == AppUpdatePhase.checking || phase == AppUpdatePhase.downloading;
 }
@@ -73,6 +77,8 @@ class AppUpdateController extends StateNotifier<AppUpdateState> {
     AppUpdatePhase phase, {
     double? progress,
     AppUpdateFailure? failure,
+    bool? hasUnappliedUpdate,
+    bool? isAutomaticCheck,
   }) {
     state = AppUpdateState(
       phase: phase,
@@ -81,16 +87,34 @@ class AppUpdateController extends StateNotifier<AppUpdateState> {
       release: state.release,
       progress: progress,
       failure: failure,
+      hasUnappliedUpdate: hasUnappliedUpdate ?? state.hasUnappliedUpdate,
+      isAutomaticCheck: isAutomaticCheck ?? state.isAutomaticCheck,
     );
   }
 
-  Future<void> check() async {
+  void dismissUpdateDialog() {
+    state = AppUpdateState(
+      phase: state.phase,
+      installedVersion: state.installedVersion,
+      installedBuild: state.installedBuild,
+      release: state.release,
+      progress: state.progress,
+      failure: state.failure,
+      hasUnappliedUpdate:
+          state.phase == AppUpdatePhase.available || state.hasUnappliedUpdate,
+      isAutomaticCheck: false,
+    );
+  }
+
+  Future<void> check({bool isAutomatic = false}) async {
     if (state.isBusy) return;
     final operation = ++_operation;
     state = AppUpdateState(
       phase: AppUpdatePhase.checking,
       installedVersion: state.installedVersion,
       installedBuild: state.installedBuild,
+      hasUnappliedUpdate: state.hasUnappliedUpdate,
+      isAutomaticCheck: isAutomatic,
     );
     try {
       final version = await _repository.installedVersion();
@@ -99,9 +123,12 @@ class AppUpdateController extends StateNotifier<AppUpdateState> {
         phase: AppUpdatePhase.checking,
         installedVersion: version.name,
         installedBuild: version.code,
+        hasUnappliedUpdate: state.hasUnappliedUpdate,
+        isAutomaticCheck: isAutomatic,
       );
       final release = await _repository.check(version.code);
       if (!mounted || operation != _operation) return;
+      final hasUpdate = release != null;
       state = AppUpdateState(
         phase: release == null
             ? AppUpdatePhase.upToDate
@@ -109,6 +136,8 @@ class AppUpdateController extends StateNotifier<AppUpdateState> {
         installedVersion: version.name,
         installedBuild: version.code,
         release: release,
+        hasUnappliedUpdate: hasUpdate,
+        isAutomaticCheck: isAutomatic,
       );
     } catch (error) {
       if (!mounted || operation != _operation) return;

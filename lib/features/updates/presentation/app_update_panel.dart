@@ -19,6 +19,22 @@ class _AppUpdatePanelState extends ConsumerState<AppUpdatePanel> {
   static final Uri _repositoryUri = Uri.parse(
     'https://github.com/Naruto9Kurama/OmniTune',
   );
+  static final Uri _websiteUri = Uri.parse(
+    'https://norns.cc.cd',
+  );
+
+  Future<void> _launchWebsiteUrl() async {
+    final launcher = widget.onLaunchUrl;
+    if (launcher != null) {
+      await launcher(_websiteUri);
+      return;
+    }
+    try {
+      await launchUrl(_websiteUri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      // Prevent unhandled exception in environments without launcher.
+    }
+  }
 
   Future<void> _launchRepositoryUrl() async {
     final launcher = widget.onLaunchUrl;
@@ -530,6 +546,58 @@ class _AppUpdatePanelState extends ConsumerState<AppUpdatePanel> {
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: colorScheme.onSurface,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 6,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.language_rounded,
+                  color: colorScheme.onSurfaceVariant,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    l10n.aboutOfficialWebsiteLabel,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Tooltip(
+              message: _websiteUri.toString(),
+              child: OutlinedButton.icon(
+                onPressed: _launchWebsiteUrl,
+                icon: const Icon(Icons.open_in_new_rounded, size: 14),
+                label: const Text('norns.cc.cd'),
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  minimumSize: const Size(0, 32),
+                  side: BorderSide(
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.7),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(
+                      studioRadiusOf(context, 8),
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
