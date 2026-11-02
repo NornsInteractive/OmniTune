@@ -3112,6 +3112,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Slate Gray'**
   String get widgetPresetSlateGray;
+
+  /// No description provided for @localProtocol.
+  ///
+  /// In en, this message translates to:
+  /// **'Local Music'**
+  String get localProtocol;
+
+  /// No description provided for @localSourceTypeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Local Storage'**
+  String get localSourceTypeTitle;
+
+  /// No description provided for @localSourceDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Add local folders on your device as a music source with multi-directory and recursive scan support'**
+  String get localSourceDescription;
+
+  /// No description provided for @localSourceDeckDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Local storage does not require server credentials. Please select or enter the music folders to scan below.'**
+  String get localSourceDeckDescription;
+
+  /// No description provided for @addLocalDirectoryAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse Folder'**
+  String get addLocalDirectoryAction;
+
+  /// No description provided for @addLocalDirectoryManualAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter Folder Path'**
+  String get addLocalDirectoryManualAction;
+
+  /// No description provided for @addLocalDirectoryDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Local Music Folder'**
+  String get addLocalDirectoryDialogTitle;
+
+  /// No description provided for @addLocalDirectoryDialogDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a folder via system file picker, or enter an absolute path on your device below.'**
+  String get addLocalDirectoryDialogDescription;
+
+  /// No description provided for @selectDirectoryAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Folder'**
+  String get selectDirectoryAction;
+
+  /// No description provided for @noDirectoriesSelectedError.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select or add at least one local folder'**
+  String get noDirectoriesSelectedError;
+
+  /// No description provided for @nestedDirectoryError.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder conflicts with existing nested folder: {path}'**
+  String nestedDirectoryError(String path);
+
+  /// No description provided for @duplicateDirectoryError.
+  ///
+  /// In en, this message translates to:
+  /// **'This folder is already added'**
+  String get duplicateDirectoryError;
 }
 
 class _AppLocalizationsDelegate

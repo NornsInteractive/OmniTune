@@ -2030,6 +2030,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       SourceProtocol.ftp => l10n.ftpProtocol,
       SourceProtocol.samba => l10n.sambaProtocol,
       SourceProtocol.cloudDrive => l10n.cloud189Protocol,
+      SourceProtocol.local => l10n.localProtocol,
     };
   }
 
@@ -2141,40 +2142,44 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 children: [
                   if (isCoverFill) ...[
                     Positioned.fill(
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [Color(0xFF2B3A4A), Color(0xFF1E2836)],
+                      child: Image.asset(
+                        'assets/images/default_cover.png',
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Color(0xFF8B5CF6), Color(0xFFEC4899), Color(0xFF3B82F6)],
+                            ),
                           ),
-                        ),
-                        child: Icon(
-                          Icons.album_rounded,
-                          size: 96,
-                          color: Colors.white.withValues(alpha: 0.12),
+                          child: const Icon(
+                            Icons.album_rounded,
+                            size: 96,
+                            color: Colors.white70,
+                          ),
                         ),
                       ),
                     ),
-                    if (coverOpacity > 0.02)
-                      Positioned.fill(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.black.withValues(
-                                  alpha: (0.35 * coverOpacity).clamp(0.0, 1.0),
-                                ),
-                                Colors.black.withValues(
-                                  alpha: (0.85 * coverOpacity).clamp(0.0, 1.0),
-                                ),
-                              ],
-                            ),
+                    Positioned.fill(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withValues(
+                                alpha: (0.10 + 0.70 * coverOpacity).clamp(0.0, 0.95),
+                              ),
+                              Colors.black.withValues(
+                                alpha: (0.30 + 0.68 * coverOpacity).clamp(0.0, 0.98),
+                              ),
+                            ],
                           ),
                         ),
                       ),
+                    ),
                   ],
                   if (_widgetPreviewSize == 0)
                     _buildSmallPreviewContent(

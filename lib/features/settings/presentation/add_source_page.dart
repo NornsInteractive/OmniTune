@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:file_selector/file_selector.dart' as file_selector;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,6 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/models/source_profile.dart';
 import '../../../core/models/source_protocol.dart';
+import '../../../core/utils/path_nesting_validator.dart';
 import '../../../core/widgets/glacier_dialog.dart';
 import '../../../core/widgets/studio_chrome.dart';
 import '../../../core/widgets/top_snackbar.dart';
@@ -840,6 +842,10 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
               onAddScanDirectory: isBusy
                   ? null
                   : () async {
+                      if (_protocol == SourceProtocol.local) {
+                        await _addLocalScanDirectory(l10n);
+                        return;
+                      }
                       final opId = _currentOpId;
                       final result = await _promptDirectoryPath(
                         context,
@@ -850,6 +856,18 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
                           _isClosedOrDisposed ||
                           opId != _currentOpId ||
                           result == null) {
+                        return;
+                      }
+                      final conflict = PathNestingValidator.findConflict(
+                        result,
+                        _scanDirectories,
+                      );
+                      if (conflict != null) {
+                        if (!mounted) return;
+                        showTopSnackBar(
+                          this.context,
+                          l10n.nestedDirectoryError(conflict),
+                        );
                         return;
                       }
                       setState(() {
@@ -867,12 +885,20 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
                   ? null
                   : () async {
                       final opId = _currentOpId;
-                      final result = await _promptDirectoryPath(
-                        context,
-                        title: l10n.addExcludedScanDirectoryDialogTitle,
-                        description:
-                            l10n.excludedScanDirectoriesDialogDescription,
-                      );
+                      if (!mounted) return;
+                      final result = _protocol == SourceProtocol.local
+                          ? await _promptLocalDirectoryPath(
+                              this.context,
+                              title: l10n.addExcludedScanDirectoryDialogTitle,
+                              description:
+                                  l10n.excludedScanDirectoriesDialogDescription,
+                            )
+                          : await _promptDirectoryPath(
+                              this.context,
+                              title: l10n.addExcludedScanDirectoryDialogTitle,
+                              description:
+                                  l10n.excludedScanDirectoriesDialogDescription,
+                            );
                       if (!mounted ||
                           _isClosedOrDisposed ||
                           opId != _currentOpId ||
@@ -1098,6 +1124,13 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
   }
 
   void _appendDirectory(List<String> directories, String value) {
+    if (_protocol == SourceProtocol.local) {
+      final normalized = PathNestingValidator.normalize(value);
+      if (normalized.isNotEmpty && !directories.contains(normalized)) {
+        directories.add(normalized);
+      }
+      return;
+    }
     var normalized = value.trim();
     if (!normalized.startsWith('/')) {
       normalized = '/$normalized';
@@ -1108,6 +1141,129 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
 
     if (!directories.contains(normalized)) {
       directories.add(normalized);
+    }
+  }
+
+  Future<void> _addLocalScanDirectory(
+    AppLocalizations l10n,
+  ) async {
+    final opId = _currentOpId;
+    final result = await _promptLocalDirectoryPath(
+      context,
+      title: l10n.addLocalDirectoryDialogTitle,
+      description: l10n.addLocalDirectoryDialogDescription,
+    );
+    if (!mounted ||
+        _isClosedOrDisposed ||
+        opId != _currentOpId ||
+        result == null) {
+      return;
+    }
+    final normalized = PathNestingValidator.normalize(result);
+    if (normalized.isEmpty) return;
+
+    final conflict = PathNestingValidator.findConflict(
+      normalized,
+      _scanDirectories,
+    );
+    if (conflict != null) {
+      if (!mounted) return;
+      showTopSnackBar(context, l10n.nestedDirectoryError(conflict));
+      return;
+    }
+    setState(() {
+      _appendDirectory(_scanDirectories, normalized);
+    });
+  }
+
+  Future<String?> _promptLocalDirectoryPath(
+    BuildContext context, {
+    required String title,
+    required String description,
+  }) async {
+    if (!mounted || _isClosedOrDisposed) return null;
+    final l10n = AppLocalizations.of(context)!;
+    final materialL10n = MaterialLocalizations.of(context);
+    final controller = TextEditingController(
+      text: _scanDirectories.isNotEmpty
+          ? _scanDirectories.last
+          : (defaultTargetPlatform == TargetPlatform.android
+              ? '/storage/emulated/0/Music'
+              : ''),
+    );
+
+    try {
+      final result = await _showOwnedDialog<String>(
+        context: context,
+        builder: (dialogContext) {
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              return GlacierDialog(
+                title: Text(title),
+                content: SizedBox(
+                  width: 440,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(description),
+                      const SizedBox(height: 16),
+                      if (!kIsWeb) ...[
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            try {
+                              final selected =
+                                  await file_selector.getDirectoryPath(
+                                confirmButtonText: l10n.selectDirectoryAction,
+                              );
+                              if (selected != null &&
+                                  selected.trim().isNotEmpty) {
+                                controller.text = selected.trim();
+                                setDialogState(() {});
+                              }
+                            } catch (_) {}
+                          },
+                          icon: const Icon(Icons.folder_open_rounded),
+                          label: Text(l10n.addLocalDirectoryAction),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      TextField(
+                        controller: controller,
+                        autofocus: kIsWeb,
+                        decoration: InputDecoration(
+                          labelText: l10n.directoryPathLabel,
+                          hintText: l10n.directoryPathHint,
+                          helperText: l10n.directoryPathHelpText,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    child: Text(materialL10n.cancelButtonLabel),
+                  ),
+                  FilledButton(
+                    onPressed: () {
+                      final trimmed = controller.text.trim();
+                      if (trimmed.isEmpty) {
+                        return;
+                      }
+                      Navigator.of(dialogContext).pop(trimmed);
+                    },
+                    child: Text(materialL10n.okButtonLabel),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+      return result;
+    } finally {
+      controller.dispose();
     }
   }
 
@@ -1415,6 +1571,17 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
     );
   }
 
+  LocalSourceDraft _createLocalDraft(AppLocalizations l10n) {
+    return LocalSourceDraft(
+      sourceId: widget.sourceId ?? _draftSourceId,
+      name: _nameController.text.trim().isEmpty
+          ? _defaultSourceName(l10n, SourceProtocol.local)
+          : _nameController.text.trim(),
+      scanDirectories: List<String>.from(_scanDirectories),
+      excludedScanDirectories: List<String>.from(_excludedScanDirectories),
+    );
+  }
+
   Widget _buildFooterButtons(
     AppLocalizations l10n,
     AddSourceController controller,
@@ -1466,6 +1633,14 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
                         _createCloud189Draft(),
                         captchaResolver: _promptCloud189Captcha,
                       );
+                    } else if (_protocol == SourceProtocol.local) {
+                      if (_scanDirectories.isEmpty) {
+                        showTopSnackBar(context, l10n.noDirectoriesSelectedError);
+                        return;
+                      }
+                      await controller.testLocalConnection(
+                        _createLocalDraft(l10n),
+                      );
                     } else {
                       await controller.testConnection(_createWebDavDraft());
                     }
@@ -1493,6 +1668,11 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
                   if (!_formKey.currentState!.validate()) {
                     return;
                   }
+                  if (_protocol == SourceProtocol.local &&
+                      _scanDirectories.isEmpty) {
+                    showTopSnackBar(context, l10n.noDirectoriesSelectedError);
+                    return;
+                  }
                   final opId = ++_currentOpId;
                   try {
                     final isNewSource = !isEditing;
@@ -1501,9 +1681,13 @@ class _AddSourcePageState extends ConsumerState<AddSourcePage> {
                             _createCloud189Draft(),
                             captchaResolver: _promptCloud189Captcha,
                           )
-                        : await controller.saveWebDavSource(
-                            _createWebDavDraft(),
-                          );
+                        : _protocol == SourceProtocol.local
+                            ? await controller.saveLocalSource(
+                                _createLocalDraft(l10n),
+                              )
+                            : await controller.saveWebDavSource(
+                                _createWebDavDraft(),
+                              );
                     if (!mounted ||
                         _isClosedOrDisposed ||
                         opId != _currentOpId) {
@@ -1658,6 +1842,7 @@ class _ConnectionFormDeck extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
     final isCloud189 = protocol == SourceProtocol.cloudDrive;
+    final isLocal = protocol == SourceProtocol.local;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1673,7 +1858,36 @@ class _ConnectionFormDeck extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        if (isCloud189) ...[
+        if (isLocal) ...[
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.folder_special_rounded,
+                  color: colorScheme.primary,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    l10n.localSourceDeckDescription,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ] else if (isCloud189) ...[
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
@@ -1915,28 +2129,30 @@ class _ConnectionFormDeck extends StatelessWidget {
             ),
           ),
         ],
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: rootPathController,
-          enabled: enabled,
-          textInputAction: TextInputAction.done,
-          decoration: InputDecoration(
-            labelText: l10n.rootPathLabel,
-            hintText: isCloud189
-                ? l10n.cloud189RootPathHint
-                : _rootPathHint(l10n, protocol),
-            helperText: isCloud189
-                ? l10n.cloud189RootPathHelpText
-                : _rootPathHelpText(l10n, protocol),
+        if (!isLocal) ...[
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: rootPathController,
+            enabled: enabled,
+            textInputAction: TextInputAction.done,
+            decoration: InputDecoration(
+              labelText: l10n.rootPathLabel,
+              hintText: isCloud189
+                  ? l10n.cloud189RootPathHint
+                  : _rootPathHint(l10n, protocol),
+              helperText: isCloud189
+                  ? l10n.cloud189RootPathHelpText
+                  : _rootPathHelpText(l10n, protocol),
+            ),
+            validator: (value) {
+              final trimmed = value?.trim() ?? '';
+              if (trimmed.isEmpty) {
+                return l10n.requiredFieldError;
+              }
+              return null;
+            },
           ),
-          validator: (value) {
-            final trimmed = value?.trim() ?? '';
-            if (trimmed.isEmpty) {
-              return l10n.requiredFieldError;
-            }
-            return null;
-          },
-        ),
+        ],
       ],
     );
   }
@@ -2175,6 +2391,7 @@ String _sourceTypeTitle(AppLocalizations l10n, SourceProtocol protocol) {
     SourceProtocol.ftp => l10n.ftpSourceTypeTitle,
     SourceProtocol.samba => l10n.sambaSourceTypeTitle,
     SourceProtocol.cloudDrive => l10n.cloud189SourceTypeTitle,
+    SourceProtocol.local => l10n.localSourceTypeTitle,
   };
 }
 
@@ -2185,6 +2402,7 @@ String _sourceTypeDescription(AppLocalizations l10n, SourceProtocol protocol) {
     SourceProtocol.ftp => l10n.ftpSourceDescription,
     SourceProtocol.samba => l10n.sambaSourceDescription,
     SourceProtocol.cloudDrive => l10n.cloud189SourceDescription,
+    SourceProtocol.local => l10n.localSourceDescription,
   };
 }
 
@@ -2195,6 +2413,7 @@ String _defaultSourceName(AppLocalizations l10n, SourceProtocol protocol) {
     SourceProtocol.ftp => l10n.ftpProtocol,
     SourceProtocol.samba => l10n.sambaProtocol,
     SourceProtocol.cloudDrive => l10n.cloud189DefaultSourceName,
+    SourceProtocol.local => l10n.localProtocol,
   };
 }
 
@@ -2205,6 +2424,7 @@ String _serverUrlHint(AppLocalizations l10n, SourceProtocol protocol) {
     SourceProtocol.ftp => l10n.ftpServerUrlHint,
     SourceProtocol.samba => l10n.sambaServerUrlHint,
     SourceProtocol.cloudDrive => l10n.serverUrlHint,
+    SourceProtocol.local => '',
   };
 }
 
@@ -2240,6 +2460,7 @@ IconData _protocolIcon(SourceProtocol protocol) {
     SourceProtocol.ftp => Icons.swap_vert_circle_rounded,
     SourceProtocol.samba => Icons.lan_rounded,
     SourceProtocol.cloudDrive => Icons.cloud_queue_rounded,
+    SourceProtocol.local => Icons.folder_special_rounded,
   };
 }
 

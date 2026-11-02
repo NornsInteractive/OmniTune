@@ -16,6 +16,44 @@ import '../../sources/domain/music_source.dart';
 
 part 'add_source_controller.g.dart';
 
+class LocalSourceDraft {
+  const LocalSourceDraft({
+    this.sourceId,
+    required this.name,
+    this.scanDirectories = const [],
+    this.excludedScanDirectories = const [],
+  });
+
+  final String? sourceId;
+  final String name;
+  final List<String> scanDirectories;
+  final List<String> excludedScanDirectories;
+
+  factory LocalSourceDraft.fromProfile(SourceProfile profile) {
+    return LocalSourceDraft(
+      sourceId: profile.id,
+      name: profile.name,
+      scanDirectories: profile.scanDirectories,
+      excludedScanDirectories: profile.excludedScanDirectories,
+    );
+  }
+
+  SourceProfile toProfile() {
+    final firstDir = scanDirectories.isNotEmpty ? scanDirectories.first : '/';
+    return SourceProfile(
+      id: sourceId ?? 'local_${DateTime.now().microsecondsSinceEpoch}',
+      name: name.trim().isEmpty ? '本地音乐' : name.trim(),
+      protocol: SourceProtocol.local,
+      baseUrl: 'file://',
+      username: '',
+      password: '',
+      rootPath: firstDir,
+      scanDirectories: scanDirectories,
+      excludedScanDirectories: excludedScanDirectories,
+    );
+  }
+}
+
 class WebDavSourceDraft {
   const WebDavSourceDraft({
     this.sourceId,
@@ -218,7 +256,15 @@ class AddSourceController extends _$AddSourceController {
     return _testProfile(draft.toProfile());
   }
 
+  Future<void> testLocalConnection(LocalSourceDraft draft) {
+    return _testProfile(draft.toProfile());
+  }
+
   Future<SourceProfile> saveWebDavSource(WebDavSourceDraft draft) {
+    return _saveProfile(draft.toProfile());
+  }
+
+  Future<SourceProfile> saveLocalSource(LocalSourceDraft draft) {
     return _saveProfile(draft.toProfile());
   }
 

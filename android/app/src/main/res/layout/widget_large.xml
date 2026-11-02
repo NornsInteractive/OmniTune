@@ -23,11 +23,12 @@
         android:visibility="gone" />
 
     <!-- 3. Dark Gradient Scrim Overlay -->
-    <FrameLayout
+    <ImageView
         android:id="@+id/widget_large_scrim"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@drawable/widget_scrim_overlay"
+        android:src="@drawable/widget_scrim_overlay"
+        android:scaleType="fitXY"
         android:visibility="gone" />
 
     <!-- 4. Foreground Content Container -->

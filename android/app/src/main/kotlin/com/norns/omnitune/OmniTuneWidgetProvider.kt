@@ -23,6 +23,7 @@ import android.view.View
 import android.widget.RemoteViews
 import es.antonborri.home_widget.HomeWidgetPlugin
 import java.io.File
+import kotlin.math.roundToInt
 
 abstract class BaseOmniTuneWidgetProvider : AppWidgetProvider() {
 
@@ -73,13 +74,29 @@ abstract class BaseOmniTuneWidgetProvider : AppWidgetProvider() {
 
     protected fun getFloatSafe(prefs: SharedPreferences, key: String, default: Float = 0.5f): Float {
         return try {
-            prefs.getFloat(key, default)
-        } catch (e: ClassCastException) {
-            try {
-                prefs.getString(key, null)?.toFloatOrNull() ?: default
-            } catch (e2: Throwable) {
-                default
+            val all = prefs.all
+            val value = all[key]
+            if (value != null) {
+                when (value) {
+                    is Float -> return value
+                    is Double -> return value.toFloat()
+                    is Long -> {
+                        return if (prefs.getBoolean("home_widget.double.$key", false)) {
+                            java.lang.Double.longBitsToDouble(value).toFloat()
+                        } else {
+                            value.toFloat()
+                        }
+                    }
+                    is Int -> return value.toFloat()
+                    is String -> return value.toFloatOrNull() ?: default
+                }
             }
+            val pctKey = "${key}_pct"
+            val pctValue = all[pctKey]
+            if (pctValue is Number) {
+                return (pctValue.toFloat() / 100.0f).coerceIn(0.0f, 1.0f)
+            }
+            default
         } catch (e: Throwable) {
             default
         }
@@ -270,8 +287,10 @@ class OmniTuneWidgetProviderSmall : BaseOmniTuneWidgetProvider() {
         if (coverFill && bitmap != null) {
             views.setViewVisibility(R.id.widget_small_bg_cover, View.VISIBLE)
             views.setImageViewBitmap(R.id.widget_small_bg_cover, bitmap)
-            if (coverOpacity > 0.02f) {
+            if (coverOpacity > 0.01f) {
                 views.setViewVisibility(R.id.widget_small_scrim, View.VISIBLE)
+                val alphaInt = (coverOpacity.coerceIn(0.0f, 1.0f) * 255f).roundToInt().coerceIn(0, 255)
+                views.setInt(R.id.widget_small_scrim, "setImageAlpha", alphaInt)
                 views.setFloat(R.id.widget_small_scrim, "setAlpha", coverOpacity.coerceIn(0.0f, 1.0f))
             } else {
                 views.setViewVisibility(R.id.widget_small_scrim, View.GONE)
@@ -399,8 +418,10 @@ class OmniTuneWidgetProviderMedium : BaseOmniTuneWidgetProvider() {
         if (coverFill && bitmap != null) {
             views.setViewVisibility(R.id.widget_medium_bg_cover, View.VISIBLE)
             views.setImageViewBitmap(R.id.widget_medium_bg_cover, bitmap)
-            if (coverOpacity > 0.02f) {
+            if (coverOpacity > 0.01f) {
                 views.setViewVisibility(R.id.widget_medium_scrim, View.VISIBLE)
+                val alphaInt = (coverOpacity.coerceIn(0.0f, 1.0f) * 255f).roundToInt().coerceIn(0, 255)
+                views.setInt(R.id.widget_medium_scrim, "setImageAlpha", alphaInt)
                 views.setFloat(R.id.widget_medium_scrim, "setAlpha", coverOpacity.coerceIn(0.0f, 1.0f))
             } else {
                 views.setViewVisibility(R.id.widget_medium_scrim, View.GONE)
@@ -550,8 +571,10 @@ class OmniTuneWidgetProviderLarge : BaseOmniTuneWidgetProvider() {
         if (coverFill && bitmap != null) {
             views.setViewVisibility(R.id.widget_large_bg_cover, View.VISIBLE)
             views.setImageViewBitmap(R.id.widget_large_bg_cover, bitmap)
-            if (coverOpacity > 0.02f) {
+            if (coverOpacity > 0.01f) {
                 views.setViewVisibility(R.id.widget_large_scrim, View.VISIBLE)
+                val alphaInt = (coverOpacity.coerceIn(0.0f, 1.0f) * 255f).roundToInt().coerceIn(0, 255)
+                views.setInt(R.id.widget_large_scrim, "setImageAlpha", alphaInt)
                 views.setFloat(R.id.widget_large_scrim, "setAlpha", coverOpacity.coerceIn(0.0f, 1.0f))
             } else {
                 views.setViewVisibility(R.id.widget_large_scrim, View.GONE)

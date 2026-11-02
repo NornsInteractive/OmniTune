@@ -1691,4 +1691,46 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get widgetPresetSlateGray => 'Slate Gray';
+
+  @override
+  String get localProtocol => 'Local Music';
+
+  @override
+  String get localSourceTypeTitle => 'Local Storage';
+
+  @override
+  String get localSourceDescription =>
+      'Add local folders on your device as a music source with multi-directory and recursive scan support';
+
+  @override
+  String get localSourceDeckDescription =>
+      'Local storage does not require server credentials. Please select or enter the music folders to scan below.';
+
+  @override
+  String get addLocalDirectoryAction => 'Browse Folder';
+
+  @override
+  String get addLocalDirectoryManualAction => 'Enter Folder Path';
+
+  @override
+  String get addLocalDirectoryDialogTitle => 'Add Local Music Folder';
+
+  @override
+  String get addLocalDirectoryDialogDescription =>
+      'Select a folder via system file picker, or enter an absolute path on your device below.';
+
+  @override
+  String get selectDirectoryAction => 'Select Folder';
+
+  @override
+  String get noDirectoriesSelectedError =>
+      'Please select or add at least one local folder';
+
+  @override
+  String nestedDirectoryError(String path) {
+    return 'Folder conflicts with existing nested folder: $path';
+  }
+
+  @override
+  String get duplicateDirectoryError => 'This folder is already added';
 }

@@ -1370,11 +1370,12 @@ class LibraryCatalogController extends _$LibraryCatalogController {
   }
 
   String _normalizeDirectoryPath(String path) {
-    var normalized = path.trim();
+    var normalized = path.trim().replaceAll(r'\', '/');
     if (normalized.isEmpty) {
       return '/';
     }
-    if (!normalized.startsWith('/')) {
+    final isWindowsDrive = RegExp(r'^[a-zA-Z]:').hasMatch(normalized);
+    if (!normalized.startsWith('/') && !isWindowsDrive) {
       normalized = '/$normalized';
     }
     if (!normalized.endsWith('/')) {
@@ -1409,16 +1410,21 @@ class LibraryCatalogController extends _$LibraryCatalogController {
   }
 
   bool _isExcludedPath(String path, List<String> excludedDirectories) {
-    var normalized = path.trim();
+    var normalized = path.trim().replaceAll(r'\', '/');
     if (normalized.isEmpty) {
       return false;
     }
-    if (!normalized.startsWith('/')) {
+    final isWindowsDrive = RegExp(r'^[a-zA-Z]:').hasMatch(normalized);
+    if (!normalized.startsWith('/') && !isWindowsDrive) {
       normalized = '/$normalized';
     }
 
+    final lower = normalized.toLowerCase();
     for (final directory in excludedDirectories) {
-      if (normalized == directory || normalized.startsWith(directory)) {
+      final dirNorm = directory.trim().replaceAll(r'\', '/');
+      final dirLower = dirNorm.toLowerCase();
+      final prefix = dirLower.endsWith('/') ? dirLower : '$dirLower/';
+      if (lower == dirLower || lower.startsWith(prefix)) {
         return true;
       }
     }

@@ -1613,4 +1613,43 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get widgetPresetSlateGray => '雅致石板灰';
+
+  @override
+  String get localProtocol => '本地音乐';
+
+  @override
+  String get localSourceTypeTitle => '本地存储音源';
+
+  @override
+  String get localSourceDescription => '添加本机或外接存储的音乐目录，支持多选目录与递归子目录扫描';
+
+  @override
+  String get localSourceDeckDescription =>
+      '本地音源无需配置服务器地址与密码。请在下方选择或输入需要扫描的音乐文件夹。';
+
+  @override
+  String get addLocalDirectoryAction => '选择本地目录';
+
+  @override
+  String get addLocalDirectoryManualAction => '输入目录路径';
+
+  @override
+  String get addLocalDirectoryDialogTitle => '添加本地音乐目录';
+
+  @override
+  String get addLocalDirectoryDialogDescription => '点击选择系统文件夹，或在下方输入设备中的绝对路径。';
+
+  @override
+  String get selectDirectoryAction => '选择文件夹';
+
+  @override
+  String get noDirectoriesSelectedError => '请至少选择或添加一个本地目录';
+
+  @override
+  String nestedDirectoryError(String path) {
+    return '所选目录与已有目录存在嵌套冲突：$path';
+  }
+
+  @override
+  String get duplicateDirectoryError => '该目录已存在';
 }

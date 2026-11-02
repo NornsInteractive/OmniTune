@@ -680,5 +680,24 @@
   "widgetPresetWineRed": "Bordeaux Wine",
   "widgetPresetTwilightViolet": "Twilight Violet",
   "widgetPresetEspresso": "Amber Espresso",
-  "widgetPresetSlateGray": "Slate Gray"
+  "widgetPresetSlateGray": "Slate Gray",
+  "localProtocol": "Local Music",
+  "localSourceTypeTitle": "Local Storage",
+  "localSourceDescription": "Add local folders on your device as a music source with multi-directory and recursive scan support",
+  "localSourceDeckDescription": "Local storage does not require server credentials. Please select or enter the music folders to scan below.",
+  "addLocalDirectoryAction": "Browse Folder",
+  "addLocalDirectoryManualAction": "Enter Folder Path",
+  "addLocalDirectoryDialogTitle": "Add Local Music Folder",
+  "addLocalDirectoryDialogDescription": "Select a folder via system file picker, or enter an absolute path on your device below.",
+  "selectDirectoryAction": "Select Folder",
+  "noDirectoriesSelectedError": "Please select or add at least one local folder",
+  "nestedDirectoryError": "Folder conflicts with existing nested folder: {path}",
+  "@nestedDirectoryError": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "duplicateDirectoryError": "This folder is already added"
 }

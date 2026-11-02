@@ -158,6 +158,7 @@ class WidgetSyncService {
       await HomeWidget.saveWidgetData<String>('widget_small_cover_pos', small.coverPosition);
       await HomeWidget.saveWidgetData<bool>('widget_small_cover_fill', small.coverFill);
       await HomeWidget.saveWidgetData<double>('widget_small_cover_opacity', small.coverOpacity);
+      await HomeWidget.saveWidgetData<int>('widget_small_cover_opacity_pct', (small.coverOpacity * 100).round());
       await HomeWidget.saveWidgetData<String>('widget_small_theme_color', small.themeColor);
       await HomeWidget.saveWidgetData<String>('widget_small_bg_color', small.backgroundColor);
       await HomeWidget.saveWidgetData<bool>('widget_small_show_lyrics', small.showLyrics);
@@ -166,6 +167,7 @@ class WidgetSyncService {
       await HomeWidget.saveWidgetData<String>('widget_medium_cover_pos', medium.coverPosition);
       await HomeWidget.saveWidgetData<bool>('widget_medium_cover_fill', medium.coverFill);
       await HomeWidget.saveWidgetData<double>('widget_medium_cover_opacity', medium.coverOpacity);
+      await HomeWidget.saveWidgetData<int>('widget_medium_cover_opacity_pct', (medium.coverOpacity * 100).round());
       await HomeWidget.saveWidgetData<String>('widget_medium_theme_color', medium.themeColor);
       await HomeWidget.saveWidgetData<String>('widget_medium_bg_color', medium.backgroundColor);
       await HomeWidget.saveWidgetData<bool>('widget_medium_show_lyrics', medium.showLyrics);
@@ -174,6 +176,7 @@ class WidgetSyncService {
       await HomeWidget.saveWidgetData<String>('widget_large_cover_pos', large.coverPosition);
       await HomeWidget.saveWidgetData<bool>('widget_large_cover_fill', large.coverFill);
       await HomeWidget.saveWidgetData<double>('widget_large_cover_opacity', large.coverOpacity);
+      await HomeWidget.saveWidgetData<int>('widget_large_cover_opacity_pct', (large.coverOpacity * 100).round());
       await HomeWidget.saveWidgetData<String>('widget_large_theme_color', large.themeColor);
       await HomeWidget.saveWidgetData<String>('widget_large_bg_color', large.backgroundColor);
       await HomeWidget.saveWidgetData<bool>('widget_large_show_lyrics', large.showLyrics);
@@ -182,6 +185,7 @@ class WidgetSyncService {
       await HomeWidget.saveWidgetData<String>('widget_cover_pos', medium.coverPosition);
       await HomeWidget.saveWidgetData<bool>('widget_cover_fill', medium.coverFill);
       await HomeWidget.saveWidgetData<double>('widget_cover_opacity', medium.coverOpacity);
+      await HomeWidget.saveWidgetData<int>('widget_cover_opacity_pct', (medium.coverOpacity * 100).round());
       await HomeWidget.saveWidgetData<String>('widget_theme_color', medium.themeColor);
       await HomeWidget.saveWidgetData<String>('widget_bg_color', medium.backgroundColor);
       await HomeWidget.saveWidgetData<bool>('widget_show_lyrics', medium.showLyrics);

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-enum SourceProtocol { webdav, sftp, ftp, samba, cloudDrive }
+enum SourceProtocol { webdav, sftp, ftp, samba, cloudDrive, local }
 
 extension SourceProtocolX on SourceProtocol {
   String get storageValue => switch (this) {
@@ -9,12 +9,16 @@ extension SourceProtocolX on SourceProtocol {
     SourceProtocol.ftp => 'ftp',
     SourceProtocol.samba => 'samba',
     SourceProtocol.cloudDrive => 'cloudDrive',
+    SourceProtocol.local => 'local',
   };
 
   bool get isImplemented => true;
 
   bool get isSupportedOnCurrentPlatform => switch (this) {
-    SourceProtocol.sftp || SourceProtocol.ftp || SourceProtocol.samba => !kIsWeb,
+    SourceProtocol.sftp ||
+    SourceProtocol.ftp ||
+    SourceProtocol.samba ||
+    SourceProtocol.local => !kIsWeb,
     SourceProtocol.webdav || SourceProtocol.cloudDrive => true,
   };
 
@@ -24,6 +28,7 @@ extension SourceProtocolX on SourceProtocol {
     SourceProtocol.ftp => 'FTP',
     SourceProtocol.samba => 'Samba',
     SourceProtocol.cloudDrive => 'Cloud drive',
+    SourceProtocol.local => 'Local Storage',
   };
 
   static SourceProtocol fromStorageValue(String value) {

@@ -1,4 +1,5 @@
 import 'source_protocol.dart';
+import '../utils/path_nesting_validator.dart';
 
 class SourceProfile {
   const SourceProfile({
@@ -93,14 +94,23 @@ class SourceProfile {
       return [effectiveRootPath];
     }
 
+    if (protocol == SourceProtocol.local) {
+      return _deduplicateDirectories(configuredDirectories);
+    }
+
     return _deduplicateDirectories(
       configuredDirectories.map(resolveRelativePathFromRoot).toList(),
     );
   }
 
-  List<String> get effectiveExcludedScanDirectories => _deduplicateDirectories(
-    normalizedExcludedScanDirectories.map(resolveRelativePathFromRoot).toList(),
-  );
+  List<String> get effectiveExcludedScanDirectories {
+    if (protocol == SourceProtocol.local) {
+      return _deduplicateDirectories(normalizedExcludedScanDirectories);
+    }
+    return _deduplicateDirectories(
+      normalizedExcludedScanDirectories.map(resolveRelativePathFromRoot).toList(),
+    );
+  }
 
   String resolveRelativePathFromRoot(String path) {
     final normalizedRelativePath = _normalizeConfiguredDirectory(path);
@@ -240,6 +250,16 @@ class SourceProfile {
   }
 
   List<String> _normalizeConfiguredDirectories(List<String> directories) {
+    if (protocol == SourceProtocol.local) {
+      final normalized = <String>[];
+      for (final item in directories) {
+        final p = PathNestingValidator.normalize(item);
+        if (p.isNotEmpty && !normalized.contains(p)) {
+          normalized.add(p);
+        }
+      }
+      return normalized;
+    }
     return _normalizeDirectories(
       directories.map((item) => _trimRootPrefix(item)).toList(),
     );
