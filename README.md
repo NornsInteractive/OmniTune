@@ -42,8 +42,10 @@ dart analyze
 
 APK 脚本会自动增加版本号，生成 release APK 和 AAB；首次构建生成上传签名文件，后续必须保留同一份签名。
 
-## 文档
+## 文档与协议
 
+- [开源许可 (License)](LICENSE)：本项目采用 [PolyForm Noncommercial License 1.0.0](LICENSE) 非商用开源协议。
+- [隐私政策 (Privacy Policy)](PRIVACY.md)：中英文双语隐私保护指引与权限说明。
 - [开发规则](AGENTS.md)：UI 全部由 Antigravity 使用固定 OmniTune 会话实现。
 - [开发与架构](docs/DEVELOPMENT.md)：模块、生成代码、测试与平台边界。
 - [项目进度与路线图](docs/PROJECT_PROGRESS.md)：会话 ID、待办和验证结果。
