@@ -15,7 +15,7 @@ Web 的 SFTP/FTP/Samba 不可用；天翼直连受服务端跨域策略影响。
 
 ## 下载与运行
 
-安装包位于 [GitHub Releases](https://github.com/Naruto9Kurama/OmniTune/releases)。Android 提供签名 APK 和 AAB；Linux 提供 x86_64 压缩包。
+安装包位于 [GitHub Releases](https://github.com/NornsInteractive/OmniTune/releases)。Android 提供签名 APK 和 AAB；Linux 提供 x86_64 压缩包。
 
 Linux 包基于 Debian 12 构建，需要 glibc 2.36 或更新版本，以及 GTK 3、libsecret、libjsoncpp 和 libmpv。Debian 12 / Ubuntu 24.04 可安装运行依赖：
 

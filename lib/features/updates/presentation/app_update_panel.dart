@@ -17,7 +17,7 @@ class AppUpdatePanel extends ConsumerStatefulWidget {
 
 class _AppUpdatePanelState extends ConsumerState<AppUpdatePanel> {
   static final Uri _repositoryUri = Uri.parse(
-    'https://github.com/Naruto9Kurama/OmniTune',
+    'https://github.com/NornsInteractive/OmniTune',
   );
   static final Uri _websiteUri = Uri.parse(
     'https://norns.cc.cd',
